@@ -55,7 +55,7 @@ class ClientExpectationRead(BaseModel):
     project_id: UUID
     expectation_text: str
     expectation_type: str
-    explicitness: Literal["explicit", "implicit"]
+    explicitness: Literal["explicit", "implicit", "unknown"]
     criticality: str
     how_to_check: str | None
     created_at: datetime

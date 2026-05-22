@@ -84,3 +84,45 @@ status service
 ------ -------
 ok     open-project-risk-api
 ```
+
+## CJM MVP manual import
+
+The manual intake layer generates a Russian Excel workbook, validates a filled
+copy, writes JSON reports, and loads valid CJM MVP data only when commit mode is
+requested. Filled import files and reports stay local under `data`.
+
+Create the template:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\generate_cjm_mvp_template.py
+```
+
+Put a filled anonymized file here:
+
+```text
+.\data\imports\cjm_project_001.xlsx
+```
+
+Validate and inspect the dry-run report:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --dry-run
+```
+
+Commit the same file after dry-run has no critical errors:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit
+```
+
+Reference docs:
+
+- `docs/cjm_mvp_data_dictionary.md`
+- `docs/cjm_excel_template_spec.md`
+- `docs/cjm_import_process.md`

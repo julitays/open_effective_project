@@ -17,6 +17,12 @@ __pycache__/
 build/
 dist/
 
+# Filled manual intake files and generated reports stay local.
+backend/data/imports/*
+!backend/data/imports/.gitkeep
+backend/data/import_reports/*
+!backend/data/import_reports/.gitkeep
+
 # Editor and OS noise
 .vscode/
 .idea/

@@ -114,7 +114,7 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "client_expectations"
     __table_args__ = (
         CheckConstraint(
-            "explicitness IN ('explicit', 'implicit')",
+            "explicitness IN ('explicit', 'implicit', 'unknown')",
             name="ck_client_expectations_explicitness",
         ),
     )
