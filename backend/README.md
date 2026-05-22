@@ -87,9 +87,11 @@ ok     open-project-risk-api
 
 ## CJM MVP manual import
 
-The manual intake layer generates a Russian Excel workbook, validates a filled
-copy, writes JSON reports, and loads valid CJM MVP data only when commit mode is
-requested. Filled import files and reports stay local under `data`.
+The manual intake layer generates a Russian structured CJM workbook, validates a
+filled copy, writes JSON reports, and loads valid CJM MVP data only when commit
+mode is requested. It does not import survey-history, AI-summary, or ID-directory
+sheets from the CJM file. Filled import files and reports stay local under
+`data`.
 
 Create the template:
 

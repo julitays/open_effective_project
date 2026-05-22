@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ProjectCreate(BaseModel):
     project_code: str = Field(pattern=r"^project_[A-Za-z0-9_-]+$")
+    external_project_id: str | None = None
+    working_project_code: str | None = None
     project_type: str | None = None
     status: str = "active"
     current_phase: str | None = None

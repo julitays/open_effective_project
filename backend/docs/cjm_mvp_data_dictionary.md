@@ -8,24 +8,26 @@ or other personal data in examples, fixtures, or imports.
 ## `projects`
 
 - Purpose: one anonymized project that the CJM import belongs to.
-- Stores: `project_code`, coarse project type/direction, lifecycle phase, and
-  project status.
-- Required for manual load: `Project ID`.
-- Optional in manual load: direction, scale, operational model, additional
-  contours, lifecycle stage, status, start date, summary, follow-up notes.
+- Stores: `project_code`, external source project ID, working source code,
+  coarse project type/direction, lifecycle phase, and project status.
+- Required for manual load: `Project ID`, `External project ID`.
+- Optional in manual load: working project code, direction, scale, known
+  regions, operational model, additional contours, lifecycle stage, status,
+  start date, summary.
 - Must be anonymized: `Project ID` must look like `project_001`. Do not add a
   real project or client name.
-- Current storage note: scale, operational model, additional contours, start
-  date, summary, and follow-up notes remain in the Excel intake file until the
+- Current storage note: scale, known regions, operational model, additional
+  contours, start date, and summary remain in the Excel intake file until the
   domain model is expanded.
 
 ## `lpr_profiles`
 
 - Purpose: anonymized decision-maker or client-side stakeholder profiles.
-- Stores: `lpr_code`, stakeholder role, influence level, and engagement note.
+- Stores: `lpr_code`, optional external source LPR ID, stakeholder role,
+  influence level, and activity/engagement note.
 - Required for manual load: `LPR ID`, role.
-- Optional in manual load: influence, survey participation notes, periods,
-  inferred attitude, evidence, follow-up notes.
+- Optional in manual load: external LPR ID from a source CSV, influence,
+  activity status, inferred attitude, evidence, and manual clarification note.
 - Must be anonymized: `LPR ID` must look like `lpr_001`; roles must not contain
   names.
 
@@ -41,19 +43,21 @@ or other personal data in examples, fixtures, or imports.
 
 ## `survey_batches`
 
-- Purpose: one historical survey batch attached to a project.
+- Purpose: one historical survey batch attached to a project in the wider MVP
+  schema.
 - Stores: batch code, survey type, collection period, and import status.
-- Required for manual load: `Survey ID`, `Project ID`, survey type.
-- Optional in manual load: year and period/date.
+- Required for manual load: not loaded by the structured CJM workbook.
+- Optional in manual load: survey history belongs to a separate future import
+  path.
 - Must be anonymized: use an internal survey code, not a client name.
 
 ## `survey_questions`
 
-- Purpose: survey questions represented in the manual history sheet.
+- Purpose: survey questions for future survey-history ingestion.
 - Stores: stable generated question code, question text, and question type.
-- Required for manual load: question text on the survey history row.
-- Optional in manual load: no separate question fields are required beyond the
-  row context.
+- Required for manual load: not loaded by the structured CJM workbook.
+- Optional in manual load: question history belongs to a separate future import
+  path.
 - Must be anonymized: question wording must not include names or contact data.
 
 ## `survey_responses`
@@ -61,17 +65,19 @@ or other personal data in examples, fixtures, or imports.
 - Purpose: a response row inside a survey batch.
 - Stores: generated response code, optional LPR link, respondent role, and
   submission metadata when available.
-- Required for manual load: the surrounding survey row context.
-- Optional in manual load: `LPR ID`; rows may be loaded without a stakeholder
-  link.
+- Required for manual load: not loaded by the structured CJM workbook.
+- Optional in manual load: response history belongs to a separate future import
+  path.
 - Must be anonymized: use codes and roles only.
 
 ## `survey_answers`
 
-- Purpose: answer value and client comment captured from survey history.
+- Purpose: answer value and already anonymized client comment in the wider MVP
+  survey schema.
 - Stores: score/value and `original_comment_text`.
-- Required for manual load: survey and question context.
-- Optional in manual load: score and client comment can be blank.
+- Required for manual load: not loaded by the structured CJM workbook.
+- Optional in manual load: answer history belongs to a separate future import
+  path.
 - Must be anonymized: a filled client comment is stored as the already
   anonymized text available at the MVP upload boundary.
 
@@ -80,9 +86,8 @@ or other personal data in examples, fixtures, or imports.
 - Purpose: manual or later AI analysis attached to a survey answer.
 - Stores: topic, sentiment, criticality, repeated-theme flag, summary, evidence
   quote, analysis source, and confidence.
-- Required for manual load: created only when a survey row has analysis context
-  such as topic, useful/not-useful reason, or comment evidence.
-- Optional in manual load: evidence quote and confidence.
+- Required for manual load: not loaded by the structured CJM workbook.
+- Optional in manual load: analysis belongs to a later manual/AI flow.
 - Must be anonymized: summary and evidence must not restore personal or client
   identity.
 
@@ -101,12 +106,12 @@ or other personal data in examples, fixtures, or imports.
 - Stores: KPI code, metric name, target/current values, unit, and tracking
   status.
 - Required for manual load: `KPI ID`, KPI/success criterion name.
-- Optional in manual load: KPI type, source, normal/alarm/critical notes,
-  related expectation, related barrier, follow-up notes.
+- Optional in manual load: KPI type, source, actuality status, related
+  expectation, related barrier, criticality, comment, confirmation flag.
 - Must be anonymized: KPI labels and notes must not include identifying client
   data.
-- Current storage note: normal threshold is stored as a target value; the alarm
-  and critical deviation notes stay in the Excel intake file for now.
+- Current storage note: source, comment, and confirmation flag stay in the Excel
+  intake file until dedicated fields are added.
 
 ## `client_expectations`
 
@@ -115,8 +120,8 @@ or other personal data in examples, fixtures, or imports.
   check method.
 - Required for manual load: `Expectation ID`, expectation text, expectation
   type, criticality.
-- Optional in manual load: explicitness, linked LPR, importance, KPI, source,
-  evidence, check method, follow-up notes.
+- Optional in manual load: explicitness, linked LPR, external LPR ID,
+  importance, KPI, source, evidence, actuality status, confidence.
 - Must be anonymized: expectation text and evidence must avoid client and person
   identity.
 - Current storage note: the Excel `Expectation ID` is used in reports; current
@@ -128,8 +133,9 @@ or other personal data in examples, fixtures, or imports.
 - Stores: title, barrier type, time status, criticality, status, source type,
   and source ID.
 - Required for manual load: `Barrier ID`, title, type, time status, criticality.
-- Optional in manual load: description, linked LPR, linked importance, linked
-  KPI, source, evidence, first/last period, status, follow-up notes.
+- Optional in manual load: description, linked LPR, external LPR ID, linked
+  importance, linked KPI, source, evidence, first/last period, barrier status,
+  actuality status, confidence.
 - Must be anonymized: source and evidence content must not identify people or
   clients.
 - Current storage note: `Barrier ID` is stored as the manual Excel source ID and
@@ -142,8 +148,8 @@ or other personal data in examples, fixtures, or imports.
   status, check method, expected and actual effects.
 - Required for manual load: plan ID, linked `Barrier ID`, action type, action
   text, owner role.
-- Optional in manual load: related expectation, due period, status, check
-  method, expected effect, follow-up notes.
+- Optional in manual load: related expectation ID, due period, status, source,
+  confirmation status, expected effect.
 - Must be anonymized: owner must be a role, not a person.
 
 ## `communication_points`
@@ -151,12 +157,13 @@ or other personal data in examples, fixtures, or imports.
 - Purpose: interaction points and communication risk signals in the CJM.
 - Stores: point type/channel, summary, optional LPR link, stage, and outcome.
 - Required for manual load: communication ID and interaction topic.
-- Optional in manual load: client/open sides, channel, frequency, criticality,
-  break-risk flag, evidence, follow-up notes.
+- Optional in manual load: client side as LPR ID or role, external LPR ID, OPEN
+  role, channel, frequency, criticality, source, actuality status, comment.
 - Must be anonymized: sides of communication should be roles or teams, never
   names.
 - Current storage note: the current importer composes the interaction summary
-  from the topic, roles, frequency, criticality, and break-risk flag.
+  from the topic, roles, external LPR ID, frequency, criticality, and actuality
+  status.
 
 ## `ai_project_findings`
 

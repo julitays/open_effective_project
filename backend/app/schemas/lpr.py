@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class LPRProfileCreate(BaseModel):
     project_id: UUID
     lpr_code: str = Field(pattern=r"^lpr_[A-Za-z0-9_-]+$")
+    external_lpr_id: str | None = None
     stakeholder_role: str
     influence_level: str | None = None
     engagement_status: str | None = None

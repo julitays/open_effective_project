@@ -27,6 +27,12 @@ class LPRProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         comment="Anonymized decision-maker profile code such as lpr_001.",
     )
+    external_lpr_id: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="External source LPR ID without personal data.",
+    )
     stakeholder_role: Mapped[str] = mapped_column(String(128), nullable=False)
     influence_level: Mapped[str | None] = mapped_column(String(64), nullable=True)
     engagement_status: Mapped[str | None] = mapped_column(String(64), nullable=True)

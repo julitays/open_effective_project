@@ -20,6 +20,18 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         comment="Anonymized project code such as project_001.",
     )
+    external_project_id: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="External source project ID without a real client or brand name.",
+    )
+    working_project_code: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Working source code without a real client or brand name.",
+    )
     project_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
     current_phase: Mapped[str | None] = mapped_column(String(128), nullable=True)

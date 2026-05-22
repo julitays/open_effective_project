@@ -15,6 +15,7 @@ class BarrierMitigationPlanRead(BaseModel):
     owner_role: str
     due_period: str | None
     status: str
+    confirmation_status: str | None
     check_method: str | None
     expected_effect: str | None
     actual_effect: str | None

@@ -3,7 +3,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from app.services.imports.cjm_excel_reader import read_cjm_workbook
-from app.services.imports.cjm_importer import CJMImporter
+from app.services.imports.cjm_importer import CJMImporter, should_skip_plan_commit
 from app.services.imports.cjm_validator import validate_cjm_workbook
 from scripts.generate_cjm_mvp_template import generate_template
 
@@ -11,8 +11,8 @@ from scripts.generate_cjm_mvp_template import generate_template
 def _minimal_workbook(path: Path) -> Path:
     generate_template(path)
     workbook = load_workbook(path)
-    workbook["01_Паспорт проекта"].append(["project_001"])
-    workbook["02_ЛПР"].append(["lpr_001", "Роль контроля качества"])
+    workbook["01_Паспорт проекта"].append(["project_001", "external_project_001"])
+    workbook["02_ЛПР"].append(["lpr_001", "external_lpr_001", "Роль контроля качества"])
     workbook.save(path)
     workbook.close()
     return path
@@ -27,7 +27,8 @@ def test_generate_template_creates_excel_file(tmp_path: Path) -> None:
     assert output_path.exists()
     workbook = load_workbook(output_path)
     assert "00_Инструкция" in workbook.sheetnames
-    assert "10_Что нужно дозапросить" in workbook.sheetnames
+    assert "09_Что нужно дозапросить" in workbook.sheetnames
+    assert "04_История опросов" not in workbook.sheetnames
     workbook.close()
 
 
@@ -77,3 +78,45 @@ def test_dry_run_does_not_open_database_session(tmp_path: Path) -> None:
 
     assert result.status == "validated"
     assert result.report_path.exists()
+
+
+def test_validator_rejects_prohibited_methodology_sheet(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "ai_resume.xlsx")
+    workbook = load_workbook(workbook_path)
+    workbook.create_sheet("AI-резюме")
+    workbook.save(workbook_path)
+    workbook.close()
+
+    result = validate_cjm_workbook(read_cjm_workbook(workbook_path))
+
+    assert result.has_errors
+    assert any(issue.sheet_name == "AI-резюме" for issue in result.issues)
+
+
+def test_ai_hypothesis_plan_is_marked_for_commit_skip(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "ai_plan.xlsx")
+    workbook = load_workbook(workbook_path)
+    workbook["04_Барьеры"].append(
+        ["barrier_001", "Риск задержки", "Сроки", "Есть сейчас", None, "Высокая"]
+    )
+    workbook["08_Планы действий"].append(
+        [
+            "plan_001",
+            "barrier_001",
+            None,
+            "Профилактика",
+            "Проверить статус договоренностей",
+            "Роль проекта",
+            None,
+            "Сделать",
+            "Восстановленный CJM",
+            "AI-гипотеза",
+        ]
+    )
+    workbook.save(workbook_path)
+    workbook.close()
+
+    result = validate_cjm_workbook(read_cjm_workbook(workbook_path))
+
+    plan_row = result.normalized_sheets["08_Планы действий"][0]
+    assert should_skip_plan_commit(plan_row)

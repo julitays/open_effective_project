@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -13,13 +12,6 @@ from app.models.action_plan import BarrierMitigationPlan
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRImportanceFactor, LPRProfile
 from app.models.project import ClientExpectation, Project, ProjectKPI
-from app.models.survey import (
-    CommentAnalysis,
-    SurveyAnswer,
-    SurveyBatch,
-    SurveyQuestion,
-    SurveyResponse,
-)
 from app.services.imports.cjm_excel_reader import read_cjm_workbook
 from app.services.imports.cjm_report import DEFAULT_REPORT_DIR, write_import_report
 from app.services.imports.cjm_validator import NormalizedRow, ValidationResult, validate_cjm_workbook
@@ -46,12 +38,12 @@ def _text(value: object) -> str:
 
 def _increment(counts: dict[str, dict[str, int]], entity: str, action: str) -> None:
     counts.setdefault(entity, {"created": 0, "updated": 0})
+    counts[entity].setdefault(action, 0)
     counts[entity][action] += 1
 
 
-def _stable_code(prefix: str, *parts: object) -> str:
-    digest = hashlib.sha1("|".join(_text(part) for part in parts).encode("utf-8")).hexdigest()
-    return f"{prefix}_{digest[:12]}"
+def should_skip_plan_commit(row: NormalizedRow) -> bool:
+    return _text(row.values.get("Статус подтверждения")) == "ai_hypothesis"
 
 
 class CJMImporter:
@@ -142,7 +134,9 @@ class CJMImporter:
                     lpr_code,
                 )
 
-        for row in validation.normalized_sheets["09_Планы устранения"]:
+        for row in validation.normalized_sheets["08_Планы действий"]:
+            if should_skip_plan_commit(row):
+                continue
             barrier_code = _text(row.values.get("Связанный Barrier ID"))
             if (
                 barrier_code
@@ -169,7 +163,6 @@ class CJMImporter:
         lprs = self._upsert_lprs(session, project, validation, counts)
         session.flush()
         self._upsert_importance_factors(session, project, validation, lprs, counts)
-        self._upsert_surveys(session, project, validation, lprs, counts)
         barriers = self._upsert_barriers(session, project, validation, counts)
         self._upsert_expectations(session, project, validation, counts)
         self._upsert_kpis(session, project, validation, counts)
@@ -198,6 +191,8 @@ class CJMImporter:
             _increment(counts, "projects", "updated")
 
         project.project_type = _text(row.values.get("Направление проекта")) or project.project_type
+        project.external_project_id = _text(row.values.get("External project ID")) or None
+        project.working_project_code = _text(row.values.get("Рабочий код проекта")) or None
         project.current_phase = (
             _text(row.values.get("Этап жизненного цикла")) or project.current_phase
         )
@@ -226,7 +221,7 @@ class CJMImporter:
                 lpr = LPRProfile(
                     project_id=project.id,
                     lpr_code=lpr_code,
-                    stakeholder_role=_text(row.values.get("Роль ЛПР")),
+                    stakeholder_role=_text(row.values.get("Роль / зона влияния")),
                 )
                 session.add(lpr)
                 lprs[lpr_code] = lpr
@@ -234,10 +229,13 @@ class CJMImporter:
             else:
                 _increment(counts, "lpr_profiles", "updated")
 
-            lpr.stakeholder_role = _text(row.values.get("Роль ЛПР"))
+            lpr.external_lpr_id = _text(row.values.get("External LPR ID")) or None
+            lpr.stakeholder_role = _text(row.values.get("Роль / зона влияния"))
             lpr.influence_level = _text(row.values.get("Уровень влияния")) or None
             lpr.engagement_status = (
-                _text(row.values.get("Предполагаемое отношение к OPEN/услуге")) or None
+                _text(row.values.get("Статус активности"))
+                or _text(row.values.get("Предполагаемое отношение к OPEN/услуге"))
+                or None
             )
 
         return lprs
@@ -284,154 +282,7 @@ class CJMImporter:
             else:
                 _increment(counts, "lpr_importance_factors", "updated")
             factor.importance_level = _text(row.values.get("Критичность")) or None
-            factor.source_type = _text(row.values.get("Источник")) or "manual_excel"
-
-    def _upsert_surveys(
-        self,
-        session: Session,
-        project: Project,
-        validation: ValidationResult,
-        lprs: dict[str, LPRProfile],
-        counts: dict[str, dict[str, int]],
-    ) -> None:
-        for row in validation.normalized_sheets["04_История опросов"]:
-            survey_code = _text(row.values.get("Survey ID"))
-            batch = session.scalar(
-                select(SurveyBatch).where(
-                    SurveyBatch.project_id == project.id,
-                    SurveyBatch.batch_code == survey_code,
-                )
-            )
-            if batch is None:
-                batch = SurveyBatch(
-                    project_id=project.id,
-                    batch_code=survey_code,
-                    survey_type=_text(row.values.get("Тип опроса")),
-                    status="imported",
-                )
-                session.add(batch)
-                session.flush()
-                _increment(counts, "survey_batches", "created")
-            else:
-                _increment(counts, "survey_batches", "updated")
-            period = " ".join(
-                part
-                for part in (
-                    _text(row.values.get("Год")),
-                    _text(row.values.get("Период / дата")),
-                )
-                if part
-            )
-            batch.survey_type = _text(row.values.get("Тип опроса"))
-            batch.collection_period = period or None
-
-            question_text = _text(row.values.get("Вопрос"))
-            question_code = _stable_code("question", survey_code, question_text)
-            question = session.scalar(
-                select(SurveyQuestion).where(
-                    SurveyQuestion.batch_id == batch.id,
-                    SurveyQuestion.question_code == question_code,
-                )
-            )
-            if question is None:
-                question = SurveyQuestion(
-                    project_id=project.id,
-                    batch_id=batch.id,
-                    question_code=question_code,
-                    question_text=question_text,
-                    question_type="manual_cjm",
-                )
-                session.add(question)
-                session.flush()
-                _increment(counts, "survey_questions", "created")
-            else:
-                question.question_text = question_text
-                _increment(counts, "survey_questions", "updated")
-
-            lpr_code = _text(row.values.get("LPR ID"))
-            response_code = _stable_code("response", survey_code, row.row_number, lpr_code)
-            response = session.scalar(
-                select(SurveyResponse).where(
-                    SurveyResponse.batch_id == batch.id,
-                    SurveyResponse.response_code == response_code,
-                )
-            )
-            if response is None:
-                response = SurveyResponse(
-                    project_id=project.id,
-                    batch_id=batch.id,
-                    response_code=response_code,
-                )
-                session.add(response)
-                session.flush()
-                _increment(counts, "survey_responses", "created")
-            else:
-                _increment(counts, "survey_responses", "updated")
-            response.lpr_id = lprs[lpr_code].id if lpr_code in lprs else None
-            response.respondent_role = lprs[lpr_code].stakeholder_role if lpr_code in lprs else None
-
-            answer = session.scalar(
-                select(SurveyAnswer).where(
-                    SurveyAnswer.response_id == response.id,
-                    SurveyAnswer.question_id == question.id,
-                )
-            )
-            if answer is None:
-                answer = SurveyAnswer(
-                    project_id=project.id,
-                    batch_id=batch.id,
-                    response_id=response.id,
-                    question_id=question.id,
-                )
-                session.add(answer)
-                session.flush()
-                _increment(counts, "survey_answers", "created")
-            else:
-                _increment(counts, "survey_answers", "updated")
-            answer.answer_value = _text(row.values.get("Оценка")) or None
-            answer.original_comment_text = _text(row.values.get("Комментарий клиента")) or None
-            self._upsert_comment_analysis(session, project, answer, row, counts)
-
-    def _upsert_comment_analysis(
-        self,
-        session: Session,
-        project: Project,
-        answer: SurveyAnswer,
-        row: NormalizedRow,
-        counts: dict[str, dict[str, int]],
-    ) -> None:
-        topic = _text(row.values.get("Тема комментария"))
-        comment = _text(row.values.get("Комментарий клиента"))
-        reason = _text(row.values.get("Почему полезен / не полезен"))
-        if not any((topic, comment, reason)):
-            return
-
-        analysis = session.scalar(
-            select(CommentAnalysis).where(
-                CommentAnalysis.answer_id == answer.id,
-                CommentAnalysis.analysis_source == "manual",
-            )
-        )
-        if analysis is None:
-            analysis = CommentAnalysis(
-                project_id=project.id,
-                answer_id=answer.id,
-                topic_type=topic or "other",
-                sentiment=_text(row.values.get("Тональность")) or "unknown",
-                criticality=_text(row.values.get("Критичность")) or "unknown",
-                is_repeated_theme=False,
-                summary=reason or topic or "Ручной разбор комментария для CJM.",
-                analysis_source="manual",
-            )
-            session.add(analysis)
-            _increment(counts, "comment_analysis", "created")
-        else:
-            _increment(counts, "comment_analysis", "updated")
-        analysis.topic_type = topic or "other"
-        analysis.sentiment = _text(row.values.get("Тональность")) or "unknown"
-        analysis.criticality = _text(row.values.get("Критичность")) or "unknown"
-        analysis.summary = reason or topic or "Ручной разбор комментария для CJM."
-        analysis.evidence_quote = comment or None
+            factor.source_type = _text(row.values.get("Источник вывода")) or "manual_excel"
 
     def _upsert_barriers(
         self,
@@ -451,7 +302,7 @@ class CJMImporter:
             ).all()
         }
 
-        for row in validation.normalized_sheets["05_Барьеры"]:
+        for row in validation.normalized_sheets["04_Барьеры"]:
             barrier_code = _text(row.values.get("Barrier ID"))
             barrier = barriers.get(barrier_code)
             if barrier is None:
@@ -461,7 +312,7 @@ class CJMImporter:
                     barrier_type=_text(row.values.get("Тип барьера")),
                     time_status=_text(row.values.get("Временной статус")),
                     criticality=_text(row.values.get("Критичность")),
-                    status=_text(row.values.get("Статус")) or "unknown",
+                    status=_text(row.values.get("Статус барьера")) or "unknown",
                     source_type="manual_excel",
                     source_id=barrier_code,
                 )
@@ -474,7 +325,7 @@ class CJMImporter:
             barrier.barrier_type = _text(row.values.get("Тип барьера"))
             barrier.time_status = _text(row.values.get("Временной статус"))
             barrier.criticality = _text(row.values.get("Критичность"))
-            barrier.status = _text(row.values.get("Статус")) or "unknown"
+            barrier.status = _text(row.values.get("Статус барьера")) or "unknown"
         return barriers
 
     def _upsert_expectations(
@@ -484,7 +335,7 @@ class CJMImporter:
         validation: ValidationResult,
         counts: dict[str, dict[str, int]],
     ) -> None:
-        for row in validation.normalized_sheets["06_Ожидания клиента"]:
+        for row in validation.normalized_sheets["05_Ожидания клиента"]:
             expectation_text = _text(row.values.get("Ожидание клиента"))
             expectation_type = _text(row.values.get("Тип ожидания"))
             expectation = session.scalar(
@@ -508,14 +359,6 @@ class CJMImporter:
                 _increment(counts, "client_expectations", "updated")
             expectation.explicitness = _text(row.values.get("Явное или неявное")) or "unknown"
             expectation.criticality = _text(row.values.get("Критичность"))
-            expectation.how_to_check = (
-                _text(
-                    row.values.get(
-                        "Как можно проверить выполнение без ожидания следующего годового опроса"
-                    )
-                )
-                or None
-            )
 
     def _upsert_kpis(
         self,
@@ -524,7 +367,7 @@ class CJMImporter:
         validation: ValidationResult,
         counts: dict[str, dict[str, int]],
     ) -> None:
-        for row in validation.normalized_sheets["07_KPI"]:
+        for row in validation.normalized_sheets["06_KPI и критерии успеха"]:
             kpi_code = _text(row.values.get("KPI ID"))
             kpi = session.scalar(
                 select(ProjectKPI).where(
@@ -543,8 +386,7 @@ class CJMImporter:
             else:
                 _increment(counts, "project_kpis", "updated")
             kpi.metric_name = _text(row.values.get("Название KPI / критерия успеха"))
-            kpi.target_value = _text(row.values.get("Что считается нормой")) or None
-            kpi.status = "tracked"
+            kpi.status = _text(row.values.get("Статус актуальности")) or "tracked"
 
     def _upsert_communication_points(
         self,
@@ -553,7 +395,7 @@ class CJMImporter:
         validation: ValidationResult,
         counts: dict[str, dict[str, int]],
     ) -> None:
-        for row in validation.normalized_sheets["08_Каналы взаимодействия"]:
+        for row in validation.normalized_sheets["07_Каналы взаимодействия"]:
             summary = self._communication_summary(row)
             point_type = _text(row.values.get("Канал")) or "unknown"
             point = session.scalar(
@@ -573,19 +415,24 @@ class CJMImporter:
                 _increment(counts, "communication_points", "created")
             else:
                 _increment(counts, "communication_points", "updated")
-            point.outcome = _text(row.values.get("Основание вывода")) or None
+            point.outcome = (
+                _text(row.values.get("Комментарий"))
+                or _text(row.values.get("Источник"))
+                or None
+            )
 
     def _communication_summary(self, row: NormalizedRow) -> str:
         details = [
             _text(row.values.get("Тема взаимодействия")),
-            f"client_side={_text(row.values.get('Сторона клиента')) or 'unknown'}",
-            f"open_side={_text(row.values.get('Сторона OPEN')) or 'unknown'}",
+            f"client_side={_text(row.values.get('Сторона клиента: LPR ID или роль')) or 'unknown'}",
+            f"external_lpr_id={_text(row.values.get('External LPR ID')) or 'unknown'}",
+            f"open_side={_text(row.values.get('Сторона OPEN: роль')) or 'unknown'}",
             f"frequency={_text(row.values.get('Частота')) or 'unknown'}",
             f"criticality={_text(row.values.get('Критичность')) or 'unknown'}",
         ]
-        risk = _text(row.values.get("Есть риск разрыва коммуникации"))
-        if risk:
-            details.append(f"communication_break_risk={risk}")
+        actuality = _text(row.values.get("Статус актуальности"))
+        if actuality:
+            details.append(f"actuality={actuality}")
         return " | ".join(details)
 
     def _upsert_plans(
@@ -596,7 +443,10 @@ class CJMImporter:
         barriers: dict[str, ProjectBarrier],
         counts: dict[str, dict[str, int]],
     ) -> None:
-        for row in validation.normalized_sheets["09_Планы устранения"]:
+        for row in validation.normalized_sheets["08_Планы действий"]:
+            if should_skip_plan_commit(row):
+                _increment(counts, "barrier_mitigation_plans", "skipped")
+                continue
             barrier_code = _text(row.values.get("Связанный Barrier ID"))
             barrier = barriers.get(barrier_code)
             if barrier is None:
@@ -634,14 +484,7 @@ class CJMImporter:
             else:
                 _increment(counts, "barrier_mitigation_plans", "updated")
             plan.owner_role = _text(row.values.get("Ответственная роль"))
-            plan.due_period = _text(row.values.get("Срок или период")) or None
+            plan.due_period = _text(row.values.get("Срок / период")) or None
             plan.status = _text(row.values.get("Статус")) or "unknown"
-            plan.check_method = (
-                _text(
-                    row.values.get(
-                        "Как проверить выполнение без ожидания следующего опроса"
-                    )
-                )
-                or None
-            )
+            plan.confirmation_status = _text(row.values.get("Статус подтверждения")) or None
             plan.expected_effect = _text(row.values.get("Ожидаемый эффект")) or None

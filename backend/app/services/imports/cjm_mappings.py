@@ -20,6 +20,7 @@ from app.core.enums import (
     ImportanceFactorType,
     LifecycleStage,
     OperationalModel,
+    PlanConfirmationStatus,
     ProjectScale,
     ProjectStatus,
     Sentiment,
@@ -270,6 +271,16 @@ ACTION_STATUS_ALIASES = _aliases(
         "Неизвестно": "unknown",
     },
 )
+PLAN_CONFIRMATION_STATUS_ALIASES = _aliases(
+    PlanConfirmationStatus,
+    {
+        "Подтвержденный план": "confirmed_plan",
+        "Черновик": "draft",
+        "AI-гипотеза": "ai_hypothesis",
+        "AI гипотеза": "ai_hypothesis",
+        "Требует согласования": "requires_approval",
+    },
+)
 SENTIMENT_ALIASES = _aliases(
     Sentiment,
     {
@@ -350,6 +361,10 @@ def map_action_type(value: object) -> str | None:
 
 def map_action_status(value: object) -> str | None:
     return map_code(value, ActionStatus, ACTION_STATUS_ALIASES)
+
+
+def map_plan_confirmation_status(value: object) -> str | None:
+    return map_code(value, PlanConfirmationStatus, PLAN_CONFIRMATION_STATUS_ALIASES)
 
 
 def map_sentiment(value: object) -> str | None:

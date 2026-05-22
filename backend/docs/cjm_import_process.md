@@ -1,7 +1,8 @@
 # CJM MVP import process
 
-The manual import process is a validate-first workflow for anonymized Excel
-files. Reports are written to `.\data\import_reports\` as JSON.
+The manual import process is a validate-first workflow for anonymized structured
+CJM Excel files. It does not accept survey-history, AI-summary, or ID-directory
+sheets. Reports are written to `.\data\import_reports\` as JSON.
 
 ## 1. Create the template
 
@@ -27,6 +28,8 @@ Create a working copy under the local import folder, for example:
 
 Fill only anonymized project and LPR codes. Do not add columns such as `ФИО`,
 `Имя`, `Телефон`, `Email`, `Название клиента`, or `Название проекта`.
+`External project ID` is required in the project passport; `External LPR ID` is
+allowed when it is a source CSV ID rather than personal data.
 
 ## 3. Run validation and dry-run
 
@@ -56,7 +59,7 @@ The command prints the report path. Open the JSON report under:
 
 Errors stop commit. Warnings are allowed when they describe incomplete but
 non-critical context. A plan without a resolvable `Barrier ID` becomes a commit
-error.
+error. Action rows marked as `AI-гипотеза` are reported and skipped by commit.
 
 ## 5. Commit the import
 
@@ -70,6 +73,5 @@ python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.x
 ```
 
 Commit repeats validation before writing. It upserts the project, LPR profiles,
-manual importance factors, survey history records, barriers, expectations, KPIs,
-communication points, and barrier mitigation plans that fit the current MVP
-schema.
+manual importance factors, barriers, expectations, KPIs, communication points,
+and action plans that fit the current MVP schema.

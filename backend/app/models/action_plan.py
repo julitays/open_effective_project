@@ -28,6 +28,7 @@ class BarrierMitigationPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     owner_role: Mapped[str] = mapped_column(String(128), nullable=False)
     due_period: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(64), nullable=False)
+    confirmation_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
     check_method: Mapped[str | None] = mapped_column(Text, nullable=True)
     expected_effect: Mapped[str | None] = mapped_column(Text, nullable=True)
     actual_effect: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -25,10 +25,9 @@ from app.services.imports.cjm_mappings import (
     map_importance_factor_type,
     map_lifecycle_stage,
     map_operational_model,
+    map_plan_confirmation_status,
     map_project_scale,
     map_project_status,
-    map_sentiment,
-    map_survey_type,
     normalize_label,
 )
 
@@ -47,6 +46,17 @@ FORBIDDEN_PII_COLUMNS = {
         "E-mail",
         "Название клиента",
         "Название проекта",
+    )
+}
+PROHIBITED_SHEETS = {
+    normalize_label(value)
+    for value in (
+        "04_История опросов",
+        "История опросов",
+        "AI-резюме",
+        "AI резюме",
+        "Справочник_ID",
+        "Справочник ID",
     )
 }
 
@@ -243,18 +253,20 @@ def _append_if_valid(
 def _validate_passport_row(result: ValidationResult, row: ExcelRow) -> None:
     errors_before = result.errors_count
     project_code = _required(result, row, "Project ID")
+    external_project_id = _required(result, row, "External project ID")
     _validate_project_code(result, row.sheet_name, row.row_number, "Project ID", project_code)
 
     normalized = dict(row.values)
     normalized["Project ID"] = project_code
+    normalized["External project ID"] = external_project_id
     normalized["Направление проекта"] = _map_field(
         result, row, "Направление проекта", map_direction
     )
     normalized["Масштаб проекта"] = _map_field(
         result, row, "Масштаб проекта", map_project_scale, default="unknown"
     )
-    normalized["Операционная модель"] = _map_field(
-        result, row, "Операционная модель", map_operational_model
+    normalized["Основная операционная модель"] = _map_field(
+        result, row, "Основная операционная модель", map_operational_model
     )
     normalized["Этап жизненного цикла"] = _map_field(
         result, row, "Этап жизненного цикла", map_lifecycle_stage, default="unknown"
@@ -269,7 +281,7 @@ def _validate_lpr_row(result: ValidationResult, row: ExcelRow) -> None:
     errors_before = result.errors_count
     lpr_code = _required(result, row, "LPR ID")
     _validate_lpr_code(result, row.sheet_name, row.row_number, "LPR ID", lpr_code)
-    _required(result, row, "Роль ЛПР")
+    _required(result, row, "Роль / зона влияния")
 
     normalized = dict(row.values)
     normalized["LPR ID"] = lpr_code
@@ -303,31 +315,6 @@ def _validate_importance_row(result: ValidationResult, row: ExcelRow) -> None:
     _append_if_valid(result, row, normalized, errors_before)
 
 
-def _validate_survey_row(result: ValidationResult, row: ExcelRow) -> None:
-    errors_before = result.errors_count
-    survey_code = _required(result, row, "Survey ID")
-    project_code = _required(result, row, "Project ID")
-    _validate_project_code(result, row.sheet_name, row.row_number, "Project ID", project_code)
-    lpr_code = _text(row.values.get("LPR ID"))
-    _validate_lpr_code(result, row.sheet_name, row.row_number, "LPR ID", lpr_code)
-    _required(result, row, "Вопрос")
-
-    normalized = dict(row.values)
-    normalized["Survey ID"] = survey_code
-    normalized["Project ID"] = project_code
-    normalized["LPR ID"] = lpr_code or None
-    normalized["Тип опроса"] = _map_field(
-        result, row, "Тип опроса", map_survey_type, required=True
-    )
-    normalized["Тональность"] = _map_field(
-        result, row, "Тональность", map_sentiment, default="unknown"
-    )
-    normalized["Критичность"] = _map_field(
-        result, row, "Критичность", map_criticality, default="unknown"
-    )
-    _append_if_valid(result, row, normalized, errors_before)
-
-
 def _validate_barrier_row(result: ValidationResult, row: ExcelRow) -> None:
     errors_before = result.errors_count
     barrier_code = _required(result, row, "Barrier ID")
@@ -347,8 +334,8 @@ def _validate_barrier_row(result: ValidationResult, row: ExcelRow) -> None:
     normalized["Критичность"] = _map_field(
         result, row, "Критичность", map_criticality, required=True
     )
-    normalized["Статус"] = _map_field(
-        result, row, "Статус", map_barrier_status, default="unknown"
+    normalized["Статус барьера"] = _map_field(
+        result, row, "Статус барьера", map_barrier_status, default="unknown"
     )
     _append_if_valid(result, row, normalized, errors_before)
 
@@ -424,6 +411,22 @@ def _validate_plan_row(result: ValidationResult, row: ExcelRow, mode: Mode) -> N
     normalized["Статус"] = _map_field(
         result, row, "Статус", map_action_status, default="unknown"
     )
+    normalized["Статус подтверждения"] = _map_field(
+        result,
+        row,
+        "Статус подтверждения",
+        map_plan_confirmation_status,
+        required=True,
+    )
+    if normalized["Статус подтверждения"] == "ai_hypothesis":
+        result.add_issue(
+            "warning",
+            row.sheet_name,
+            row.row_number,
+            "AI-гипотеза останется в отчете и будет пропущена commit-импортом планов.",
+            "Статус подтверждения",
+            row.values.get("Статус подтверждения"),
+        )
     _required(result, row, "Описание действия")
     _required(result, row, "Ответственная роль")
     _append_if_valid(result, row, normalized, errors_before)
@@ -449,6 +452,17 @@ def _scan_pii_headers(result: ValidationResult, workbook: CJMWorkbookData) -> No
                     header,
                     header,
                 )
+
+
+def _scan_prohibited_sheets(result: ValidationResult, workbook: CJMWorkbookData) -> None:
+    for sheet_name in workbook.sheets:
+        if normalize_label(sheet_name) in PROHIBITED_SHEETS:
+            result.add_issue(
+                "error",
+                sheet_name,
+                None,
+                "Этот лист не входит в структурированный CJM-шаблон и не импортируется.",
+            )
 
 
 def _initialize_result(workbook: CJMWorkbookData, mode: Mode) -> ValidationResult:
@@ -497,12 +511,12 @@ def _validate_cross_references(result: ValidationResult) -> None:
     }
     barrier_ids = {
         _text(row.values.get("Barrier ID"))
-        for row in result.normalized_sheets["05_Барьеры"]
+        for row in result.normalized_sheets["04_Барьеры"]
         if _text(row.values.get("Barrier ID"))
     }
     expectation_ids = {
         _text(row.values.get("Expectation ID"))
-        for row in result.normalized_sheets["06_Ожидания клиента"]
+        for row in result.normalized_sheets["05_Ожидания клиента"]
         if _text(row.values.get("Expectation ID"))
     }
 
@@ -512,21 +526,7 @@ def _validate_cross_references(result: ValidationResult) -> None:
     if result.primary_project_id:
         result.identifiers["project_ids"].add(result.primary_project_id)
 
-    for survey_row in result.normalized_sheets["04_История опросов"]:
-        project_code = _text(survey_row.values.get("Project ID"))
-        if project_code:
-            result.identifiers["project_ids"].add(project_code)
-        if result.primary_project_id and project_code != result.primary_project_id:
-            result.add_issue(
-                "error",
-                survey_row.sheet_name,
-                survey_row.row_number,
-                "Project ID в истории опросов должен совпадать с паспортом проекта.",
-                "Project ID",
-                project_code,
-            )
-
-    for sheet_name in ("03_Важности ЛПР", "04_История опросов"):
+    for sheet_name in ("03_Важности ЛПР",):
         for row in result.normalized_sheets[sheet_name]:
             lpr_code = _text(row.values.get("LPR ID"))
             if lpr_code and lpr_code not in lpr_ids:
@@ -539,14 +539,14 @@ def _validate_cross_references(result: ValidationResult) -> None:
                     lpr_code,
                 )
 
-    for row in result.normalized_sheets["09_Планы устранения"]:
+    for row in result.normalized_sheets["08_Планы действий"]:
         barrier_code = _text(row.values.get("Связанный Barrier ID"))
         if barrier_code and barrier_code not in barrier_ids:
             result.add_issue(
                 "warning",
                 row.sheet_name,
                 row.row_number,
-                "Barrier ID не найден на листе '05_Барьеры'; commit проверит БД.",
+                "Barrier ID не найден на листе '04_Барьеры'; commit проверит БД.",
                 "Связанный Barrier ID",
                 barrier_code,
             )
@@ -555,6 +555,7 @@ def _validate_cross_references(result: ValidationResult) -> None:
 def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> ValidationResult:
     result = _initialize_result(workbook, mode)
     _scan_pii_headers(result, workbook)
+    _scan_prohibited_sheets(result, workbook)
 
     for sheet_name, expected_columns in TEMPLATE_SHEET_COLUMNS.items():
         sheet = workbook.sheets.get(sheet_name)
@@ -581,16 +582,15 @@ def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> 
         "01_Паспорт проекта": _validate_passport_row,
         "02_ЛПР": _validate_lpr_row,
         "03_Важности ЛПР": _validate_importance_row,
-        "04_История опросов": _validate_survey_row,
-        "05_Барьеры": _validate_barrier_row,
-        "06_Ожидания клиента": _validate_expectation_row,
-        "07_KPI": _validate_kpi_row,
-        "08_Каналы взаимодействия": _validate_communication_row,
-        "10_Что нужно дозапросить": _validate_follow_up_row,
+        "04_Барьеры": _validate_barrier_row,
+        "05_Ожидания клиента": _validate_expectation_row,
+        "06_KPI и критерии успеха": _validate_kpi_row,
+        "07_Каналы взаимодействия": _validate_communication_row,
+        "09_Что нужно дозапросить": _validate_follow_up_row,
     }
 
     for sheet_name, sheet in workbook.sheets.items():
-        if sheet_name == "09_Планы устранения":
+        if sheet_name == "08_Планы действий":
             for row in sheet.rows:
                 _validate_plan_row(result, row, mode)
             continue

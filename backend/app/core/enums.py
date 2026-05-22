@@ -179,6 +179,13 @@ class ActionStatus(MVPCodeEnum):
     UNKNOWN = "unknown"
 
 
+class PlanConfirmationStatus(MVPCodeEnum):
+    CONFIRMED_PLAN = "confirmed_plan"
+    DRAFT = "draft"
+    AI_HYPOTHESIS = "ai_hypothesis"
+    REQUIRES_APPROVAL = "requires_approval"
+
+
 class AnalysisSource(MVPCodeEnum):
     MANUAL = "manual"
     AI = "ai"
