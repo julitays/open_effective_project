@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+from uuid import UUID
+
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+# TODO: Move stabilized string classifiers and statuses to lookup tables after MVP.
+
+
+class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "projects"
+
+    project_code: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=False,
+        comment="Anonymized project code such as project_001.",
+    )
+    project_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
+    current_phase: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    lpr_profiles: Mapped[list["LPRProfile"]] = relationship(
+        "LPRProfile",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    survey_batches: Mapped[list["SurveyBatch"]] = relationship(
+        "SurveyBatch",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    goals: Mapped[list["ProjectGoal"]] = relationship(
+        "ProjectGoal",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    kpis: Mapped[list["ProjectKPI"]] = relationship(
+        "ProjectKPI",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    expectations: Mapped[list["ClientExpectation"]] = relationship(
+        "ClientExpectation",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    barriers: Mapped[list["ProjectBarrier"]] = relationship(
+        "ProjectBarrier",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    mitigation_plans: Mapped[list["BarrierMitigationPlan"]] = relationship(
+        "BarrierMitigationPlan",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    communication_points: Mapped[list["CommunicationPoint"]] = relationship(
+        "CommunicationPoint",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    ai_findings: Mapped[list["AIProjectFinding"]] = relationship(
+        "AIProjectFinding",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    ai_recommendations: Mapped[list["AIRecommendation"]] = relationship(
+        "AIRecommendation",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProjectGoal(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "project_goals"
+
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    goal_text: Mapped[str] = mapped_column(Text, nullable=False)
+    goal_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    success_criteria: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="open")
+
+    project: Mapped[Project] = relationship("Project", back_populates="goals")
+
+
+class ProjectKPI(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "project_kpis"
+
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    kpi_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    metric_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    target_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    current_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="tracked")
+
+    project: Mapped[Project] = relationship("Project", back_populates="kpis")
+
+
+class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "client_expectations"
+    __table_args__ = (
+        CheckConstraint(
+            "explicitness IN ('explicit', 'implicit')",
+            name="ck_client_expectations_explicitness",
+        ),
+    )
+
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    expectation_text: Mapped[str] = mapped_column(Text, nullable=False)
+    expectation_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    explicitness: Mapped[str] = mapped_column(String(16), nullable=False)
+    criticality: Mapped[str] = mapped_column(String(64), nullable=False)
+    how_to_check: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    project: Mapped[Project] = relationship("Project", back_populates="expectations")

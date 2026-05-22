@@ -1,0 +1,24 @@
+# Local Python environments
+.venv/
+venv/
+
+# Local settings and secrets
+.env
+.env.*
+!.env.example
+
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Editor and OS noise
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
