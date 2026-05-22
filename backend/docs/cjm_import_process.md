@@ -32,8 +32,9 @@ Fill only anonymized project and LPR codes. Do not add columns such as `ФИО`,
 allowed when it is a source CSV ID rather than personal data. Several external
 aliases for one anonymized LPR can stay in one cell separated by semicolons,
 for example `845; 55` for one `lpr_007`.
-If a restored CJM contains a separate `08_Цели проекта` sheet, the importer
-accepts it as an optional extension and loads its valid rows into project goals.
+The current workbook includes `08_Цели проекта`; the importer loads its valid
+rows into project goals. Sheets with action plans are rejected by this CJM MVP
+import path.
 
 ## 3. Run validation and dry-run
 
@@ -66,8 +67,7 @@ The command prints the report path. Open the JSON report under:
 ```
 
 Errors stop commit. Warnings are allowed when they describe incomplete but
-non-critical context. A plan without a resolvable `Barrier ID` becomes a commit
-error. Action rows marked as `AI-гипотеза` are reported and skipped by commit.
+non-critical context.
 
 ## 5. Commit the import
 
@@ -82,7 +82,7 @@ python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.x
 
 Commit repeats validation before writing. It upserts the project, LPR profiles,
 manual importance factors, barriers, expectations, KPIs, communication points,
-and action plans that fit the current MVP schema. Linked KPI values on barrier
+and project goals that fit the current MVP schema. Linked KPI values on barrier
 and expectation rows are kept as text for MVP rather than resolved as database
 foreign keys.
 

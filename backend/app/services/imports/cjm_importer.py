@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from math import isnan
 from pathlib import Path
 from typing import Literal
 
@@ -9,7 +10,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.db import SessionLocal
-from app.models.action_plan import BarrierMitigationPlan
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRImportanceFactor, LPRProfile
 from app.models.project import ClientExpectation, Project, ProjectGoal, ProjectKPI
@@ -34,7 +34,20 @@ class ImportRunResult:
 
 
 def _text(value: object) -> str:
-    return "" if value is None else str(value).strip()
+    if value is None:
+        return ""
+    if isinstance(value, float) and isnan(value):
+        return ""
+    text = str(value).strip()
+    return "" if text.lower() == "nan" else text
+
+
+def _first_text(row: NormalizedRow, *field_names: str) -> str:
+    for field_name in field_names:
+        value = _text(row.values.get(field_name))
+        if value:
+            return value
+    return ""
 
 
 def _increment(counts: dict[str, dict[str, int]], entity: str, action: str) -> None:
@@ -55,10 +68,6 @@ def normalize_external_lpr_aliases(*values: object) -> str | None:
             seen.add(alias)
 
     return "; ".join(aliases) or None
-
-
-def should_skip_plan_commit(row: NormalizedRow) -> bool:
-    return _text(row.values.get("Статус подтверждения")) == "ai_hypothesis"
 
 
 class CJMImporter:
@@ -117,26 +126,14 @@ class CJMImporter:
             select(Project).where(Project.project_code == validation.primary_project_id)
         )
         workbook_lprs = validation.identifiers["lpr_ids"]
-        workbook_barriers = validation.identifiers["barrier_ids"]
 
         existing_lprs: set[str] = set()
-        existing_barriers: set[str] = set()
         if project is not None:
             existing_lprs = set(
                 session.scalars(
                     select(LPRProfile.lpr_code).where(LPRProfile.project_id == project.id)
                 ).all()
             )
-            existing_barriers = set(
-                session.scalars(
-                    select(ProjectBarrier.source_id).where(
-                        ProjectBarrier.project_id == project.id,
-                        ProjectBarrier.source_type == "manual_excel",
-                        ProjectBarrier.source_id.is_not(None),
-                    )
-                ).all()
-            )
-
         for row in validation.normalized_sheets["03_Важности ЛПР"]:
             lpr_code = _text(row.values.get("LPR ID"))
             if lpr_code and lpr_code not in workbook_lprs and lpr_code not in existing_lprs:
@@ -147,24 +144,6 @@ class CJMImporter:
                     "Для важности ЛПР не найден LPR ID ни в файле, ни в БД.",
                     "LPR ID",
                     lpr_code,
-                )
-
-        for row in validation.normalized_sheets["08_Планы действий"]:
-            if should_skip_plan_commit(row):
-                continue
-            barrier_code = _text(row.values.get("Связанный Barrier ID"))
-            if (
-                barrier_code
-                and barrier_code not in workbook_barriers
-                and barrier_code not in existing_barriers
-            ):
-                validation.add_issue(
-                    "error",
-                    row.sheet_name,
-                    row.row_number,
-                    "Для плана устранения не найден Barrier ID ни в файле, ни в БД.",
-                    "Связанный Barrier ID",
-                    barrier_code,
                 )
 
     def _commit(
@@ -183,8 +162,6 @@ class CJMImporter:
         self._upsert_kpis(session, project, validation, counts)
         self._upsert_goals(session, project, validation, counts)
         self._upsert_communication_points(session, project, validation, counts)
-        session.flush()
-        self._upsert_plans(session, project, validation, barriers, counts)
         return counts
 
     def _upsert_project(
@@ -213,10 +190,20 @@ class CJMImporter:
         project.project_type = _text(row.values.get("Направление проекта")) or project.project_type
         project.external_project_id = external_project_id or None
         project.working_project_code = _text(row.values.get("Рабочий код проекта")) or None
+        project.project_scale = _text(row.values.get("Масштаб проекта")) or None
+        project.known_regions = _text(row.values.get("Известные регионы")) or None
+        project.primary_operational_model = (
+            _text(row.values.get("Основная операционная модель")) or None
+        )
+        project.additional_operational_contours = (
+            _text(row.values.get("Дополнительные операционные контуры")) or None
+        )
         project.current_phase = (
             _text(row.values.get("Этап жизненного цикла")) or project.current_phase
         )
         project.status = _text(row.values.get("Статус проекта")) or project.status
+        project.start_date = _text(row.values.get("Дата старта")) or None
+        project.short_description = _text(row.values.get("Краткое описание проекта")) or None
         return project
 
     def _upsert_lprs(
@@ -255,11 +242,15 @@ class CJMImporter:
             )
             lpr.stakeholder_role = _text(row.values.get("Роль / зона влияния"))
             lpr.influence_level = _text(row.values.get("Уровень влияния")) or None
-            lpr.engagement_status = (
-                _text(row.values.get("Статус активности"))
-                or _text(row.values.get("Предполагаемое отношение к OPEN/услуге"))
-                or None
+            lpr.activity_status = _text(row.values.get("Статус активности")) or None
+            lpr.relationship_status = (
+                _text(row.values.get("Предполагаемое отношение к OPEN/услуге")) or None
             )
+            lpr.evidence_basis = _text(row.values.get("Основание вывода")) or None
+            lpr.manual_comment = (
+                _text(row.values.get("Комментарий для ручного уточнения")) or None
+            )
+            lpr.engagement_status = lpr.activity_status or lpr.relationship_status
 
         return lprs
 
@@ -314,7 +305,13 @@ class CJMImporter:
             factor.factor_type = factor_type
             factor.factor_text = factor_text
             factor.importance_level = _text(row.values.get("Критичность")) or None
-            factor.source_type = _text(row.values.get("Источник вывода")) or "manual_excel"
+            factor.source_type = "manual_excel"
+            factor.source_text = _text(row.values.get("Источник вывода")) or None
+            factor.evidence_quote = (
+                _text(row.values.get("Доказательство / короткая цитата")) or None
+            )
+            factor.period_or_source = _text(row.values.get("Период / источник")) or None
+            factor.confidence_level = _text(row.values.get("Уверенность вывода")) or None
 
     def _upsert_barriers(
         self,
@@ -358,7 +355,25 @@ class CJMImporter:
             barrier.time_status = _text(row.values.get("Временной статус"))
             barrier.criticality = _text(row.values.get("Критичность"))
             barrier.status = _text(row.values.get("Статус барьера")) or "unknown"
+            barrier.description = _text(row.values.get("Описание барьера")) or None
+            barrier.related_lpr_code = _text(row.values.get("Связанный LPR ID")) or None
+            barrier.external_lpr_id = _text(row.values.get("External LPR ID")) or None
+            barrier.related_importance_text = (
+                _text(row.values.get("Связанная важность ЛПР")) or None
+            )
             barrier.linked_kpi_text = _text(row.values.get("Связанный KPI")) or None
+            barrier.source_text = _text(row.values.get("Источник")) or None
+            barrier.evidence_quote = (
+                _text(row.values.get("Доказательство / короткая цитата")) or None
+            )
+            barrier.first_seen_period = (
+                _text(row.values.get("Период первого появления")) or None
+            )
+            barrier.last_seen_period = (
+                _text(row.values.get("Период последнего появления")) or None
+            )
+            barrier.relevance_status = _text(row.values.get("Статус актуальности")) or None
+            barrier.confidence_level = _text(row.values.get("Уверенность вывода")) or None
         return barriers
 
     def _upsert_expectations(
@@ -406,7 +421,20 @@ class CJMImporter:
             expectation.expectation_type = expectation_type
             expectation.explicitness = _text(row.values.get("Явное или неявное")) or "unknown"
             expectation.criticality = _text(row.values.get("Критичность"))
+            expectation.related_lpr_code = _text(row.values.get("Связанный LPR ID")) or None
+            expectation.external_lpr_id = _text(row.values.get("External LPR ID")) or None
+            expectation.related_importance_text = (
+                _text(row.values.get("Связанная важность ЛПР")) or None
+            )
             expectation.linked_kpi_text = _text(row.values.get("Связанный KPI")) or None
+            expectation.source_text = _text(row.values.get("Источник")) or None
+            expectation.evidence_quote = (
+                _text(row.values.get("Доказательство / короткая цитата")) or None
+            )
+            expectation.relevance_status = (
+                _text(row.values.get("Статус актуальности")) or None
+            )
+            expectation.confidence_level = _text(row.values.get("Уверенность вывода")) or None
 
     def _upsert_kpis(
         self,
@@ -434,6 +462,18 @@ class CJMImporter:
             else:
                 _increment(counts, "project_kpis", "updated")
             kpi.metric_name = _text(row.values.get("Название KPI / критерия успеха"))
+            kpi.kpi_type = _text(row.values.get("Тип KPI")) or None
+            kpi.source_text = _text(row.values.get("Источник")) or None
+            kpi.relevance_status = _text(row.values.get("Статус актуальности")) or None
+            kpi.related_expectation_text = (
+                _text(row.values.get("Связанное ожидание клиента")) or None
+            )
+            kpi.related_barrier_text = _text(row.values.get("Связанный барьер")) or None
+            kpi.client_criticality = _text(row.values.get("Критичность для клиента")) or None
+            kpi.comment = _text(row.values.get("Комментарий")) or None
+            kpi.requires_confirmation = (
+                _text(row.values.get("Требует подтверждения")) or None
+            )
             kpi.status = _text(row.values.get("Статус актуальности")) or "tracked"
 
     def _upsert_communication_points(
@@ -476,6 +516,18 @@ class CJMImporter:
                 _increment(counts, "communication_points", "updated")
             point.source_id = source_id or None
             point.point_type = point_type
+            point.client_side = (
+                _text(row.values.get("Сторона клиента: LPR ID или роль")) or None
+            )
+            point.external_lpr_id = _text(row.values.get("External LPR ID")) or None
+            point.open_side_role = _text(row.values.get("Сторона OPEN: роль")) or None
+            point.topic_text = _text(row.values.get("Тема взаимодействия")) or None
+            point.channel_text = _text(row.values.get("_channel_text")) or None
+            point.frequency = _text(row.values.get("_frequency_text")) or None
+            point.criticality = _text(row.values.get("Критичность")) or None
+            point.source_text = _text(row.values.get("Источник")) or None
+            point.relevance_status = _text(row.values.get("Статус актуальности")) or None
+            point.comment = _text(row.values.get("Комментарий")) or None
             point.summary = summary
             point.outcome = (
                 _text(row.values.get("Комментарий"))
@@ -522,13 +574,17 @@ class CJMImporter:
             else:
                 _increment(counts, "project_goals", "updated")
             goal.source_id = source_id or None
+            goal.goal_owner = _text(row.values.get("Владелец цели")) or None
             goal.goal_text = goal_text
             goal.goal_type = goal_type
-            goal.success_criteria = (
-                _text(row.values.get("Связанный KPI / критерий"))
-                or _text(row.values.get("Комментарий"))
-                or None
+            goal.priority = _text(row.values.get("Приоритет")) or None
+            goal.related_kpi_or_criterion_text = (
+                _first_text(row, "Связанный KPI / критерий", "Связанный KPI") or None
             )
+            goal.success_criteria = goal.related_kpi_or_criterion_text
+            goal.source_text = _text(row.values.get("Источник")) or None
+            goal.relevance_status = _text(row.values.get("Статус актуальности")) or None
+            goal.comment = _text(row.values.get("Комментарий")) or None
             goal.status = _text(row.values.get("Статус актуальности")) or "open"
 
     def _communication_summary(self, row: NormalizedRow) -> str:
@@ -537,64 +593,10 @@ class CJMImporter:
             f"client_side={_text(row.values.get('Сторона клиента: LPR ID или роль')) or 'unknown'}",
             f"external_lpr_id={_text(row.values.get('External LPR ID')) or 'unknown'}",
             f"open_side={_text(row.values.get('Сторона OPEN: роль')) or 'unknown'}",
-            f"frequency={_text(row.values.get('Частота')) or 'unknown'}",
+            f"frequency={_text(row.values.get('_frequency_text')) or _text(row.values.get('Частота')) or 'unknown'}",
             f"criticality={_text(row.values.get('Критичность')) or 'unknown'}",
         ]
         actuality = _text(row.values.get("Статус актуальности"))
         if actuality:
             details.append(f"actuality={actuality}")
         return " | ".join(details)
-
-    def _upsert_plans(
-        self,
-        session: Session,
-        project: Project,
-        validation: ValidationResult,
-        barriers: dict[str, ProjectBarrier],
-        counts: dict[str, dict[str, int]],
-    ) -> None:
-        for row in validation.normalized_sheets["08_Планы действий"]:
-            if should_skip_plan_commit(row):
-                _increment(counts, "barrier_mitigation_plans", "skipped")
-                continue
-            barrier_code = _text(row.values.get("Связанный Barrier ID"))
-            barrier = barriers.get(barrier_code)
-            if barrier is None:
-                barrier = session.scalar(
-                    select(ProjectBarrier).where(
-                        ProjectBarrier.project_id == project.id,
-                        ProjectBarrier.source_type == "manual_excel",
-                        ProjectBarrier.source_id == barrier_code,
-                    )
-                )
-            if barrier is None:
-                continue
-
-            action_type = _text(row.values.get("Тип действия"))
-            action_text = _text(row.values.get("Описание действия"))
-            plan = session.scalar(
-                select(BarrierMitigationPlan).where(
-                    BarrierMitigationPlan.project_id == project.id,
-                    BarrierMitigationPlan.barrier_id == barrier.id,
-                    BarrierMitigationPlan.action_type == action_type,
-                    BarrierMitigationPlan.action_text == action_text,
-                )
-            )
-            if plan is None:
-                plan = BarrierMitigationPlan(
-                    project_id=project.id,
-                    barrier_id=barrier.id,
-                    action_type=action_type,
-                    action_text=action_text,
-                    owner_role=_text(row.values.get("Ответственная роль")),
-                    status=_text(row.values.get("Статус")) or "unknown",
-                )
-                session.add(plan)
-                _increment(counts, "barrier_mitigation_plans", "created")
-            else:
-                _increment(counts, "barrier_mitigation_plans", "updated")
-            plan.owner_role = _text(row.values.get("Ответственная роль"))
-            plan.due_period = _text(row.values.get("Срок / период")) or None
-            plan.status = _text(row.values.get("Статус")) or "unknown"
-            plan.confirmation_status = _text(row.values.get("Статус подтверждения")) or None
-            plan.expected_effect = _text(row.values.get("Ожидаемый эффект")) or None

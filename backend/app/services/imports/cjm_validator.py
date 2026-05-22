@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from math import isnan
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -12,8 +13,6 @@ from app.services.imports.cjm_excel_reader import (
     TEMPLATE_SHEET_COLUMNS,
 )
 from app.services.imports.cjm_mappings import (
-    map_action_status,
-    map_action_type,
     map_barrier_status,
     map_barrier_time_status,
     map_barrier_type,
@@ -26,7 +25,6 @@ from app.services.imports.cjm_mappings import (
     map_importance_factor_type,
     map_lifecycle_stage,
     map_operational_model,
-    map_plan_confirmation_status,
     map_project_scale,
     map_project_status,
     normalize_label,
@@ -58,6 +56,8 @@ PROHIBITED_SHEETS = {
         "AI резюме",
         "Справочник_ID",
         "Справочник ID",
+        "08_Планы действий",
+        "Планы действий",
     )
 }
 
@@ -153,7 +153,11 @@ class ValidationResult:
 
 
 def _is_blank(value: object) -> bool:
-    return value is None or (isinstance(value, str) and not value.strip())
+    if value is None:
+        return True
+    if isinstance(value, float) and isnan(value):
+        return True
+    return isinstance(value, str) and (not value.strip() or value.strip().lower() == "nan")
 
 
 def _text(value: object) -> str:
@@ -452,6 +456,8 @@ def _validate_communication_row(result: ValidationResult, row: ExcelRow) -> None
     normalized = dict(row.values)
     normalized["Communication ID"] = _required(result, row, "Communication ID")
     _required(result, row, "Тема взаимодействия")
+    normalized["_channel_text"] = _text(row.values.get("Канал")) or None
+    normalized["_frequency_text"] = _text(row.values.get("Частота")) or None
     normalized["Канал"] = _map_field(
         result, row, "Канал", map_communication_channel, default="unknown"
     )
@@ -461,48 +467,6 @@ def _validate_communication_row(result: ValidationResult, row: ExcelRow) -> None
     normalized["Критичность"] = _map_field(
         result, row, "Критичность", map_criticality, default="unknown"
     )
-    _append_if_valid(result, row, normalized, errors_before)
-
-
-def _validate_plan_row(result: ValidationResult, row: ExcelRow, mode: Mode) -> None:
-    errors_before = result.errors_count
-    normalized = dict(row.values)
-    normalized["Plan ID"] = _required(result, row, "Plan ID")
-    barrier_code = _text(row.values.get("Связанный Barrier ID"))
-    if not barrier_code:
-        result.add_issue(
-            "warning" if mode == "dry-run" else "error",
-            row.sheet_name,
-            row.row_number,
-            "План устранения должен ссылаться на Barrier ID для commit-загрузки.",
-            "Связанный Barrier ID",
-            row.values.get("Связанный Barrier ID"),
-        )
-    normalized["Связанный Barrier ID"] = barrier_code or None
-    normalized["Тип действия"] = _map_field(
-        result, row, "Тип действия", map_action_type, required=True
-    )
-    normalized["Статус"] = _map_field(
-        result, row, "Статус", map_action_status, default="unknown"
-    )
-    normalized["Статус подтверждения"] = _map_field(
-        result,
-        row,
-        "Статус подтверждения",
-        map_plan_confirmation_status,
-        required=True,
-    )
-    if normalized["Статус подтверждения"] == "ai_hypothesis":
-        result.add_issue(
-            "warning",
-            row.sheet_name,
-            row.row_number,
-            "AI-гипотеза останется в отчете и будет пропущена commit-импортом планов.",
-            "Статус подтверждения",
-            row.values.get("Статус подтверждения"),
-        )
-    _required(result, row, "Описание действия")
-    _required(result, row, "Ответственная роль")
     _append_if_valid(result, row, normalized, errors_before)
 
 
@@ -643,19 +607,6 @@ def _validate_cross_references(result: ValidationResult) -> None:
                     lpr_code,
                 )
 
-    for row in result.normalized_sheets["08_Планы действий"]:
-        barrier_code = _text(row.values.get("Связанный Barrier ID"))
-        if barrier_code and barrier_code not in barrier_ids:
-            result.add_issue(
-                "warning",
-                row.sheet_name,
-                row.row_number,
-                "Barrier ID не найден на листе '04_Барьеры'; commit проверит БД.",
-                "Связанный Barrier ID",
-                barrier_code,
-            )
-
-
 def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> ValidationResult:
     result = _initialize_result(workbook, mode)
     sheet_aliases = _sheet_name_aliases(workbook)
@@ -664,8 +615,6 @@ def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> 
 
     for sheet_name, expected_columns in TEMPLATE_SHEET_COLUMNS.items():
         sheet = workbook.sheets.get(sheet_name) or workbook.sheets.get(sheet_aliases.get(sheet_name, ""))
-        if sheet_name == "08_Планы действий" and sheet is None:
-            continue
         if sheet is None:
             result.add_issue(
                 "error",
@@ -713,10 +662,6 @@ def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> 
     }
 
     for sheet_name, sheet in workbook.sheets.items():
-        if sheet_name == "08_Планы действий":
-            for row in sheet.rows:
-                _validate_plan_row(result, row, mode)
-            continue
         validator = validators.get(sheet_name)
         if validator is None:
             continue

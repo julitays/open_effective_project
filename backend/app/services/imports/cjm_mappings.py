@@ -93,6 +93,7 @@ OPERATIONAL_MODEL_ALIASES = _aliases(
     {
         "Мерчендайзинг": "merchandising",
         "Совмещенный мерчендайзинг": "combined_merchandising",
+        "Промо": "promo_consulting",
         "Промо / консультирование": "promo_consulting",
         "КАФ / кадровое администрирование": "kaf",
         "Обучение": "training",

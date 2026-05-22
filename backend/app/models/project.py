@@ -33,8 +33,20 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         comment="Working source code without a real client or brand name.",
     )
     project_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    project_scale: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    known_regions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    primary_operational_model: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    additional_operational_contours: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
     current_phase: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    start_date: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     lpr_profiles: Mapped[list["LPRProfile"]] = relationship(
         "LPRProfile",
@@ -105,9 +117,15 @@ class ProjectGoal(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
         comment="Stable manual CJM Goal ID from Excel.",
     )
+    goal_owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
     goal_text: Mapped[str] = mapped_column(Text, nullable=False)
     goal_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    priority: Mapped[str | None] = mapped_column(String(64), nullable=True)
     success_criteria: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_kpi_or_criterion_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="open")
 
     project: Mapped[Project] = relationship("Project", back_populates="goals")
@@ -123,6 +141,14 @@ class ProjectKPI(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     kpi_code: Mapped[str] = mapped_column(String(64), nullable=False)
     metric_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kpi_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    related_expectation_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_barrier_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_criticality: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requires_confirmation: Mapped[str | None] = mapped_column(String(128), nullable=True)
     target_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
     current_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
     unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -161,10 +187,17 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     explicitness: Mapped[str] = mapped_column(String(16), nullable=False)
     criticality: Mapped[str] = mapped_column(String(64), nullable=False)
     how_to_check: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_lpr_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    external_lpr_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_importance_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     linked_kpi_text: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="Free-text KPI or success-criterion link restored from CJM.",
     )
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    confidence_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     project: Mapped[Project] = relationship("Project", back_populates="expectations")

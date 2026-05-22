@@ -123,6 +123,13 @@ Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
 python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit
 ```
 
+The same flow works for the second anonymized CJM workbook:
+
+```powershell
+python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\CJM_project_002_MVP_v2.xlsx --dry-run
+python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\CJM_project_002_MVP_v2.xlsx --commit
+```
+
 Read back the imported CJM project:
 
 ```powershell

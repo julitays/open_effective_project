@@ -16,9 +16,9 @@ or other personal data in examples, fixtures, or imports.
   start date, summary.
 - Must be anonymized: `Project ID` must look like `project_001`. Do not add a
   real project or client name.
-- Current storage note: scale, known regions, operational model, additional
-  contours, start date, and summary remain in the Excel intake file until the
-  domain model is expanded.
+- Current storage note: the MVP importer stores scale, known regions,
+  operational model, additional contours, start date, and short summary from
+  the project passport.
 
 ## `lpr_profiles`
 
@@ -95,11 +95,11 @@ or other personal data in examples, fixtures, or imports.
 
 - Purpose: project goals and success criteria.
 - Stores: goal text, goal type, success criteria, and status.
-- Required for manual load: optional `08_Цели проекта` rows require goal ID,
-  project ID, goal type, and goal text. Goal ID is persisted as the stable
-  manual source ID for repeated imports.
-- Optional in manual load: source, linked KPI/criterion, actuality status,
-  confidence, and comment.
+- Required for manual load: `08_Цели проекта` rows require goal ID, project ID,
+  goal type, and goal text. Goal ID is persisted as the stable manual source ID
+  for repeated imports.
+- Optional in manual load: source, linked KPI/criterion, owner, priority,
+  actuality status, and comment.
 - Must be anonymized: goal wording must not include real project or client
   names.
 
@@ -113,8 +113,8 @@ or other personal data in examples, fixtures, or imports.
   expectation, related barrier, criticality, comment, confirmation flag.
 - Must be anonymized: KPI labels and notes must not include identifying client
   data.
-- Current storage note: source, comment, and confirmation flag stay in the Excel
-  intake file until dedicated fields are added.
+- Current storage note: source, comment, confirmation flag, related
+  expectation, and related barrier are kept as MVP text fields.
 
 ## `client_expectations`
 
@@ -141,19 +141,17 @@ or other personal data in examples, fixtures, or imports.
   actuality status, confidence.
 - Must be anonymized: source and evidence content must not identify people or
   clients.
-- Current storage note: `Barrier ID` is stored as the manual Excel source ID and
-  is used for plan links.
+- Current storage note: `Barrier ID` is stored as the manual Excel source ID for
+  repeated imports and readback.
 
 ## `barrier_mitigation_plans`
 
-- Purpose: action plans used to remove, contain, or prevent barriers.
+- Purpose: a wider MVP-schema table for later barrier action plans.
 - Stores: barrier link, action type, action text, owner role, due period,
   status, check method, expected and actual effects.
-- Required for manual load: plan ID, linked `Barrier ID`, action type, action
-  text, owner role.
-- Optional in manual load: related expectation ID, due period, status, source,
-  confirmation status, expected effect.
-- Must be anonymized: owner must be a role, not a person.
+- Required for manual load: not loaded by the current structured CJM workbook.
+- Optional in manual load: action-plan intake is outside this CJM file path.
+- Must be anonymized: any later owner value must be a role, not a person.
 
 ## `communication_points`
 

@@ -30,8 +30,14 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
             external_project_id="external_project_001",
             working_project_code="working_project_001",
             project_type="fmcg",
+            project_scale="regional",
+            known_regions="Region A; Region B",
+            primary_operational_model="merchandising",
+            additional_operational_contours="training",
             current_phase="development",
             status="active",
+            start_date="2026",
+            short_description="Anonymized project summary",
         )
         session.add(project)
         session.flush()
@@ -43,6 +49,10 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
             stakeholder_role="Regional role",
             influence_level="high",
             engagement_status="active",
+            activity_status="active",
+            relationship_status="positive",
+            evidence_basis="Restored CJM",
+            manual_comment="Check role later",
         )
         session.add(lpr)
         session.flush()
@@ -56,6 +66,10 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
                     factor_text="безопасность",
                     importance_level="high",
                     source_type="manual_excel",
+                    source_text="Restored CJM",
+                    evidence_quote="Anonymized evidence",
+                    period_or_source="2026",
+                    confidence_level="high",
                 ),
                 ProjectBarrier(
                     project_id=project.id,
@@ -66,7 +80,17 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
                     status="open",
                     source_type="manual_excel",
                     source_id="barrier_001",
+                    description="Barrier description",
                     linked_kpi_text="scorecard; execution quality",
+                    related_lpr_code="lpr_007",
+                    external_lpr_id="845; 55",
+                    related_importance_text="безопасность",
+                    source_text="Restored CJM",
+                    evidence_quote="Barrier evidence",
+                    first_seen_period="2025",
+                    last_seen_period="2026",
+                    relevance_status="current",
+                    confidence_level="high",
                 ),
                 ClientExpectation(
                     project_id=project.id,
@@ -76,17 +100,42 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
                     explicitness="explicit",
                     criticality="high",
                     linked_kpi_text="OSA; ISA",
+                    related_lpr_code="lpr_007",
+                    external_lpr_id="845; 55",
+                    related_importance_text="качество исполнения",
+                    source_text="Restored CJM",
+                    evidence_quote="Expectation evidence",
+                    relevance_status="current",
+                    confidence_level="high",
                 ),
                 ProjectKPI(
                     project_id=project.id,
                     kpi_code="kpi_001",
                     metric_name="Execution quality",
+                    kpi_type="service",
+                    source_text="Restored CJM",
+                    relevance_status="current",
+                    related_expectation_text="expectation_001",
+                    related_barrier_text="barrier_001",
+                    client_criticality="high",
+                    comment="KPI note",
+                    requires_confirmation="no",
                     status="tracked",
                 ),
                 CommunicationPoint(
                     project_id=project.id,
                     source_id="communication_001",
                     point_type="meeting",
+                    client_side="lpr_007",
+                    external_lpr_id="845; 55",
+                    open_side_role="Project role",
+                    topic_text="Project status",
+                    channel_text="Встреча",
+                    frequency="weekly",
+                    criticality="high",
+                    source_text="Restored CJM",
+                    relevance_status="current",
+                    comment="Communication note",
                     summary="Project status meeting",
                 ),
                 ProjectGoal(
@@ -94,6 +143,12 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
                     source_id="goal_001",
                     goal_text="Keep delivery quality",
                     goal_type="service",
+                    goal_owner="Project role",
+                    priority="high",
+                    related_kpi_or_criterion_text="kpi_001",
+                    source_text="Restored CJM",
+                    relevance_status="current",
+                    comment="Goal note",
                     status="open",
                 ),
             ]
@@ -143,10 +198,14 @@ def test_projects_endpoint_returns_list(cjm_client: TestClient) -> None:
             "external_project_id": "external_project_001",
             "working_project_code": "working_project_001",
             "direction": "fmcg",
-            "project_scale": None,
+            "project_scale": "regional",
+            "known_regions": "Region A; Region B",
+            "primary_operational_model": "merchandising",
+            "additional_operational_contours": "training",
             "lifecycle_stage": "development",
             "project_status": "active",
-            "short_description": None,
+            "start_date": "2026",
+            "short_description": "Anonymized project summary",
         }
     ]
 
@@ -194,15 +253,22 @@ def test_lpr_read_does_not_duplicate_external_aliases(cjm_client: TestClient) ->
             "lpr_code": "lpr_007",
             "external_lpr_id": "845; 55",
             "role": "Regional role",
+            "role_zone": "Regional role",
             "influence_level": "high",
             "activity_status": "active",
-            "relationship_status": None,
+            "relationship_status": "positive",
+            "evidence_basis": "Restored CJM",
+            "manual_comment": "Check role later",
             "importance_factors": [
                 {
                     "factor_type": "safety",
                     "factor_text": "безопасность",
                     "criticality": "high",
                     "source_type": "manual_excel",
+                    "source_text": "Restored CJM",
+                    "evidence_quote": "Anonymized evidence",
+                    "period_or_source": "2026",
+                    "confidence_level": "high",
                 }
             ],
         }
@@ -216,4 +282,11 @@ def test_linked_kpi_text_is_read_for_barriers_and_expectations(cjm_client: TestC
     assert barriers.status_code == 200
     assert expectations.status_code == 200
     assert barriers.json()[0]["linked_kpi_text"] == "scorecard; execution quality"
+    assert barriers.json()[0]["relevance_status"] == "current"
+    assert barriers.json()[0]["confidence_level"] == "high"
+    assert barriers.json()[0]["source_text"] == "Restored CJM"
+    assert barriers.json()[0]["evidence_quote"] == "Barrier evidence"
     assert expectations.json()[0]["linked_kpi_text"] == "OSA; ISA"
+    assert expectations.json()[0]["relevance_status"] == "current"
+    assert expectations.json()[0]["confidence_level"] == "high"
+    assert expectations.json()[0]["source_text"] == "Restored CJM"

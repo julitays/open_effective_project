@@ -31,11 +31,21 @@ class ProjectBarrier(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(64), nullable=False)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
     source_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_lpr_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    external_lpr_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_importance_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     linked_kpi_text: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="Free-text KPI or success-criterion link restored from CJM.",
     )
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    first_seen_period: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_seen_period: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    confidence_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     project: Mapped["Project"] = relationship("Project", back_populates="barriers")
     mitigation_plans: Mapped[list["BarrierMitigationPlan"]] = relationship(
@@ -73,6 +83,17 @@ class CommunicationPoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     cjm_stage: Mapped[str | None] = mapped_column(String(128), nullable=True)
     point_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    client_side: Mapped[str | None] = mapped_column(Text, nullable=True)
+    external_lpr_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    open_side_role: Mapped[str | None] = mapped_column(Text, nullable=True)
+    topic_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    topic_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    channel_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    frequency: Mapped[str | None] = mapped_column(Text, nullable=True)
+    criticality: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
 

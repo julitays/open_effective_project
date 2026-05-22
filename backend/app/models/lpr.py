@@ -36,6 +36,10 @@ class LPRProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     stakeholder_role: Mapped[str] = mapped_column(String(128), nullable=False)
     influence_level: Mapped[str | None] = mapped_column(String(64), nullable=True)
     engagement_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    activity_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    relationship_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_basis: Mapped[str | None] = mapped_column(Text, nullable=True)
+    manual_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     project: Mapped["Project"] = relationship("Project", back_populates="lpr_profiles")
     importance_factors: Mapped[list["LPRImportanceFactor"]] = relationship(
@@ -66,6 +70,10 @@ class LPRImportanceFactor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     factor_text: Mapped[str] = mapped_column(Text, nullable=False)
     importance_level: Mapped[str | None] = mapped_column(String(64), nullable=True)
     source_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    period_or_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     lpr: Mapped[LPRProfile] = relationship("LPRProfile", back_populates="importance_factors")
     project: Mapped["Project"] = relationship("Project")

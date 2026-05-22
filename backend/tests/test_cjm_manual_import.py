@@ -10,6 +10,7 @@ from app.models import (
     CommunicationPoint,
     LPRImportanceFactor,
     LPRProfile,
+    Project,
     ProjectBarrier,
     ProjectGoal,
     ProjectKPI,
@@ -18,9 +19,8 @@ from app.services.imports.cjm_excel_reader import read_cjm_workbook
 from app.services.imports.cjm_importer import (
     CJMImporter,
     normalize_external_lpr_aliases,
-    should_skip_plan_commit,
 )
-from app.services.imports.cjm_mappings import map_importance_factor_type
+from app.services.imports.cjm_mappings import map_importance_factor_type, map_operational_model
 from app.services.imports.cjm_report import build_report_payload
 from app.services.imports.cjm_validator import validate_cjm_workbook
 from scripts.generate_cjm_mvp_template import generate_template
@@ -36,6 +36,10 @@ def _minimal_workbook(path: Path) -> Path:
     return path
 
 
+def _append_named_row(worksheet: object, values: dict[str, object]) -> None:
+    worksheet.append([values.get(cell.value) for cell in worksheet[1]])
+
+
 def test_generate_template_creates_excel_file(tmp_path: Path) -> None:
     output_path = tmp_path / "cjm_template.xlsx"
 
@@ -45,6 +49,8 @@ def test_generate_template_creates_excel_file(tmp_path: Path) -> None:
     assert output_path.exists()
     workbook = load_workbook(output_path)
     assert "00_Инструкция" in workbook.sheetnames
+    assert "08_Цели проекта" in workbook.sheetnames
+    assert "08_Планы действий" not in workbook.sheetnames
     assert "09_Что нужно дозапросить" in workbook.sheetnames
     assert "04_История опросов" not in workbook.sheetnames
     workbook.close()
@@ -117,53 +123,32 @@ def test_validator_rejects_prohibited_methodology_sheet(tmp_path: Path) -> None:
     assert any(issue.sheet_name == "AI-резюме" for issue in result.issues)
 
 
-def test_ai_hypothesis_plan_is_marked_for_commit_skip(tmp_path: Path) -> None:
-    workbook_path = _minimal_workbook(tmp_path / "ai_plan.xlsx")
+def test_validator_rejects_action_plan_sheet(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "action_plan.xlsx")
     workbook = load_workbook(workbook_path)
-    workbook["04_Барьеры"].append(
-        ["barrier_001", "Риск задержки", "Сроки", "Есть сейчас", None, "Высокая"]
-    )
-    workbook["08_Планы действий"].append(
-        [
-            "plan_001",
-            "barrier_001",
-            None,
-            "Профилактика",
-            "Проверить статус договоренностей",
-            "Роль проекта",
-            None,
-            "Сделать",
-            "Восстановленный CJM",
-            "AI-гипотеза",
-        ]
-    )
+    workbook.create_sheet("08_Планы действий")
     workbook.save(workbook_path)
     workbook.close()
 
     result = validate_cjm_workbook(read_cjm_workbook(workbook_path))
 
-    plan_row = result.normalized_sheets["08_Планы действий"][0]
-    assert should_skip_plan_commit(plan_row)
+    assert result.has_errors
+    assert any(issue.sheet_name == "08_Планы действий" for issue in result.issues)
 
 
-def test_validator_accepts_optional_project_goals_sheet(tmp_path: Path) -> None:
+def test_validator_accepts_project_goals_sheet(tmp_path: Path) -> None:
     workbook_path = _minimal_workbook(tmp_path / "goals.xlsx")
     workbook = load_workbook(workbook_path)
-    worksheet = workbook.create_sheet("08_Цели проекта")
-    worksheet.append(
-        [
-            "Goal ID",
-            "Project ID",
-            "Тип цели",
-            "Цель проекта",
-            "Источник",
-            "Связанный KPI / критерий",
-            "Статус актуальности",
-            "Уверенность вывода",
-            "Комментарий",
-        ]
+    worksheet = workbook["08_Цели проекта"]
+    _append_named_row(
+        worksheet,
+        {
+            "Goal ID": "goal_001",
+            "Project ID": "project_001",
+            "Тип цели": "service",
+            "Цель проекта": "Сохранить качество услуги",
+        },
     )
-    worksheet.append(["goal_001", "project_001", "service", "Сохранить качество услуги"])
     workbook.save(workbook_path)
     workbook.close()
 
@@ -179,6 +164,10 @@ def test_external_lpr_aliases_are_kept_on_one_profile() -> None:
 
 def test_safety_importance_factor_maps_to_code() -> None:
     assert map_importance_factor_type("безопасность") == "safety"
+
+
+def test_promo_operational_model_maps_to_promo_consulting() -> None:
+    assert map_operational_model("промо") == "promo_consulting"
 
 
 def test_report_describes_unmapped_importance_factor(tmp_path: Path) -> None:
@@ -286,6 +275,140 @@ def test_commit_import_keeps_text_kpi_links(tmp_path: Path) -> None:
     assert expectation.linked_kpi_text == "OSA; ISA; PSS"
 
 
+def test_importer_persists_v6_context_fields(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "v6_context.xlsx"
+    generate_template(workbook_path)
+    workbook = load_workbook(workbook_path)
+    _append_named_row(
+        workbook["01_Паспорт проекта"],
+        {
+            "Project ID": "project_002",
+            "External project ID": 1991,
+            "Рабочий код проекта": "work_002",
+            "Направление проекта": "Электроника",
+            "Масштаб проекта": "Федеральный",
+            "Основная операционная модель": "промо",
+            "Этап жизненного цикла": "Развитие",
+            "Статус проекта": "Активный",
+            "Дата старта": "2019",
+            "Краткое описание проекта": "Anonymized summary",
+        },
+    )
+    _append_named_row(
+        workbook["02_ЛПР"],
+        {
+            "LPR ID": "lpr_001",
+            "External LPR ID": "854; 556",
+            "Роль / зона влияния": "Региональная роль",
+            "Уровень влияния": "high",
+            "Статус активности": "active",
+            "Предполагаемое отношение к OPEN/услуге": "positive",
+            "Основание вывода": "Restored source",
+            "Комментарий для ручного уточнения": "Manual note",
+        },
+    )
+    _append_named_row(
+        workbook["03_Важности ЛПР"],
+        {
+            "LPR ID": "lpr_001",
+            "External LPR ID": "854; 556",
+            "Важность": "безопасность",
+            "Критичность": "Высокая",
+            "Источник вывода": "Restored source",
+            "Доказательство / короткая цитата": "Importance evidence",
+            "Период / источник": "2026",
+            "Уверенность вывода": "high",
+        },
+    )
+    _append_named_row(
+        workbook["04_Барьеры"],
+        {
+            "Barrier ID": "barrier_001",
+            "Название барьера": "Риск исполнения",
+            "Тип барьера": "Качество исполнения",
+            "Временной статус": "Есть сейчас",
+            "Описание барьера": "Barrier description",
+            "Критичность": "Высокая",
+            "Связанный LPR ID": "lpr_001",
+            "External LPR ID": "854; 556",
+            "Связанная важность ЛПР": "безопасность",
+            "Источник": "Restored source",
+            "Доказательство / короткая цитата": "Barrier evidence",
+            "Статус барьера": "Открыт",
+            "Статус актуальности": "current",
+            "Уверенность вывода": "high",
+        },
+    )
+    _append_named_row(
+        workbook["05_Ожидания клиента"],
+        {
+            "Expectation ID": "expectation_001",
+            "Ожидание клиента": "Ожидается стабильное качество",
+            "Тип ожидания": "Качество",
+            "Явное или неявное": "Явное",
+            "Критичность": "Высокая",
+            "Связанный LPR ID": "lpr_001",
+            "External LPR ID": "854; 556",
+            "Связанная важность ЛПР": "безопасность",
+            "Источник": "Restored source",
+            "Доказательство / короткая цитата": "Expectation evidence",
+            "Статус актуальности": "current",
+            "Уверенность вывода": "high",
+        },
+    )
+    _append_named_row(
+        workbook["07_Каналы взаимодействия"],
+        {
+            "Communication ID": "communication_001",
+            "Сторона клиента: LPR ID или роль": "lpr_001",
+            "External LPR ID": "854; 556",
+            "Сторона OPEN: роль": "Проектная роль",
+            "Тема взаимодействия": "Статус проекта",
+            "Канал": "Встреча",
+            "Частота": "3-5 раз в неделю",
+            "Критичность": "Высокая",
+            "Источник": "Restored source",
+            "Статус актуальности": "current",
+            "Комментарий": "Communication note",
+        },
+    )
+    workbook.save(workbook_path)
+    workbook.close()
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    test_session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    result = CJMImporter(
+        session_factory=test_session_factory,
+        report_dir=tmp_path / "reports",
+    ).run(workbook_path, "commit")
+
+    assert result.committed
+    with test_session_factory() as session:
+        project = session.scalar(select(Project).where(Project.project_code == "project_002"))
+        factor = session.scalar(select(LPRImportanceFactor))
+        barrier = session.scalar(select(ProjectBarrier))
+        expectation = session.scalar(select(ClientExpectation))
+        communication = session.scalar(select(CommunicationPoint))
+
+    assert project is not None
+    assert project.external_project_id == "1991"
+    assert project.primary_operational_model == "promo_consulting"
+    assert project.short_description == "Anonymized summary"
+    assert factor is not None
+    assert factor.evidence_quote == "Importance evidence"
+    assert factor.confidence_level == "high"
+    assert barrier is not None
+    assert barrier.relevance_status == "current"
+    assert barrier.evidence_quote == "Barrier evidence"
+    assert barrier.source_text == "Restored source"
+    assert expectation is not None
+    assert expectation.relevance_status == "current"
+    assert expectation.confidence_level == "high"
+    assert communication is not None
+    assert communication.frequency == "3-5 раз в неделю"
+
+
 def test_repeated_commit_does_not_duplicate_main_cjm_entities(tmp_path: Path) -> None:
     workbook_path = _minimal_workbook(tmp_path / "idempotent_commit.xlsx")
     workbook = load_workbook(workbook_path)
@@ -315,21 +438,16 @@ def test_repeated_commit_does_not_duplicate_main_cjm_entities(tmp_path: Path) ->
     workbook["07_Каналы взаимодействия"].append(
         ["communication_001", "lpr_001", None, "Роль проекта", "Статус проекта"]
     )
-    goals = workbook.create_sheet("08_Цели проекта")
-    goals.append(
-        [
-            "Goal ID",
-            "Project ID",
-            "Тип цели",
-            "Цель проекта",
-            "Источник",
-            "Связанный KPI / критерий",
-            "Статус актуальности",
-            "Уверенность вывода",
-            "Комментарий",
-        ]
+    goals = workbook["08_Цели проекта"]
+    _append_named_row(
+        goals,
+        {
+            "Goal ID": "goal_001",
+            "Project ID": "project_001",
+            "Тип цели": "service",
+            "Цель проекта": "Сохранить качество услуги",
+        },
     )
-    goals.append(["goal_001", "project_001", "service", "Сохранить качество услуги"])
     workbook.save(workbook_path)
     workbook.close()
 

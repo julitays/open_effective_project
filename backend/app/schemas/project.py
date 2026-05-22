@@ -70,6 +70,10 @@ class CJMProjectPassport(BaseModel):
     working_project_code: str | None
     direction: str | None
     project_scale: str | None
+    known_regions: str | None
+    primary_operational_model: str | None
+    additional_operational_contours: str | None
     lifecycle_stage: str | None
     project_status: str
+    start_date: str | None
     short_description: str | None
