@@ -57,6 +57,14 @@ def map_code(
     return mapped if mapped in allowed else None
 
 
+def _split_composite(value: object) -> list[str]:
+    return [
+        part.strip()
+        for part in re.split(r"\s*(?:/|;|,)\s*", normalize_label(value))
+        if part.strip()
+    ]
+
+
 DIRECTION_ALIASES = _aliases(
     Direction,
     {
@@ -115,6 +123,7 @@ PROJECT_STATUS_ALIASES = _aliases(
         "Завершенный": "completed",
         "Пилот": "pilot",
         "Под риском": "at_risk",
+        "Требует подтверждения": "unknown",
         "Неизвестно": "unknown",
     },
 )
@@ -154,6 +163,8 @@ CRITICALITY_ALIASES = _aliases(
         "Высокий": "high",
         "Средняя": "medium",
         "Средний": "medium",
+        "Средняя / высокая": "high",
+        "Средний / высокий": "high",
         "Низкая": "low",
         "Низкий": "low",
         "Неизвестно": "unknown",
@@ -193,6 +204,7 @@ BARRIER_STATUS_ALIASES = _aliases(
         "Сдержан": "contained",
         "Решен": "resolved",
         "Мониторинг": "monitoring",
+        "Наблюдение": "monitoring",
         "Неизвестно": "unknown",
     },
 )
@@ -206,6 +218,7 @@ EXPECTATION_TYPE_ALIASES = _aliases(
         "Прозрачность": "transparency",
         "Стоимость": "cost",
         "Экспертиза": "expertise",
+        "Экспертность": "expertise",
         "Предсказуемость": "predictability",
         "Минимум ручного контроля": "minimum_manual_control",
         "Гибкость": "flexibility",
@@ -348,11 +361,29 @@ def map_explicitness(value: object) -> str | None:
 
 
 def map_communication_channel(value: object) -> str | None:
-    return map_code(value, CommunicationChannel, COMMUNICATION_CHANNEL_ALIASES)
+    direct = map_code(value, CommunicationChannel, COMMUNICATION_CHANNEL_ALIASES)
+    if direct is not None:
+        return direct
+
+    parts = [
+        map_code(part, CommunicationChannel, COMMUNICATION_CHANNEL_ALIASES)
+        for part in _split_composite(value)
+    ]
+    known = [part for part in parts if part is not None]
+    return known[0] if known else "other" if normalize_label(value) else None
 
 
 def map_communication_frequency(value: object) -> str | None:
-    return map_code(value, CommunicationFrequency, COMMUNICATION_FREQUENCY_ALIASES)
+    direct = map_code(value, CommunicationFrequency, COMMUNICATION_FREQUENCY_ALIASES)
+    if direct is not None:
+        return direct
+
+    parts = [
+        map_code(part, CommunicationFrequency, COMMUNICATION_FREQUENCY_ALIASES)
+        for part in _split_composite(value)
+    ]
+    known = [part for part in parts if part is not None]
+    return known[0] if known else "unknown" if normalize_label(value) else None
 
 
 def map_action_type(value: object) -> str | None:

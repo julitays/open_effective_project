@@ -202,6 +202,47 @@ def _validate_lpr_code(
         )
 
 
+def _linked_lpr_codes(value: object) -> list[str]:
+    return [
+        part.strip()
+        for part in re.split(r"\s*[;,]\s*", _text(value))
+        if part.strip()
+    ]
+
+
+def _validate_linked_lpr_codes(
+    result: ValidationResult,
+    row: ExcelRow,
+    field_name: str,
+    value: str,
+) -> None:
+    if not value:
+        return
+
+    codes = _linked_lpr_codes(value)
+    invalid = [code for code in codes if not LPR_CODE_PATTERN.fullmatch(code)]
+    if invalid == ["несколько ЛПР"]:
+        result.add_issue(
+            "warning",
+            row.sheet_name,
+            row.row_number,
+            "Связь с несколькими ЛПР описана текстом без внутренних LPR ID.",
+            field_name,
+            value,
+        )
+        return
+
+    if invalid:
+        result.add_issue(
+            "error",
+            row.sheet_name,
+            row.row_number,
+            "Связанный LPR ID должен быть одним или несколькими обезличенными кодами вида lpr_001.",
+            field_name,
+            value,
+        )
+
+
 def _map_field(
     result: ValidationResult,
     row: ExcelRow,
@@ -242,12 +283,15 @@ def _append_if_valid(
     row: ExcelRow,
     normalized: dict[str, object],
     errors_before_row: int,
+    *,
+    target_sheet_name: str | None = None,
 ) -> None:
     if result.errors_count == errors_before_row:
-        result.normalized_sheets[row.sheet_name].append(
-            NormalizedRow(row.sheet_name, row.row_number, normalized)
+        sheet_name = target_sheet_name or row.sheet_name
+        result.normalized_sheets[sheet_name].append(
+            NormalizedRow(sheet_name, row.row_number, normalized)
         )
-        result.rows_valid[row.sheet_name] += 1
+        result.rows_valid[sheet_name] += 1
 
 
 def _validate_passport_row(result: ValidationResult, row: ExcelRow) -> None:
@@ -320,7 +364,7 @@ def _validate_barrier_row(result: ValidationResult, row: ExcelRow) -> None:
     barrier_code = _required(result, row, "Barrier ID")
     _required(result, row, "Название барьера")
     linked_lpr = _text(row.values.get("Связанный LPR ID"))
-    _validate_lpr_code(result, row.sheet_name, row.row_number, "Связанный LPR ID", linked_lpr)
+    _validate_linked_lpr_codes(result, row, "Связанный LPR ID", linked_lpr)
 
     normalized = dict(row.values)
     normalized["Barrier ID"] = barrier_code
@@ -345,7 +389,7 @@ def _validate_expectation_row(result: ValidationResult, row: ExcelRow) -> None:
     expectation_code = _required(result, row, "Expectation ID")
     _required(result, row, "Ожидание клиента")
     linked_lpr = _text(row.values.get("Связанный LPR ID"))
-    _validate_lpr_code(result, row.sheet_name, row.row_number, "Связанный LPR ID", linked_lpr)
+    _validate_linked_lpr_codes(result, row, "Связанный LPR ID", linked_lpr)
 
     normalized = dict(row.values)
     normalized["Expectation ID"] = expectation_code
@@ -437,7 +481,8 @@ def _validate_follow_up_row(result: ValidationResult, row: ExcelRow) -> None:
     normalized = dict(row.values)
     _required(result, row, "Раздел CJM")
     _required(result, row, "Что нужно узнать")
-    _append_if_valid(result, row, normalized, errors_before)
+    target_sheet_name = "09_Что нужно дозапросить" if row.sheet_name == "08_Что нужно дозапросить" else None
+    _append_if_valid(result, row, normalized, errors_before, target_sheet_name=target_sheet_name)
 
 
 def _scan_pii_headers(result: ValidationResult, workbook: CJMWorkbookData) -> None:
@@ -465,9 +510,23 @@ def _scan_prohibited_sheets(result: ValidationResult, workbook: CJMWorkbookData)
             )
 
 
+def _sheet_name_aliases(workbook: CJMWorkbookData) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    if "09_Что нужно дозапросить" not in workbook.sheets and "08_Что нужно дозапросить" in workbook.sheets:
+        aliases["09_Что нужно дозапросить"] = "08_Что нужно дозапросить"
+    return aliases
+
+
 def _initialize_result(workbook: CJMWorkbookData, mode: Mode) -> ValidationResult:
+    sheet_aliases = _sheet_name_aliases(workbook)
     rows_read = {
-        sheet_name: len(workbook.sheets[sheet_name].rows) if sheet_name in workbook.sheets else 0
+        sheet_name: (
+            len(workbook.sheets[sheet_name].rows)
+            if sheet_name in workbook.sheets
+            else len(workbook.sheets[sheet_aliases[sheet_name]].rows)
+            if sheet_name in sheet_aliases
+            else 0
+        )
         for sheet_name in TEMPLATE_SHEET_COLUMNS
     }
     return ValidationResult(
@@ -554,11 +613,14 @@ def _validate_cross_references(result: ValidationResult) -> None:
 
 def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> ValidationResult:
     result = _initialize_result(workbook, mode)
+    sheet_aliases = _sheet_name_aliases(workbook)
     _scan_pii_headers(result, workbook)
     _scan_prohibited_sheets(result, workbook)
 
     for sheet_name, expected_columns in TEMPLATE_SHEET_COLUMNS.items():
-        sheet = workbook.sheets.get(sheet_name)
+        sheet = workbook.sheets.get(sheet_name) or workbook.sheets.get(sheet_aliases.get(sheet_name, ""))
+        if sheet_name == "08_Планы действий" and sheet is None:
+            continue
         if sheet is None:
             result.add_issue(
                 "error",
@@ -587,6 +649,7 @@ def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> 
         "06_KPI и критерии успеха": _validate_kpi_row,
         "07_Каналы взаимодействия": _validate_communication_row,
         "09_Что нужно дозапросить": _validate_follow_up_row,
+        "08_Что нужно дозапросить": _validate_follow_up_row,
     }
 
     for sheet_name, sheet in workbook.sheets.items():
