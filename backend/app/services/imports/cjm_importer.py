@@ -11,7 +11,7 @@ from app.core.db import SessionLocal
 from app.models.action_plan import BarrierMitigationPlan
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRImportanceFactor, LPRProfile
-from app.models.project import ClientExpectation, Project, ProjectKPI
+from app.models.project import ClientExpectation, Project, ProjectGoal, ProjectKPI
 from app.services.imports.cjm_excel_reader import read_cjm_workbook
 from app.services.imports.cjm_report import DEFAULT_REPORT_DIR, write_import_report
 from app.services.imports.cjm_validator import NormalizedRow, ValidationResult, validate_cjm_workbook
@@ -166,6 +166,7 @@ class CJMImporter:
         barriers = self._upsert_barriers(session, project, validation, counts)
         self._upsert_expectations(session, project, validation, counts)
         self._upsert_kpis(session, project, validation, counts)
+        self._upsert_goals(session, project, validation, counts)
         self._upsert_communication_points(session, project, validation, counts)
         session.flush()
         self._upsert_plans(session, project, validation, barriers, counts)
@@ -420,6 +421,40 @@ class CJMImporter:
                 or _text(row.values.get("Источник"))
                 or None
             )
+
+    def _upsert_goals(
+        self,
+        session: Session,
+        project: Project,
+        validation: ValidationResult,
+        counts: dict[str, dict[str, int]],
+    ) -> None:
+        for row in validation.normalized_sheets["08_Цели проекта"]:
+            goal_text = _text(row.values.get("Цель проекта"))
+            goal_type = _text(row.values.get("Тип цели"))
+            goal = session.scalar(
+                select(ProjectGoal).where(
+                    ProjectGoal.project_id == project.id,
+                    ProjectGoal.goal_text == goal_text,
+                    ProjectGoal.goal_type == goal_type,
+                )
+            )
+            if goal is None:
+                goal = ProjectGoal(
+                    project_id=project.id,
+                    goal_text=goal_text,
+                    goal_type=goal_type,
+                )
+                session.add(goal)
+                _increment(counts, "project_goals", "created")
+            else:
+                _increment(counts, "project_goals", "updated")
+            goal.success_criteria = (
+                _text(row.values.get("Связанный KPI / критерий"))
+                or _text(row.values.get("Комментарий"))
+                or None
+            )
+            goal.status = _text(row.values.get("Статус актуальности")) or "open"
 
     def _communication_summary(self, row: NormalizedRow) -> str:
         details = [

@@ -8,6 +8,7 @@ from typing import Literal
 from app.services.imports.cjm_excel_reader import (
     CJMWorkbookData,
     ExcelRow,
+    OPTIONAL_SHEET_COLUMNS,
     TEMPLATE_SHEET_COLUMNS,
 )
 from app.services.imports.cjm_mappings import (
@@ -417,6 +418,18 @@ def _validate_kpi_row(result: ValidationResult, row: ExcelRow) -> None:
     _append_if_valid(result, row, normalized, errors_before)
 
 
+def _validate_goal_row(result: ValidationResult, row: ExcelRow) -> None:
+    errors_before = result.errors_count
+    normalized = dict(row.values)
+    normalized["Goal ID"] = _required(result, row, "Goal ID")
+    project_code = _required(result, row, "Project ID")
+    _validate_project_code(result, row.sheet_name, row.row_number, "Project ID", project_code)
+    normalized["Project ID"] = project_code
+    normalized["Тип цели"] = _required(result, row, "Тип цели")
+    normalized["Цель проекта"] = _required(result, row, "Цель проекта")
+    _append_if_valid(result, row, normalized, errors_before)
+
+
 def _validate_communication_row(result: ValidationResult, row: ExcelRow) -> None:
     errors_before = result.errors_count
     normalized = dict(row.values)
@@ -519,6 +532,7 @@ def _sheet_name_aliases(workbook: CJMWorkbookData) -> dict[str, str]:
 
 def _initialize_result(workbook: CJMWorkbookData, mode: Mode) -> ValidationResult:
     sheet_aliases = _sheet_name_aliases(workbook)
+    expected_sheets = {**TEMPLATE_SHEET_COLUMNS, **OPTIONAL_SHEET_COLUMNS}
     rows_read = {
         sheet_name: (
             len(workbook.sheets[sheet_name].rows)
@@ -527,14 +541,14 @@ def _initialize_result(workbook: CJMWorkbookData, mode: Mode) -> ValidationResul
             if sheet_name in sheet_aliases
             else 0
         )
-        for sheet_name in TEMPLATE_SHEET_COLUMNS
+        for sheet_name in expected_sheets
     }
     return ValidationResult(
         file_path=workbook.file_path,
         mode=mode,
         rows_read=rows_read,
-        rows_valid={sheet_name: 0 for sheet_name in TEMPLATE_SHEET_COLUMNS},
-        normalized_sheets={sheet_name: [] for sheet_name in TEMPLATE_SHEET_COLUMNS},
+        rows_valid={sheet_name: 0 for sheet_name in expected_sheets},
+        normalized_sheets={sheet_name: [] for sheet_name in expected_sheets},
     )
 
 
@@ -584,6 +598,20 @@ def _validate_cross_references(result: ValidationResult) -> None:
     result.identifiers["expectation_ids"].update(expectation_ids)
     if result.primary_project_id:
         result.identifiers["project_ids"].add(result.primary_project_id)
+
+    for row in result.normalized_sheets["08_Цели проекта"]:
+        project_code = _text(row.values.get("Project ID"))
+        if project_code:
+            result.identifiers["project_ids"].add(project_code)
+        if result.primary_project_id and project_code != result.primary_project_id:
+            result.add_issue(
+                "error",
+                row.sheet_name,
+                row.row_number,
+                "Project ID цели должен совпадать с паспортом проекта.",
+                "Project ID",
+                project_code,
+            )
 
     for sheet_name in ("03_Важности ЛПР",):
         for row in result.normalized_sheets[sheet_name]:
@@ -640,6 +668,20 @@ def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> 
                 raw_value=missing_columns,
             )
 
+    for sheet_name, expected_columns in OPTIONAL_SHEET_COLUMNS.items():
+        sheet = workbook.sheets.get(sheet_name)
+        if sheet is None:
+            continue
+        missing_columns = [column for column in expected_columns if column not in sheet.headers]
+        if missing_columns:
+            result.add_issue(
+                "error",
+                sheet_name,
+                1,
+                "В optional-листе отсутствуют обязательные колонки.",
+                raw_value=missing_columns,
+            )
+
     validators = {
         "01_Паспорт проекта": _validate_passport_row,
         "02_ЛПР": _validate_lpr_row,
@@ -648,6 +690,7 @@ def validate_cjm_workbook(workbook: CJMWorkbookData, mode: Mode = "dry-run") -> 
         "05_Ожидания клиента": _validate_expectation_row,
         "06_KPI и критерии успеха": _validate_kpi_row,
         "07_Каналы взаимодействия": _validate_communication_row,
+        "08_Цели проекта": _validate_goal_row,
         "09_Что нужно дозапросить": _validate_follow_up_row,
         "08_Что нужно дозапросить": _validate_follow_up_row,
     }

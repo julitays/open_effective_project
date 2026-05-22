@@ -125,6 +125,20 @@ TEMPLATE_SHEET_COLUMNS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+OPTIONAL_SHEET_COLUMNS: dict[str, tuple[str, ...]] = {
+    "08_Цели проекта": (
+        "Goal ID",
+        "Project ID",
+        "Тип цели",
+        "Цель проекта",
+        "Источник",
+        "Связанный KPI / критерий",
+        "Статус актуальности",
+        "Уверенность вывода",
+        "Комментарий",
+    ),
+}
+
 
 @dataclass(slots=True)
 class ExcelRow:

@@ -120,3 +120,30 @@ def test_ai_hypothesis_plan_is_marked_for_commit_skip(tmp_path: Path) -> None:
 
     plan_row = result.normalized_sheets["08_Планы действий"][0]
     assert should_skip_plan_commit(plan_row)
+
+
+def test_validator_accepts_optional_project_goals_sheet(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "goals.xlsx")
+    workbook = load_workbook(workbook_path)
+    worksheet = workbook.create_sheet("08_Цели проекта")
+    worksheet.append(
+        [
+            "Goal ID",
+            "Project ID",
+            "Тип цели",
+            "Цель проекта",
+            "Источник",
+            "Связанный KPI / критерий",
+            "Статус актуальности",
+            "Уверенность вывода",
+            "Комментарий",
+        ]
+    )
+    worksheet.append(["goal_001", "project_001", "service", "Сохранить качество услуги"])
+    workbook.save(workbook_path)
+    workbook.close()
+
+    result = validate_cjm_workbook(read_cjm_workbook(workbook_path))
+
+    assert not result.has_errors
+    assert len(result.normalized_sheets["08_Цели проекта"]) == 1

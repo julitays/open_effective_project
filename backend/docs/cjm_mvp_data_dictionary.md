@@ -95,8 +95,10 @@ or other personal data in examples, fixtures, or imports.
 
 - Purpose: project goals and success criteria.
 - Stores: goal text, goal type, success criteria, and status.
-- Required for manual load: not loaded by the current Excel intake sheets.
-- Optional in manual load: goal data can be added in a later intake extension.
+- Required for manual load: optional `08_Цели проекта` rows require goal ID,
+  project ID, goal type, and goal text.
+- Optional in manual load: source, linked KPI/criterion, actuality status,
+  confidence, and comment.
 - Must be anonymized: goal wording must not include real project or client
   names.
 

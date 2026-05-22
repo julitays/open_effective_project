@@ -30,6 +30,8 @@ Fill only anonymized project and LPR codes. Do not add columns such as `ФИО`,
 `Имя`, `Телефон`, `Email`, `Название клиента`, or `Название проекта`.
 `External project ID` is required in the project passport; `External LPR ID` is
 allowed when it is a source CSV ID rather than personal data.
+If a restored CJM contains a separate `08_Цели проекта` sheet, the importer
+accepts it as an optional extension and loads its valid rows into project goals.
 
 ## 3. Run validation and dry-run
 
