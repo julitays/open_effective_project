@@ -70,6 +70,9 @@ class ValidationIssue:
     message: str
     field_name: str | None = None
     raw_value: object | None = None
+    current_mapping: str | None = None
+    issue_type: str | None = None
+    suggested_action: str | None = None
 
     def as_dict(self) -> dict[str, object | None]:
         return {
@@ -79,6 +82,9 @@ class ValidationIssue:
             "message": self.message,
             "field_name": self.field_name,
             "raw_value": self.raw_value,
+            "current_mapping": self.current_mapping,
+            "issue_type": self.issue_type,
+            "suggested_action": self.suggested_action,
         }
 
 
@@ -127,6 +133,9 @@ class ValidationResult:
         message: str,
         field_name: str | None = None,
         raw_value: object | None = None,
+        current_mapping: str | None = None,
+        issue_type: str | None = None,
+        suggested_action: str | None = None,
     ) -> None:
         self.issues.append(
             ValidationIssue(
@@ -136,6 +145,9 @@ class ValidationResult:
                 message=message,
                 field_name=field_name,
                 raw_value=raw_value,
+                current_mapping=current_mapping,
+                issue_type=issue_type,
+                suggested_action=suggested_action,
             )
         )
 
@@ -348,6 +360,11 @@ def _validate_importance_row(result: ValidationResult, row: ExcelRow) -> None:
             "Важность не сопоставлена со справочником, будет загружена как other.",
             "Важность",
             factor_text,
+            current_mapping=factor_type,
+            issue_type="unmapped_importance_factor",
+            suggested_action=(
+                "Добавить значение в mapping важностей или нормализовать значение в Excel."
+            ),
         )
 
     normalized = dict(row.values)

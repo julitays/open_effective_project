@@ -52,6 +52,10 @@ The report includes:
 - error and warning counts;
 - issue details with sheet and row;
 - project, LPR, barrier, and expectation identifiers planned for create/update.
+- an importance mapping summary with raw value, mapped value, count, and
+  example LPR ID;
+- an unmapped importance diagnostic block with raw Excel value, current
+  mapping, issue type, and suggested action when a value falls back to `other`.
 
 ## 4. Read errors and warnings
 
@@ -81,3 +85,14 @@ manual importance factors, barriers, expectations, KPIs, communication points,
 and action plans that fit the current MVP schema. Linked KPI values on barrier
 and expectation rows are kept as text for MVP rather than resolved as database
 foreign keys.
+
+## 6. Read back an imported project
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\check_cjm_project.py --project project_001
+```
+
+The readback command shows imported counts, external LPR aliases, barriers with
+their textual KPI links, and expectations with their textual KPI links.

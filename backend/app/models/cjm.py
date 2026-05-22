@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -47,6 +47,13 @@ class ProjectBarrier(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class CommunicationPoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "communication_points"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "source_id",
+            name="uq_communication_points_project_source_id",
+        ),
+    )
 
     project_id: Mapped[UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -57,6 +64,12 @@ class CommunicationPoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("lpr_profiles.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
+    )
+    source_id: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Stable manual CJM Communication ID from Excel.",
     )
     cjm_stage: Mapped[str | None] = mapped_column(String(128), nullable=True)
     point_type: Mapped[str] = mapped_column(String(64), nullable=False)

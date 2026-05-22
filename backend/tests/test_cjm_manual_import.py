@@ -1,16 +1,27 @@
 from pathlib import Path
 
 from openpyxl import load_workbook
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base, ClientExpectation, LPRProfile, ProjectBarrier
+from app.models import (
+    Base,
+    ClientExpectation,
+    CommunicationPoint,
+    LPRImportanceFactor,
+    LPRProfile,
+    ProjectBarrier,
+    ProjectGoal,
+    ProjectKPI,
+)
 from app.services.imports.cjm_excel_reader import read_cjm_workbook
 from app.services.imports.cjm_importer import (
     CJMImporter,
     normalize_external_lpr_aliases,
     should_skip_plan_commit,
 )
+from app.services.imports.cjm_mappings import map_importance_factor_type
+from app.services.imports.cjm_report import build_report_payload
 from app.services.imports.cjm_validator import validate_cjm_workbook
 from scripts.generate_cjm_mvp_template import generate_template
 
@@ -82,9 +93,15 @@ def test_dry_run_does_not_open_database_session(tmp_path: Path) -> None:
         session_factory=fail_if_called,
         report_dir=tmp_path / "reports",
     ).run(workbook_path, "dry-run")
+    repeated_result = CJMImporter(
+        session_factory=fail_if_called,
+        report_dir=tmp_path / "reports",
+    ).run(workbook_path, "dry-run")
 
     assert result.status == "validated"
     assert result.report_path.exists()
+    assert repeated_result.status == "validated"
+    assert repeated_result.report_path.exists()
 
 
 def test_validator_rejects_prohibited_methodology_sheet(tmp_path: Path) -> None:
@@ -160,6 +177,47 @@ def test_external_lpr_aliases_are_kept_on_one_profile() -> None:
     assert normalize_external_lpr_aliases("845", "55", "845; 55") == "845; 55"
 
 
+def test_safety_importance_factor_maps_to_code() -> None:
+    assert map_importance_factor_type("безопасность") == "safety"
+
+
+def test_report_describes_unmapped_importance_factor(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "unmapped_importance.xlsx")
+    workbook = load_workbook(workbook_path)
+    workbook["03_Важности ЛПР"].append(
+        ["lpr_001", "external_lpr_001", "нестандартная важность", "Высокая"]
+    )
+    workbook.save(workbook_path)
+    workbook.close()
+
+    validation = validate_cjm_workbook(read_cjm_workbook(workbook_path))
+    report = build_report_payload(validation, mode="dry-run", status="validated")
+
+    assert report["unmapped_importance_factors"] == [
+        {
+            "severity": "warning",
+            "sheet_name": "03_Важности ЛПР",
+            "row_number": 2,
+            "message": "Важность не сопоставлена со справочником, будет загружена как other.",
+            "field_name": "Важность",
+            "raw_value": "нестандартная важность",
+            "current_mapping": "other",
+            "issue_type": "unmapped_importance_factor",
+            "suggested_action": (
+                "Добавить значение в mapping важностей или нормализовать значение в Excel."
+            ),
+        }
+    ]
+    assert report["importance_factor_mapping_summary"] == [
+        {
+            "raw_importance_value": "нестандартная важность",
+            "mapped_value": "other",
+            "count": 1,
+            "example_lpr_id": "lpr_001",
+        }
+    ]
+
+
 def test_commit_import_keeps_text_kpi_links(tmp_path: Path) -> None:
     workbook_path = _minimal_workbook(tmp_path / "text_kpi_links.xlsx")
     workbook = load_workbook(workbook_path)
@@ -207,6 +265,9 @@ def test_commit_import_keeps_text_kpi_links(tmp_path: Path) -> None:
     assert result.committed
     with test_session_factory() as session:
         lpr = session.scalar(select(LPRProfile).where(LPRProfile.lpr_code == "lpr_007"))
+        lpr_count = session.scalar(
+            select(func.count()).select_from(LPRProfile).where(LPRProfile.lpr_code == "lpr_007")
+        )
         barrier = session.scalar(
             select(ProjectBarrier).where(ProjectBarrier.source_id == "barrier_001")
         )
@@ -217,8 +278,94 @@ def test_commit_import_keeps_text_kpi_links(tmp_path: Path) -> None:
         )
 
     assert lpr is not None
+    assert lpr_count == 1
     assert lpr.external_lpr_id == "845; 55"
     assert barrier is not None
     assert barrier.linked_kpi_text == "scorecard; эффективность мерча"
     assert expectation is not None
     assert expectation.linked_kpi_text == "OSA; ISA; PSS"
+
+
+def test_repeated_commit_does_not_duplicate_main_cjm_entities(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "idempotent_commit.xlsx")
+    workbook = load_workbook(workbook_path)
+    workbook["03_Важности ЛПР"].append(
+        ["lpr_001", "external_lpr_001", "безопасность", "Высокая"]
+    )
+    workbook["04_Барьеры"].append(
+        [
+            "barrier_001",
+            "Риск задержки",
+            "Сроки",
+            "Есть сейчас",
+            None,
+            "Высокая",
+        ]
+    )
+    workbook["05_Ожидания клиента"].append(
+        [
+            "expectation_001",
+            "Стабильное качество исполнения",
+            "Качество",
+            "Явное",
+            "Высокая",
+        ]
+    )
+    workbook["06_KPI и критерии успеха"].append(["kpi_001", "Качество исполнения"])
+    workbook["07_Каналы взаимодействия"].append(
+        ["communication_001", "lpr_001", None, "Роль проекта", "Статус проекта"]
+    )
+    goals = workbook.create_sheet("08_Цели проекта")
+    goals.append(
+        [
+            "Goal ID",
+            "Project ID",
+            "Тип цели",
+            "Цель проекта",
+            "Источник",
+            "Связанный KPI / критерий",
+            "Статус актуальности",
+            "Уверенность вывода",
+            "Комментарий",
+        ]
+    )
+    goals.append(["goal_001", "project_001", "service", "Сохранить качество услуги"])
+    workbook.save(workbook_path)
+    workbook.close()
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    test_session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    importer = CJMImporter(session_factory=test_session_factory, report_dir=tmp_path / "reports")
+
+    first = importer.run(workbook_path, "commit")
+    second = importer.run(workbook_path, "commit")
+
+    assert first.committed
+    assert second.committed
+    with test_session_factory() as session:
+        counts = {
+            "lpr_profiles": session.scalar(select(func.count()).select_from(LPRProfile)),
+            "importance": session.scalar(
+                select(func.count()).select_from(LPRImportanceFactor)
+            ),
+            "barriers": session.scalar(select(func.count()).select_from(ProjectBarrier)),
+            "expectations": session.scalar(
+                select(func.count()).select_from(ClientExpectation)
+            ),
+            "kpis": session.scalar(select(func.count()).select_from(ProjectKPI)),
+            "communications": session.scalar(
+                select(func.count()).select_from(CommunicationPoint)
+            ),
+            "goals": session.scalar(select(func.count()).select_from(ProjectGoal)),
+        }
+
+    assert counts == {
+        "lpr_profiles": 1,
+        "importance": 1,
+        "barriers": 1,
+        "expectations": 1,
+        "kpis": 1,
+        "communications": 1,
+        "goals": 1,
+    }

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -90,11 +90,20 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class ProjectGoal(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "project_goals"
+    __table_args__ = (
+        UniqueConstraint("project_id", "source_id", name="uq_project_goals_project_source_id"),
+    )
 
     project_id: Mapped[UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
+    )
+    source_id: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Stable manual CJM Goal ID from Excel.",
     )
     goal_text: Mapped[str] = mapped_column(Text, nullable=False)
     goal_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -129,12 +138,23 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "explicitness IN ('explicit', 'implicit', 'unknown')",
             name="ck_client_expectations_explicitness",
         ),
+        UniqueConstraint(
+            "project_id",
+            "source_id",
+            name="uq_client_expectations_project_source_id",
+        ),
     )
 
     project_id: Mapped[UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
+    )
+    source_id: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Stable manual CJM Expectation ID from Excel.",
     )
     expectation_text: Mapped[str] = mapped_column(Text, nullable=False)
     expectation_type: Mapped[str] = mapped_column(String(64), nullable=False)

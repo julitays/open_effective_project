@@ -123,6 +123,14 @@ Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
 python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit
 ```
 
+Read back the imported CJM project:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\check_cjm_project.py --project project_001
+```
+
 Reference docs:
 
 - `docs/cjm_mvp_data_dictionary.md`

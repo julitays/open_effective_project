@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.db import SessionLocal
@@ -198,7 +198,11 @@ class CJMImporter:
             raise ValueError("Project ID is missing from validated workbook.")
 
         row = validation.normalized_sheets["01_Паспорт проекта"][0]
-        project = session.scalar(select(Project).where(Project.project_code == project_code))
+        external_project_id = _text(row.values.get("External project ID"))
+        project_filters = [Project.project_code == project_code]
+        if external_project_id:
+            project_filters.append(Project.external_project_id == external_project_id)
+        project = session.scalar(select(Project).where(or_(*project_filters)))
         if project is None:
             project = Project(project_code=project_code)
             session.add(project)
@@ -207,7 +211,7 @@ class CJMImporter:
             _increment(counts, "projects", "updated")
 
         project.project_type = _text(row.values.get("Направление проекта")) or project.project_type
-        project.external_project_id = _text(row.values.get("External project ID")) or None
+        project.external_project_id = external_project_id or None
         project.working_project_code = _text(row.values.get("Рабочий код проекта")) or None
         project.current_phase = (
             _text(row.values.get("Этап жизненного цикла")) or project.current_phase
@@ -286,9 +290,16 @@ class CJMImporter:
                     LPRImportanceFactor.project_id == project.id,
                     LPRImportanceFactor.lpr_id == lpr.id,
                     LPRImportanceFactor.factor_type == factor_type,
-                    LPRImportanceFactor.factor_text == factor_text,
                 )
             )
+            if factor is None:
+                factor = session.scalar(
+                    select(LPRImportanceFactor).where(
+                        LPRImportanceFactor.project_id == project.id,
+                        LPRImportanceFactor.lpr_id == lpr.id,
+                        LPRImportanceFactor.factor_text == factor_text,
+                    )
+                )
             if factor is None:
                 factor = LPRImportanceFactor(
                     project_id=project.id,
@@ -300,6 +311,8 @@ class CJMImporter:
                 _increment(counts, "lpr_importance_factors", "created")
             else:
                 _increment(counts, "lpr_importance_factors", "updated")
+            factor.factor_type = factor_type
+            factor.factor_text = factor_text
             factor.importance_level = _text(row.values.get("Критичность")) or None
             factor.source_type = _text(row.values.get("Источник вывода")) or "manual_excel"
 
@@ -356,18 +369,29 @@ class CJMImporter:
         counts: dict[str, dict[str, int]],
     ) -> None:
         for row in validation.normalized_sheets["05_Ожидания клиента"]:
+            source_id = _text(row.values.get("Expectation ID"))
             expectation_text = _text(row.values.get("Ожидание клиента"))
             expectation_type = _text(row.values.get("Тип ожидания"))
-            expectation = session.scalar(
-                select(ClientExpectation).where(
-                    ClientExpectation.project_id == project.id,
-                    ClientExpectation.expectation_text == expectation_text,
-                    ClientExpectation.expectation_type == expectation_type,
+            expectation = None
+            if source_id:
+                expectation = session.scalar(
+                    select(ClientExpectation).where(
+                        ClientExpectation.project_id == project.id,
+                        ClientExpectation.source_id == source_id,
+                    )
                 )
-            )
+            if expectation is None:
+                expectation = session.scalar(
+                    select(ClientExpectation).where(
+                        ClientExpectation.project_id == project.id,
+                        ClientExpectation.expectation_text == expectation_text,
+                        ClientExpectation.expectation_type == expectation_type,
+                    )
+                )
             if expectation is None:
                 expectation = ClientExpectation(
                     project_id=project.id,
+                    source_id=source_id or None,
                     expectation_text=expectation_text,
                     expectation_type=expectation_type,
                     explicitness=_text(row.values.get("Явное или неявное")) or "unknown",
@@ -377,6 +401,9 @@ class CJMImporter:
                 _increment(counts, "client_expectations", "created")
             else:
                 _increment(counts, "client_expectations", "updated")
+            expectation.source_id = source_id or None
+            expectation.expectation_text = expectation_text
+            expectation.expectation_type = expectation_type
             expectation.explicitness = _text(row.values.get("Явное или неявное")) or "unknown"
             expectation.criticality = _text(row.values.get("Критичность"))
             expectation.linked_kpi_text = _text(row.values.get("Связанный KPI")) or None
@@ -417,18 +444,29 @@ class CJMImporter:
         counts: dict[str, dict[str, int]],
     ) -> None:
         for row in validation.normalized_sheets["07_Каналы взаимодействия"]:
+            source_id = _text(row.values.get("Communication ID"))
             summary = self._communication_summary(row)
             point_type = _text(row.values.get("Канал")) or "unknown"
-            point = session.scalar(
-                select(CommunicationPoint).where(
-                    CommunicationPoint.project_id == project.id,
-                    CommunicationPoint.point_type == point_type,
-                    CommunicationPoint.summary == summary,
+            point = None
+            if source_id:
+                point = session.scalar(
+                    select(CommunicationPoint).where(
+                        CommunicationPoint.project_id == project.id,
+                        CommunicationPoint.source_id == source_id,
+                    )
                 )
-            )
+            if point is None:
+                point = session.scalar(
+                    select(CommunicationPoint).where(
+                        CommunicationPoint.project_id == project.id,
+                        CommunicationPoint.point_type == point_type,
+                        CommunicationPoint.summary == summary,
+                    )
+                )
             if point is None:
                 point = CommunicationPoint(
                     project_id=project.id,
+                    source_id=source_id or None,
                     point_type=point_type,
                     summary=summary,
                 )
@@ -436,6 +474,9 @@ class CJMImporter:
                 _increment(counts, "communication_points", "created")
             else:
                 _increment(counts, "communication_points", "updated")
+            point.source_id = source_id or None
+            point.point_type = point_type
+            point.summary = summary
             point.outcome = (
                 _text(row.values.get("Комментарий"))
                 or _text(row.values.get("Источник"))
@@ -450,18 +491,29 @@ class CJMImporter:
         counts: dict[str, dict[str, int]],
     ) -> None:
         for row in validation.normalized_sheets["08_Цели проекта"]:
+            source_id = _text(row.values.get("Goal ID"))
             goal_text = _text(row.values.get("Цель проекта"))
             goal_type = _text(row.values.get("Тип цели"))
-            goal = session.scalar(
-                select(ProjectGoal).where(
-                    ProjectGoal.project_id == project.id,
-                    ProjectGoal.goal_text == goal_text,
-                    ProjectGoal.goal_type == goal_type,
+            goal = None
+            if source_id:
+                goal = session.scalar(
+                    select(ProjectGoal).where(
+                        ProjectGoal.project_id == project.id,
+                        ProjectGoal.source_id == source_id,
+                    )
                 )
-            )
+            if goal is None:
+                goal = session.scalar(
+                    select(ProjectGoal).where(
+                        ProjectGoal.project_id == project.id,
+                        ProjectGoal.goal_text == goal_text,
+                        ProjectGoal.goal_type == goal_type,
+                    )
+                )
             if goal is None:
                 goal = ProjectGoal(
                     project_id=project.id,
+                    source_id=source_id or None,
                     goal_text=goal_text,
                     goal_type=goal_type,
                 )
@@ -469,6 +521,9 @@ class CJMImporter:
                 _increment(counts, "project_goals", "created")
             else:
                 _increment(counts, "project_goals", "updated")
+            goal.source_id = source_id or None
+            goal.goal_text = goal_text
+            goal.goal_type = goal_type
             goal.success_criteria = (
                 _text(row.values.get("Связанный KPI / критерий"))
                 or _text(row.values.get("Комментарий"))

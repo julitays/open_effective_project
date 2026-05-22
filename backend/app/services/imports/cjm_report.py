@@ -10,6 +10,30 @@ BACKEND_DIR = Path(__file__).resolve().parents[3]
 DEFAULT_REPORT_DIR = BACKEND_DIR / "data" / "import_reports"
 
 
+def _build_importance_mapping_summary(validation: ValidationResult) -> list[dict[str, object]]:
+    summary: dict[tuple[str, str], dict[str, object]] = {}
+
+    for row in validation.normalized_sheets["03_Важности ЛПР"]:
+        raw_value = str(row.values.get("Важность") or "").strip()
+        mapped_value = str(row.values.get("_factor_type") or "other")
+        key = (raw_value, mapped_value)
+        item = summary.setdefault(
+            key,
+            {
+                "raw_importance_value": raw_value,
+                "mapped_value": mapped_value,
+                "count": 0,
+                "example_lpr_id": str(row.values.get("LPR ID") or "").strip(),
+            },
+        )
+        item["count"] = int(item["count"]) + 1
+
+    return sorted(
+        summary.values(),
+        key=lambda item: (str(item["mapped_value"]), str(item["raw_importance_value"])),
+    )
+
+
 def build_report_payload(
     validation: ValidationResult,
     *,
@@ -35,6 +59,11 @@ def build_report_payload(
     planned_upserts = {
         key: sorted(values) for key, values in validation.identifiers.items()
     }
+    unmapped_importance_factors = [
+        issue.as_dict()
+        for issue in validation.issues
+        if issue.issue_type == "unmapped_importance_factor"
+    ]
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),
@@ -49,6 +78,8 @@ def build_report_payload(
         },
         "sheet_summary": sheet_summary,
         "planned_create_or_update_ids": planned_upserts,
+        "unmapped_importance_factors": unmapped_importance_factors,
+        "importance_factor_mapping_summary": _build_importance_mapping_summary(validation),
         "database_counts": database_counts or {},
         "issues": [issue.as_dict() for issue in validation.issues],
     }

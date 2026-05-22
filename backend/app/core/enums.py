@@ -76,6 +76,7 @@ class ImportanceFactorType(MVPCodeEnum):
     FLEXIBILITY = "flexibility"
     PREDICTABILITY = "predictability"
     STAFF_TRAINING_LEVEL = "staff_training_level"
+    SAFETY = "safety"
     OTHER = "other"
 
 

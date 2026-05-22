@@ -96,7 +96,8 @@ or other personal data in examples, fixtures, or imports.
 - Purpose: project goals and success criteria.
 - Stores: goal text, goal type, success criteria, and status.
 - Required for manual load: optional `08_Цели проекта` rows require goal ID,
-  project ID, goal type, and goal text.
+  project ID, goal type, and goal text. Goal ID is persisted as the stable
+  manual source ID for repeated imports.
 - Optional in manual load: source, linked KPI/criterion, actuality status,
   confidence, and comment.
 - Must be anonymized: goal wording must not include real project or client
@@ -126,8 +127,8 @@ or other personal data in examples, fixtures, or imports.
   importance, KPI, source, evidence, actuality status, confidence.
 - Must be anonymized: expectation text and evidence must avoid client and person
   identity.
-- Current storage note: the Excel `Expectation ID` is used in reports; current
-  MVP persistence matches expectations by text and type.
+- Current storage note: the Excel `Expectation ID` is stored as the stable
+  manual source ID for repeated imports and readback.
 
 ## `project_barriers`
 
@@ -165,7 +166,8 @@ or other personal data in examples, fixtures, or imports.
   names.
 - Current storage note: the current importer composes the interaction summary
   from the topic, roles, external LPR ID, frequency, criticality, and actuality
-  status.
+  status. Excel `Communication ID` is stored as the stable manual source ID for
+  repeated imports.
 
 ## `ai_project_findings`
 
