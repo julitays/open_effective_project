@@ -23,10 +23,10 @@ or other personal data in examples, fixtures, or imports.
 ## `lpr_profiles`
 
 - Purpose: anonymized decision-maker or client-side stakeholder profiles.
-- Stores: `lpr_code`, optional external source LPR ID, stakeholder role,
+- Stores: `lpr_code`, optional external source LPR ID aliases, stakeholder role,
   influence level, and activity/engagement note.
 - Required for manual load: `LPR ID`, role.
-- Optional in manual load: external LPR ID from a source CSV, influence,
+- Optional in manual load: external LPR ID aliases from a source CSV, influence,
   activity status, inferred attitude, evidence, and manual clarification note.
 - Must be anonymized: `LPR ID` must look like `lpr_001`; roles must not contain
   names.
@@ -118,8 +118,8 @@ or other personal data in examples, fixtures, or imports.
 ## `client_expectations`
 
 - Purpose: explicit or inferred client expectations that affect project risk.
-- Stores: expectation text, expectation type, explicitness, criticality, and
-  check method.
+- Stores: expectation text, expectation type, explicitness, criticality, check
+  method, and free-text linked KPI or success criteria restored from CJM.
 - Required for manual load: `Expectation ID`, expectation text, expectation
   type, criticality.
 - Optional in manual load: explicitness, linked LPR, external LPR ID,
@@ -133,7 +133,7 @@ or other personal data in examples, fixtures, or imports.
 
 - Purpose: barriers or risks seen in CJM history.
 - Stores: title, barrier type, time status, criticality, status, source type,
-  and source ID.
+  source ID, and free-text linked KPI or success criteria restored from CJM.
 - Required for manual load: `Barrier ID`, title, type, time status, criticality.
 - Optional in manual load: description, linked LPR, external LPR ID, linked
   importance, linked KPI, source, evidence, first/last period, barrier status,

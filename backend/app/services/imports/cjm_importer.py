@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -40,6 +41,20 @@ def _increment(counts: dict[str, dict[str, int]], entity: str, action: str) -> N
     counts.setdefault(entity, {"created": 0, "updated": 0})
     counts[entity].setdefault(action, 0)
     counts[entity][action] += 1
+
+
+def normalize_external_lpr_aliases(*values: object) -> str | None:
+    aliases: list[str] = []
+    seen: set[str] = set()
+
+    for value in values:
+        for alias in re.split(r"\s*[;,\n]\s*", _text(value)):
+            if not alias or alias in seen:
+                continue
+            aliases.append(alias)
+            seen.add(alias)
+
+    return "; ".join(aliases) or None
 
 
 def should_skip_plan_commit(row: NormalizedRow) -> bool:
@@ -230,7 +245,10 @@ class CJMImporter:
             else:
                 _increment(counts, "lpr_profiles", "updated")
 
-            lpr.external_lpr_id = _text(row.values.get("External LPR ID")) or None
+            lpr.external_lpr_id = normalize_external_lpr_aliases(
+                lpr.external_lpr_id,
+                row.values.get("External LPR ID"),
+            )
             lpr.stakeholder_role = _text(row.values.get("Роль / зона влияния"))
             lpr.influence_level = _text(row.values.get("Уровень влияния")) or None
             lpr.engagement_status = (
@@ -327,6 +345,7 @@ class CJMImporter:
             barrier.time_status = _text(row.values.get("Временной статус"))
             barrier.criticality = _text(row.values.get("Критичность"))
             barrier.status = _text(row.values.get("Статус барьера")) or "unknown"
+            barrier.linked_kpi_text = _text(row.values.get("Связанный KPI")) or None
         return barriers
 
     def _upsert_expectations(
@@ -360,6 +379,7 @@ class CJMImporter:
                 _increment(counts, "client_expectations", "updated")
             expectation.explicitness = _text(row.values.get("Явное или неявное")) or "unknown"
             expectation.criticality = _text(row.values.get("Критичность"))
+            expectation.linked_kpi_text = _text(row.values.get("Связанный KPI")) or None
 
     def _upsert_kpis(
         self,

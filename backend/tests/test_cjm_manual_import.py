@@ -1,9 +1,16 @@
 from pathlib import Path
 
 from openpyxl import load_workbook
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
+from app.models import Base, ClientExpectation, LPRProfile, ProjectBarrier
 from app.services.imports.cjm_excel_reader import read_cjm_workbook
-from app.services.imports.cjm_importer import CJMImporter, should_skip_plan_commit
+from app.services.imports.cjm_importer import (
+    CJMImporter,
+    normalize_external_lpr_aliases,
+    should_skip_plan_commit,
+)
 from app.services.imports.cjm_validator import validate_cjm_workbook
 from scripts.generate_cjm_mvp_template import generate_template
 
@@ -147,3 +154,71 @@ def test_validator_accepts_optional_project_goals_sheet(tmp_path: Path) -> None:
 
     assert not result.has_errors
     assert len(result.normalized_sheets["08_Цели проекта"]) == 1
+
+
+def test_external_lpr_aliases_are_kept_on_one_profile() -> None:
+    assert normalize_external_lpr_aliases("845", "55", "845; 55") == "845; 55"
+
+
+def test_commit_import_keeps_text_kpi_links(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "text_kpi_links.xlsx")
+    workbook = load_workbook(workbook_path)
+    workbook["02_ЛПР"].append(["lpr_007", "845", "Региональная роль"])
+    workbook["02_ЛПР"].append(["lpr_007", "55", "Региональная роль"])
+    workbook["04_Барьеры"].append(
+        [
+            "barrier_001",
+            "Риск задержки",
+            "timing",
+            "current",
+            None,
+            "high",
+            "lpr_007",
+            "845; 55",
+            None,
+            "scorecard; эффективность мерча",
+        ]
+    )
+    workbook["05_Ожидания клиента"].append(
+        [
+            "expectation_001",
+            "Стабильное качество исполнения",
+            "quality",
+            "explicit",
+            "high",
+            "lpr_007",
+            "845; 55",
+            None,
+            "OSA; ISA; PSS",
+        ]
+    )
+    workbook.save(workbook_path)
+    workbook.close()
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    test_session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+    result = CJMImporter(
+        session_factory=test_session_factory,
+        report_dir=tmp_path / "reports",
+    ).run(workbook_path, "commit")
+
+    assert result.committed
+    with test_session_factory() as session:
+        lpr = session.scalar(select(LPRProfile).where(LPRProfile.lpr_code == "lpr_007"))
+        barrier = session.scalar(
+            select(ProjectBarrier).where(ProjectBarrier.source_id == "barrier_001")
+        )
+        expectation = session.scalar(
+            select(ClientExpectation).where(
+                ClientExpectation.expectation_text == "Стабильное качество исполнения"
+            )
+        )
+
+    assert lpr is not None
+    assert lpr.external_lpr_id == "845; 55"
+    assert barrier is not None
+    assert barrier.linked_kpi_text == "scorecard; эффективность мерча"
+    assert expectation is not None
+    assert expectation.linked_kpi_text == "OSA; ISA; PSS"

@@ -141,5 +141,10 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     explicitness: Mapped[str] = mapped_column(String(16), nullable=False)
     criticality: Mapped[str] = mapped_column(String(64), nullable=False)
     how_to_check: Mapped[str | None] = mapped_column(Text, nullable=True)
+    linked_kpi_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Free-text KPI or success-criterion link restored from CJM.",
+    )
 
     project: Mapped[Project] = relationship("Project", back_populates="expectations")

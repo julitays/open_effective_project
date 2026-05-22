@@ -28,6 +28,8 @@ Generated path:
 - Supported dictionary columns have Excel list validation where practical.
 - `External project ID` is required in the project passport.
 - `External LPR ID` is allowed only as an external source ID, not as a name.
+  Multiple source aliases for one `LPR ID` can be separated with semicolons,
+  for example `845; 55`.
 - There are no survey-history, AI-summary, ID-directory, Insights, or strategic
   significance sheets.
 - Do not add `ФИО`, `Имя`, `Телефон`, `Email`, `Название клиента`, or
@@ -110,6 +112,8 @@ Columns: `Раздел CJM`, `Что нужно узнать`, `У кого за
 
 The importer writes structured project, LPR, importance, barrier, expectation,
 KPI, communication, and action-plan fields that fit the current MVP schema.
-Manual context fields such as known regions, evidence snippets, actuality
-statuses, confidence notes, and confirmation comments remain in the filled
-workbook and JSON report when there is no dedicated database field yet.
+`Связанный KPI` on barrier and expectation rows is stored as free text in MVP;
+it is not a foreign-key relation to `project_kpis`. Manual context fields such
+as known regions, evidence snippets, actuality statuses, confidence notes, and
+confirmation comments remain in the filled workbook and JSON report when there
+is no dedicated database field yet.

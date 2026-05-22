@@ -31,6 +31,11 @@ class ProjectBarrier(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(64), nullable=False)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
     source_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    linked_kpi_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Free-text KPI or success-criterion link restored from CJM.",
+    )
 
     project: Mapped["Project"] = relationship("Project", back_populates="barriers")
     mitigation_plans: Mapped[list["BarrierMitigationPlan"]] = relationship(
