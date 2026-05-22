@@ -131,6 +131,40 @@ Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
 python .\scripts\check_cjm_project.py --project project_001
 ```
 
+## CJM read-only API
+
+Start the backend:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload
+```
+
+Check health:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/health
+```
+
+Check project list:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/projects
+```
+
+Check the full CJM object:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/projects/project_001/cjm
+```
+
+Open Swagger:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
 Reference docs:
 
 - `docs/cjm_mvp_data_dictionary.md`

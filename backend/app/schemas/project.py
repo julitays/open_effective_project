@@ -62,3 +62,14 @@ class ClientExpectationRead(BaseModel):
     how_to_check: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class CJMProjectPassport(BaseModel):
+    project_code: str
+    external_project_id: str | None
+    working_project_code: str | None
+    direction: str | None
+    project_scale: str | None
+    lifecycle_stage: str | None
+    project_status: str
+    short_description: str | None
