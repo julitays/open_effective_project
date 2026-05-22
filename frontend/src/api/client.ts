@@ -1,0 +1,44 @@
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+export const apiBaseUrl =
+  configuredBaseUrl || "http://127.0.0.1:8000/api/v1";
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: { Accept: "application/json" },
+      signal,
+    });
+  } catch {
+    throw new ApiError("API недоступно. Проверьте, что backend запущен.", 0);
+  }
+
+  if (!response.ok) {
+    let detail = `API вернул ошибку ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { detail?: string };
+      if (payload.detail) {
+        detail = payload.detail;
+      }
+    } catch {
+      // Keep the status-based fallback for non-JSON errors.
+    }
+
+    throw new ApiError(detail, response.status);
+  }
+
+  return (await response.json()) as T;
+}

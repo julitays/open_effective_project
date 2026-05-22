@@ -16,6 +16,8 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+node_modules/
+frontend/dist/
 
 # Filled manual intake files and generated reports stay local.
 backend/data/imports/*
