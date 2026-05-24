@@ -5,10 +5,10 @@ import {
   Target,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getProjectCjm } from "../api/projects";
-import CjmTabs, { type CjmTabId } from "../components/CjmTabs";
+import type { LayoutOutletContext } from "../components/Layout";
 import EmptyState from "../components/EmptyState";
 import StatusBadge from "../components/StatusBadge";
 import type {
@@ -54,8 +54,8 @@ type Formatter = (value: string | null | undefined) => string;
 
 export default function ProjectCjmPage() {
   const { projectCode } = useParams();
+  const { activeCjmTab: activeTab } = useOutletContext<LayoutOutletContext>();
   const [projectCjm, setProjectCjm] = useState<ProjectCjm | null>(null);
-  const [activeTab, setActiveTab] = useState<CjmTabId>("overview");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -109,29 +109,23 @@ export default function ProjectCjmPage() {
       <BackLink />
       <ProjectHeader project={projectCjm.project} />
 
-      <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="xl:sticky xl:top-6 xl:self-start">
-          <CjmTabs activeTab={activeTab} onChange={setActiveTab} />
-        </div>
-
-        <div className="min-w-0" role="tabpanel">
-          {activeTab === "overview" ? <OverviewPanel cjm={projectCjm} /> : null}
-          {activeTab === "passport" ? (
-            <PassportPanel project={projectCjm.project} />
-          ) : null}
-          {activeTab === "goals" ? <GoalsPanel goals={projectCjm.goals} /> : null}
-          {activeTab === "lprs" ? <LprsPanel lprs={projectCjm.lprs} /> : null}
-          {activeTab === "barriers" ? (
-            <BarriersPanel barriers={projectCjm.barriers} />
-          ) : null}
-          {activeTab === "expectations" ? (
-            <ExpectationsPanel expectations={projectCjm.expectations} />
-          ) : null}
-          {activeTab === "kpis" ? <KpisPanel kpis={projectCjm.kpis} /> : null}
-          {activeTab === "communications" ? (
-            <CommunicationsPanel communications={projectCjm.communications} />
-          ) : null}
-        </div>
+      <div className="min-w-0" role="tabpanel">
+        {activeTab === "overview" ? <OverviewPanel cjm={projectCjm} /> : null}
+        {activeTab === "passport" ? (
+          <PassportPanel project={projectCjm.project} />
+        ) : null}
+        {activeTab === "goals" ? <GoalsPanel goals={projectCjm.goals} /> : null}
+        {activeTab === "lprs" ? <LprsPanel lprs={projectCjm.lprs} /> : null}
+        {activeTab === "barriers" ? (
+          <BarriersPanel barriers={projectCjm.barriers} />
+        ) : null}
+        {activeTab === "expectations" ? (
+          <ExpectationsPanel expectations={projectCjm.expectations} />
+        ) : null}
+        {activeTab === "kpis" ? <KpisPanel kpis={projectCjm.kpis} /> : null}
+        {activeTab === "communications" ? (
+          <CommunicationsPanel communications={projectCjm.communications} />
+        ) : null}
       </div>
     </section>
   );
@@ -1005,11 +999,8 @@ function ProjectLoading() {
     <div className="space-y-4" aria-label="Загрузка CJM проекта">
       <div className="h-10 w-40 animate-pulse rounded-lg bg-white shadow-sm" />
       <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm" />
-      <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="h-80 animate-pulse rounded-xl border border-slate-200 bg-white shadow-sm" />
-        <div className="flex h-80 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm">
-          <Target aria-hidden="true" className="h-7 w-7 animate-pulse" />
-        </div>
+      <div className="flex h-80 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm">
+        <Target aria-hidden="true" className="h-7 w-7 animate-pulse" />
       </div>
     </div>
   );

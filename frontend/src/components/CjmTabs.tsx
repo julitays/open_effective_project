@@ -27,7 +27,7 @@ interface CjmTabsProps {
 export default function CjmTabs({ activeTab, onChange }: CjmTabsProps) {
   return (
     <nav
-      className="rounded-xl border border-slate-200/80 bg-white/90 p-2 shadow-sm shadow-slate-200/70"
+      className="space-y-1"
       role="tablist"
       aria-label="Разделы CJM"
     >
@@ -38,10 +38,10 @@ export default function CjmTabs({ activeTab, onChange }: CjmTabsProps) {
           role="tab"
           aria-selected={activeTab === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`mb-1 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition last:mb-0 ${
+          className={`flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
             activeTab === tab.id
               ? "bg-slate-950 text-white shadow-sm"
-              : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
           }`}
         >
           {tab.label}

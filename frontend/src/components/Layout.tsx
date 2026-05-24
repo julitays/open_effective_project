@@ -1,11 +1,29 @@
 import { FolderKanban, PanelsTopLeft } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+
+import CjmTabs, { type CjmTabId } from "./CjmTabs";
+
+export interface LayoutOutletContext {
+  activeCjmTab: CjmTabId;
+  setActiveCjmTab: (tabId: CjmTabId) => void;
+}
 
 export default function Layout() {
+  const location = useLocation();
+  const [activeCjmTab, setActiveCjmTab] = useState<CjmTabId>("overview");
+  const isProjectCjmPage = /^\/projects\/[^/]+/.test(location.pathname);
+
+  useEffect(() => {
+    if (isProjectCjmPage) {
+      setActiveCjmTab("overview");
+    }
+  }, [isProjectCjmPage, location.pathname]);
+
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-[1680px] flex-col lg:flex-row">
-        <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:w-80 lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+        <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:w-80 lg:shrink-0 lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
           <div className="rounded-lg bg-slate-950 p-5 text-white shadow-sm">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-400">
               <PanelsTopLeft aria-hidden="true" className="h-4 w-4" />
@@ -32,10 +50,19 @@ export default function Layout() {
               Проекты
             </NavLink>
           </nav>
+
+          {isProjectCjmPage ? (
+            <div className="mt-5">
+              <div className="mb-2 px-3 text-xs font-semibold uppercase text-slate-400">
+                Разделы проекта
+              </div>
+              <CjmTabs activeTab={activeCjmTab} onChange={setActiveCjmTab} />
+            </div>
+          ) : null}
         </aside>
 
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-          <Outlet />
+          <Outlet context={{ activeCjmTab, setActiveCjmTab } satisfies LayoutOutletContext} />
         </main>
       </div>
     </div>
