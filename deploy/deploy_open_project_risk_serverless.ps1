@@ -29,7 +29,9 @@ $SESSION_TTL_SECONDS = '86400'
 $MEMORY = '1G'
 $CORES = 1
 $CONCURRENCY = 4
-$MIN_INSTANCES = 1
+# Keep this at 0 for the first demo deploy unless provisioned container workers
+# quota is already approved in Yandex Cloud.
+$MIN_INSTANCES = 0
 $EXECUTION_TIMEOUT = '60s'
 $HEALTH_WAIT_SECONDS = 90
 

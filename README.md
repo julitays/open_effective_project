@@ -145,6 +145,10 @@ Fill these values in the local file:
 The local file `deploy_open_project_risk_serverless.local.ps1` is ignored by
 Git. Do not commit real secrets.
 
+For the first demo deploy keep `MIN_INSTANCES=0`. Setting it to `1` enables
+provisioned container workers and may fail if the Yandex Cloud quota
+`serverless.containersWorkersProvisioned.count` is not approved.
+
 Run deploy:
 
 ```powershell
