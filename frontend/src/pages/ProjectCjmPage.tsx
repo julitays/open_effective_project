@@ -33,8 +33,10 @@ import {
   formatConfidenceLevel,
   formatCriticality,
   formatDirection,
+  formatEntityCode,
   formatExpectationType,
   formatExplicitness,
+  formatGoalType,
   formatImportanceFactor,
   formatInfluenceLevel,
   formatLifecycleStage,
@@ -51,6 +53,7 @@ import {
 } from "../utils/labels";
 
 type Formatter = (value: string | null | undefined) => string;
+type RelationResolver = ReturnType<typeof buildRelationResolver>;
 
 export default function ProjectCjmPage() {
   const { projectCode } = useParams();
@@ -104,27 +107,37 @@ export default function ProjectCjmPage() {
     );
   }
 
+  const relationResolver = buildRelationResolver(projectCjm);
+
   return (
     <section className="space-y-6">
       <BackLink />
       <ProjectHeader project={projectCjm.project} />
 
       <div className="min-w-0" role="tabpanel">
-        {activeTab === "overview" ? <OverviewPanel cjm={projectCjm} /> : null}
+        {activeTab === "overview" ? (
+          <OverviewPanel cjm={projectCjm} relationResolver={relationResolver} />
+        ) : null}
         {activeTab === "passport" ? (
           <PassportPanel project={projectCjm.project} />
         ) : null}
-        {activeTab === "goals" ? <GoalsPanel goals={projectCjm.goals} /> : null}
-        {activeTab === "lprs" ? <LprsPanel lprs={projectCjm.lprs} /> : null}
+        {activeTab === "goals" ? (
+          <GoalsPanel goals={projectCjm.goals} relationResolver={relationResolver} />
+        ) : null}
+        {activeTab === "lprs" ? (
+          <LprsPanel lprs={projectCjm.lprs} relationResolver={relationResolver} />
+        ) : null}
         {activeTab === "barriers" ? (
-          <BarriersPanel barriers={projectCjm.barriers} />
+            <BarriersPanel barriers={projectCjm.barriers} relationResolver={relationResolver} />
         ) : null}
         {activeTab === "expectations" ? (
-          <ExpectationsPanel expectations={projectCjm.expectations} />
+            <ExpectationsPanel expectations={projectCjm.expectations} relationResolver={relationResolver} />
+          ) : null}
+        {activeTab === "kpis" ? (
+          <KpisPanel kpis={projectCjm.kpis} relationResolver={relationResolver} />
         ) : null}
-        {activeTab === "kpis" ? <KpisPanel kpis={projectCjm.kpis} /> : null}
         {activeTab === "communications" ? (
-          <CommunicationsPanel communications={projectCjm.communications} />
+          <CommunicationsPanel communications={projectCjm.communications} relationResolver={relationResolver} />
         ) : null}
       </div>
     </section>
@@ -176,15 +189,13 @@ function ProjectHeader({ project }: { project: ProjectPassport }) {
   );
 }
 
-function OverviewPanel({ cjm }: { cjm: ProjectCjm }) {
-  const allFactors = cjm.lprs.flatMap((lpr) =>
-    lpr.importance_factors.map((factor) => ({ ...factor, lpr })),
-  );
-  const factorGroups = ["high", "medium", "low", "unknown"].map((criticality) => {
-    const items = allFactors.filter((item) => hasCriticality(item.criticality, criticality));
-    const names = [...new Set(items.map((item) => factorTitle(item)).filter(Boolean))];
-    return { criticality, items, names };
-  });
+function OverviewPanel({
+  cjm,
+  relationResolver,
+}: {
+  cjm: ProjectCjm;
+  relationResolver: RelationResolver;
+}) {
   const highInfluenceLprs = cjm.lprs.filter((lpr) => hasHighInfluence(lpr.influence_level));
   const watchedBarriers = cjm.barriers.filter(
     (barrier) =>
@@ -207,25 +218,23 @@ function OverviewPanel({ cjm }: { cjm: ProjectCjm }) {
   return (
     <PanelIntro
       title="Обзор"
-      description="Сжатая карта проекта: важности, роли, барьеры, ожидания и связанные KPI."
+      description="Сжатая карта: кто влияет на проект, что болит, какие ожидания и KPI нужно держать в фокусе."
     >
       <div className="grid gap-4 2xl:grid-cols-[1fr_360px]">
         <section className="space-y-4">
-          <SoftCard>
-            <SectionEyebrow>Краткое описание</SectionEyebrow>
-            <p className="mt-2 text-base leading-7 text-slate-800">
-              {formatText(cjm.project.short_description)}
-            </p>
-          </SoftCard>
-
           <div className="grid gap-4 lg:grid-cols-2">
             <OverviewList
-              title="ЛПР с высоким влиянием"
+              title="Ключевые ЛПР"
               emptyText="Высокое влияние пока не выделено."
               items={highInfluenceLprs.slice(0, 5)}
               renderItem={(lpr) => (
                 <>
-                  <div className="font-medium text-slate-950">{formatText(lpr.role_zone)}</div>
+                  <div className="text-xs font-semibold uppercase text-slate-400">
+                    {formatEntityCode(lpr.lpr_code)}
+                  </div>
+                  <div className="mt-1 font-medium text-slate-950">
+                    {formatText(lpr.role_zone || lpr.role)}
+                  </div>
                   <div className="mt-1 flex flex-wrap gap-2">
                     <StatusBadge value={formatInfluenceLevel(lpr.influence_level)} />
                     <StatusBadge value={formatRelationshipStatus(lpr.relationship_status)} />
@@ -272,7 +281,7 @@ function OverviewPanel({ cjm }: { cjm: ProjectCjm }) {
                 <>
                   <div className="font-medium text-slate-950">{kpi.kpi_name}</div>
                   <div className="mt-1 text-xs leading-5 text-slate-500">
-                    {formatText(kpi.related_expectation_text || kpi.related_barrier_text)}
+                    {relationResolver.format(kpi.related_expectation_text || kpi.related_barrier_text)}
                   </div>
                 </>
               )}
@@ -281,27 +290,6 @@ function OverviewPanel({ cjm }: { cjm: ProjectCjm }) {
         </section>
 
         <aside className="space-y-4">
-          <SoftCard>
-            <SectionEyebrow>Важности ЛПР</SectionEyebrow>
-            <div className="mt-4 space-y-3">
-              {factorGroups
-                .filter((group) => group.items.length > 0)
-                .map((group) => (
-                  <div key={group.criticality} className="rounded-xl bg-slate-50 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <StatusBadge value={formatCriticality(group.criticality)} />
-                      <span className="text-sm font-semibold text-slate-900">
-                        {group.items.length}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      {group.names.slice(0, 4).join(", ")}
-                    </p>
-                  </div>
-                ))}
-            </div>
-          </SoftCard>
-
           {confirmationItems.length > 0 ? (
             <SoftCard>
               <SectionEyebrow>Что требует подтверждения</SectionEyebrow>
@@ -324,33 +312,62 @@ function OverviewPanel({ cjm }: { cjm: ProjectCjm }) {
 function PassportPanel({ project }: { project: ProjectPassport }) {
   return (
     <PanelIntro title="Паспорт" description="Ключевой проектный контекст.">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <InfoField label="Внутренний код" value={project.project_code} />
-        <InfoField label="Код проекта" value={formatCode(project.external_project_id)} />
-        <InfoField label="Рабочий код" value={formatCode(project.working_project_code)} />
-        <InfoField label="Направление" value={formatDirection(project.direction)} />
-        <InfoField label="Масштаб" value={formatProjectScale(project.project_scale)} />
-        <InfoField label="Статус" value={formatProjectStatus(project.project_status)} badge />
-        <InfoField label="Известные регионы" value={formatText(project.known_regions)} />
-        <InfoField
-          label="Основная операционная модель"
-          value={formatOperationalModel(project.primary_operational_model)}
-        />
-        <InfoField
-          label="Дополнительные контуры"
-          value={formatText(project.additional_operational_contours)}
-        />
-        <InfoField label="Этап жизненного цикла" value={formatLifecycleStage(project.lifecycle_stage)} />
-        <InfoField label="Дата старта" value={formatText(project.start_date)} />
+      <div className="content-card overflow-hidden">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="p-6">
+            <SectionEyebrow>Основная информация</SectionEyebrow>
+            <h3 className="mt-2 text-2xl font-semibold text-slate-950">
+              Проект {formatCode(project.working_project_code || project.external_project_id)}
+            </h3>
+            <div className="mt-6 grid gap-x-8 gap-y-5 md:grid-cols-2">
+              <PassportItem label="Внутренний код" value={project.project_code} />
+              <PassportItem label="Код проекта" value={formatCode(project.external_project_id)} />
+              <PassportItem label="Направление" value={formatDirection(project.direction)} />
+              <PassportItem label="Масштаб" value={formatProjectScale(project.project_scale)} />
+              <PassportItem label="Этап жизненного цикла" value={formatLifecycleStage(project.lifecycle_stage)} />
+              <PassportItem label="Дата старта" value={formatText(project.start_date)} />
+            </div>
+          </div>
+
+          <div className="bg-slate-950 p-6 text-white">
+            <SectionEyebrow>Статус проекта</SectionEyebrow>
+            <div className="mt-4">
+              <StatusBadge value={formatProjectStatus(project.project_status)} />
+            </div>
+            <div className="mt-8 space-y-5">
+              <PassportItem
+                label="Основная операционная модель"
+                value={formatOperationalModel(project.primary_operational_model)}
+                inverted
+              />
+              <PassportItem
+                label="Дополнительные контуры"
+                value={formatText(project.additional_operational_contours)}
+                inverted
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 bg-white px-6 py-5">
+          <PassportItem label="Известные регионы" value={formatText(project.known_regions)} />
+        </div>
       </div>
     </PanelIntro>
   );
 }
 
-function GoalsPanel({ goals }: { goals: Goal[] }) {
+function GoalsPanel({
+  goals,
+  relationResolver,
+}: {
+  goals: Goal[];
+  relationResolver: RelationResolver;
+}) {
   const [relevance, setRelevance] = useState("");
   const [goalType, setGoalType] = useState("");
   const [priority, setPriority] = useState("");
+  const priorityOptions = buildOptions(goals, (goal) => goal.priority, formatLooseText);
   const filteredGoals = goals.filter(
     (goal) =>
       matches(goal.relevance_status, relevance) &&
@@ -375,14 +392,16 @@ function GoalsPanel({ goals }: { goals: Goal[] }) {
           label="Тип цели"
           value={goalType}
           onChange={setGoalType}
-          options={buildOptions(goals, (goal) => goal.goal_type, formatLooseText)}
+          options={buildOptions(goals, (goal) => goal.goal_type, formatGoalType)}
         />
-        <SelectFilter
-          label="Приоритет"
-          value={priority}
-          onChange={setPriority}
-          options={buildOptions(goals, (goal) => goal.priority, formatLooseText)}
-        />
+        {priorityOptions.length > 0 ? (
+          <SelectFilter
+            label="Приоритет"
+            value={priority}
+            onChange={setPriority}
+            options={priorityOptions}
+          />
+        ) : null}
       </FilterBar>
 
       <div className="space-y-3">
@@ -390,19 +409,21 @@ function GoalsPanel({ goals }: { goals: Goal[] }) {
           <article key={goal.goal_code || goal.goal_text} className="content-card p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <div className="text-xs font-medium text-slate-400">{formatCode(goal.goal_code)}</div>
+                <div className="text-xs font-medium text-slate-400">
+                  {formatEntityCode(goal.goal_code)}
+                </div>
                 <h3 className="mt-1 text-lg font-semibold leading-7 text-slate-950">
                   {goal.goal_text}
                 </h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 <StatusBadge value={formatRelevanceStatus(goal.relevance_status)} />
-                <StatusBadge value={formatLooseText(goal.priority)} />
+                {goal.priority ? <StatusBadge value={formatLooseText(goal.priority)} /> : null}
               </div>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <Detail label="Тип" value={formatLooseText(goal.goal_type)} />
-              <Detail label="KPI / критерий" value={formatText(goal.related_kpi_or_criterion_text)} />
+              <Detail label="Тип" value={formatGoalType(goal.goal_type)} />
+              <Detail label="KPI / критерий" value={relationResolver.format(goal.related_kpi_or_criterion_text)} />
               {goal.comment ? <Detail label="Комментарий" value={goal.comment} /> : null}
             </div>
           </article>
@@ -412,7 +433,13 @@ function GoalsPanel({ goals }: { goals: Goal[] }) {
   );
 }
 
-function LprsPanel({ lprs }: { lprs: LprProfile[] }) {
+function LprsPanel({
+  lprs,
+  relationResolver,
+}: {
+  lprs: LprProfile[];
+  relationResolver: RelationResolver;
+}) {
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
 
   if (lprs.length === 0) {
@@ -446,13 +473,18 @@ function LprsPanel({ lprs }: { lprs: LprProfile[] }) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-xs font-medium text-slate-400">{lpr.lpr_code}</div>
+                    <div className="text-xs font-medium text-slate-400">
+                      {formatEntityCode(lpr.lpr_code)}
+                    </div>
                     <h3 className="mt-1 text-lg font-semibold leading-7 text-slate-950">
-                      {formatText(lpr.role_zone || lpr.role)}
+                      Зона ответственности / влияния
                     </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {formatText(lpr.role_zone || lpr.role)}
+                    </p>
                     {lpr.external_lpr_id ? (
                       <p className="mt-1 text-xs text-slate-500">
-                        External LPR ID: {lpr.external_lpr_id}
+                        ID в базе данных: {lpr.external_lpr_id}
                       </p>
                     ) : null}
                   </div>
@@ -473,10 +505,13 @@ function LprsPanel({ lprs }: { lprs: LprProfile[] }) {
               {isExpanded ? (
                 <div className="border-t border-slate-100 bg-slate-50/80 p-5">
                   <div className="grid gap-3 md:grid-cols-2">
+                    <Detail label="ЛПР" value={formatEntityCode(lpr.lpr_code)} />
+                    <Detail label="Зона ответственности / влияния" value={formatText(lpr.role_zone || lpr.role)} />
+                    <Detail label="ID в базе данных" value={formatText(lpr.external_lpr_id)} />
                     <Detail label="Уровень влияния" value={formatInfluenceLevel(lpr.influence_level)} />
                     <Detail label="Активность" value={formatActivityStatus(lpr.activity_status)} />
                     <Detail label="Отношение" value={formatRelationshipStatus(lpr.relationship_status)} />
-                    <Detail label="Основание вывода" value={formatText(lpr.evidence_basis)} />
+                    <Detail label="Основание вывода" value={relationResolver.format(lpr.evidence_basis)} />
                   </div>
                   <ImportanceList factors={lpr.importance_factors} />
                 </div>
@@ -489,7 +524,13 @@ function LprsPanel({ lprs }: { lprs: LprProfile[] }) {
   );
 }
 
-function BarriersPanel({ barriers }: { barriers: Barrier[] }) {
+function BarriersPanel({
+  barriers,
+  relationResolver,
+}: {
+  barriers: Barrier[];
+  relationResolver: RelationResolver;
+}) {
   const [timeStatus, setTimeStatus] = useState("");
   const [relevance, setRelevance] = useState("");
   const [criticality, setCriticality] = useState("");
@@ -553,7 +594,7 @@ function BarriersPanel({ barriers }: { barriers: Barrier[] }) {
               <Detail label="Тип" value={formatBarrierType(barrier.barrier_type)} />
               <Detail label="Статус" value={formatBarrierStatus(barrier.status)} />
               <Detail label="Уверенность" value={formatConfidenceLevel(barrier.confidence_level)} />
-              <Detail label="Связанный KPI" value={formatText(barrier.linked_kpi_text)} />
+              <Detail label="Связанный KPI" value={relationResolver.format(barrier.linked_kpi_text)} />
             </div>
             <Evidence value={barrier.evidence_quote} />
             <SecondaryDetails sourceText={barrier.source_text} code={barrier.barrier_code} />
@@ -564,7 +605,13 @@ function BarriersPanel({ barriers }: { barriers: Barrier[] }) {
   );
 }
 
-function ExpectationsPanel({ expectations }: { expectations: Expectation[] }) {
+function ExpectationsPanel({
+  expectations,
+  relationResolver,
+}: {
+  expectations: Expectation[];
+  relationResolver: RelationResolver;
+}) {
   const [relevance, setRelevance] = useState("");
   const [criticality, setCriticality] = useState("");
   const [confidence, setConfidence] = useState("");
@@ -622,8 +669,8 @@ function ExpectationsPanel({ expectations }: { expectations: Expectation[] }) {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <Detail label="Тип" value={formatExpectationType(expectation.expectation_type)} />
               <Detail label="Уверенность" value={formatConfidenceLevel(expectation.confidence_level)} />
-              <Detail label="Связанный KPI" value={formatText(expectation.linked_kpi_text)} />
-              <Detail label="Связанная важность" value={formatText(expectation.related_importance_text)} />
+              <Detail label="Связанный KPI" value={relationResolver.format(expectation.linked_kpi_text)} />
+              <Detail label="Связанная важность" value={formatDisplayText(expectation.related_importance_text)} />
             </div>
             <Evidence value={expectation.evidence_quote} />
             <SecondaryDetails sourceText={expectation.source_text} code={expectation.expectation_code} />
@@ -634,7 +681,13 @@ function ExpectationsPanel({ expectations }: { expectations: Expectation[] }) {
   );
 }
 
-function KpisPanel({ kpis }: { kpis: Kpi[] }) {
+function KpisPanel({
+  kpis,
+  relationResolver,
+}: {
+  kpis: Kpi[];
+  relationResolver: RelationResolver;
+}) {
   const [kpiType, setKpiType] = useState("");
   const [relevance, setRelevance] = useState("");
   const [criticality, setCriticality] = useState("");
@@ -697,15 +750,15 @@ function KpisPanel({ kpis }: { kpis: Kpi[] }) {
               value={
                 <div>
                   <div className="font-medium text-slate-950">{kpi.kpi_name}</div>
-                  <div className="mt-1 text-xs text-slate-400">{formatCode(kpi.kpi_code)}</div>
+                  <div className="mt-1 text-xs text-slate-400">{formatEntityCode(kpi.kpi_code)}</div>
                 </div>
               }
             />
             <Cell value={formatLooseText(kpi.kpi_type)} />
             <Cell value={<StatusBadge value={formatRelevanceStatus(kpi.relevance_status)} />} />
             <Cell value={<StatusBadge value={formatCriticality(kpi.client_criticality)} />} />
-            <Cell value={formatText(kpi.related_expectation_text)} />
-            <Cell value={formatText(kpi.related_barrier_text)} />
+            <Cell value={relationResolver.format(kpi.related_expectation_text)} />
+            <Cell value={relationResolver.format(kpi.related_barrier_text)} />
             <Cell value={formatText(kpi.comment)} />
           </tr>
         ))}
@@ -714,7 +767,13 @@ function KpisPanel({ kpis }: { kpis: Kpi[] }) {
   );
 }
 
-function CommunicationsPanel({ communications }: { communications: CommunicationPoint[] }) {
+function CommunicationsPanel({
+  communications,
+  relationResolver,
+}: {
+  communications: CommunicationPoint[];
+  relationResolver: RelationResolver;
+}) {
   if (communications.length === 0) {
     return <EmptyState title="Коммуникаций нет" description="В разделе пока нет каналов взаимодействия." />;
   }
@@ -738,7 +797,9 @@ function CommunicationsPanel({ communications }: { communications: Communication
             <Cell
               value={
                 <div>
-                  <div className="font-medium text-slate-950">{formatText(point.client_side)}</div>
+                  <div className="font-medium text-slate-950">
+                    {relationResolver.format(point.client_side)}
+                  </div>
                   {point.external_lpr_id ? (
                     <div className="mt-1 text-xs text-slate-400">{point.external_lpr_id}</div>
                   ) : null}
@@ -761,20 +822,23 @@ function CommunicationsPanel({ communications }: { communications: Communication
 
 function InfluenceLegend() {
   const items = [
-    ["Высокое влияние", "влияет на решение или ключевую оценку проекта."],
-    ["Среднее влияние", "влияет на отдельные зоны или операционную оценку."],
-    ["Низкое влияние", "участвует в коммуникации, но не является ключевым решающим лицом."],
-    ["Требует подтверждения", "данных недостаточно."],
+    ["Высокое влияние", "Влияет на решение, бюджет, оценку проекта или ключевые условия."],
+    ["Среднее влияние", "Отвечает за отдельные зоны и может влиять на операционную оценку."],
+    ["Низкое влияние", "Участвует в коммуникации, но не определяет ключевые решения."],
+    ["Требует подтверждения", "Нужно уточнить роль, активность или степень влияния в проекте."],
   ];
 
   return (
-    <div className="grid gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/60 md:grid-cols-2">
-      {items.map(([title, description]) => (
-        <div key={title} className="text-sm leading-6">
-          <span className="font-semibold text-slate-950">{title}</span>
-          <span className="text-slate-600"> — {description}</span>
-        </div>
-      ))}
+    <div className="content-card p-5">
+      <SectionEyebrow>Как читать уровень влияния</SectionEyebrow>
+      <div className="mt-4 grid gap-3 lg:grid-cols-4">
+        {items.map(([title, description]) => (
+          <div key={title} className="rounded-xl bg-slate-50 p-4 text-sm leading-6">
+            <div className="font-semibold text-slate-950">{title}</div>
+            <p className="mt-2 text-slate-600">{description}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -783,14 +847,14 @@ function ImportanceList({ factors }: { factors: LprImportanceFactor[] }) {
   if (factors.length === 0) {
     return (
       <div className="mt-5 rounded-xl bg-white p-4 text-sm text-slate-500">
-        Важности ЛПР пока не заполнены.
+        Что важно этому ЛПР пока не заполнено.
       </div>
     );
   }
 
   return (
     <div className="mt-5 space-y-3">
-      <SectionEyebrow>Важности ЛПР</SectionEyebrow>
+      <SectionEyebrow>Что важно этому ЛПР</SectionEyebrow>
       <div className="grid gap-3">
         {factors.map((factor) => (
           <div key={`${factor.factor_type}-${factor.factor_text}`} className="rounded-xl bg-white p-4">
@@ -849,6 +913,31 @@ function InfoField({
   );
 }
 
+function PassportItem({
+  label,
+  value,
+  inverted = false,
+}: {
+  label: string;
+  value: string | null;
+  inverted?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className={`text-xs font-semibold uppercase ${inverted ? "text-slate-400" : "text-slate-400"}`}>
+        {label}
+      </div>
+      <div
+        className={`mt-1 break-words text-sm leading-6 ${
+          inverted ? "text-white" : "text-slate-900"
+        }`}
+      >
+        {formatText(value)}
+      </div>
+    </div>
+  );
+}
+
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="min-w-0">
@@ -885,7 +974,7 @@ function SecondaryDetails({ sourceText, code }: { sourceText: string | null; cod
     <details className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200/80">
       <summary className="cursor-pointer font-medium text-slate-700">Дополнительно</summary>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {code ? <Detail label="Код" value={code} /> : null}
+        {code ? <Detail label="Код" value={formatEntityCode(code)} /> : null}
         {sourceText ? <Detail label="Источник" value={sourceText} /> : null}
       </div>
     </details>
@@ -1006,6 +1095,65 @@ function ProjectLoading() {
   );
 }
 
+function buildRelationResolver(cjm: ProjectCjm) {
+  const titles = new Map<string, string>();
+
+  function remember(code: string | null | undefined, title: string | null | undefined) {
+    const normalizedCode = normalize(code);
+    const normalizedTitle = title?.trim();
+
+    if (!normalizedCode || !normalizedTitle) {
+      return;
+    }
+
+    titles.set(normalizedCode, normalizedTitle);
+
+    const suffix = normalizedCode.match(/_0*(\d+)$/)?.[1];
+    if (!suffix) {
+      return;
+    }
+
+    if (normalizedCode.startsWith("expectation_")) {
+      titles.set(`expect_${suffix.padStart(3, "0")}`, normalizedTitle);
+    }
+    if (normalizedCode.startsWith("expect_")) {
+      titles.set(`expectation_${suffix.padStart(3, "0")}`, normalizedTitle);
+    }
+  }
+
+  cjm.expectations.forEach((expectation) => {
+    remember(expectation.expectation_code, expectation.expectation_text);
+    remember(expectation.expectation_id, expectation.expectation_text);
+  });
+  cjm.barriers.forEach((barrier) => {
+    remember(barrier.barrier_code, barrier.barrier_title);
+    remember(barrier.barrier_id, barrier.barrier_title);
+  });
+  cjm.kpis.forEach((kpi) => {
+    remember(kpi.kpi_code, kpi.kpi_name);
+    remember(kpi.kpi_id, kpi.kpi_name);
+  });
+
+  function resolve(code: string) {
+    const normalizedCode = normalize(code);
+    return titles.get(normalizedCode) || formatEntityCode(code);
+  }
+
+  function format(value: string | null | undefined) {
+    const original = value?.trim();
+    if (!original) {
+      return formatText(value);
+    }
+
+    return original.replace(
+      /\b(goal|lpr|barrier|expectation|expect|kpi|comm|communication)_0*\d+\b/gi,
+      (match) => resolve(match),
+    );
+  }
+
+  return { format, resolve };
+}
+
 function buildConfirmationItems(cjm: ProjectCjm) {
   const items: Array<{ kind: string; title: string }> = [];
 
@@ -1063,7 +1211,12 @@ function matches(value: string | null, selected: string) {
 }
 
 function factorTitle(factor: LprImportanceFactor) {
-  return factor.factor_text?.trim() || formatImportanceFactor(factor.factor_type);
+  const mappedFactor = formatImportanceFactor(factor.factor_type);
+  if (mappedFactor !== "Другое" && mappedFactor !== "Не указано") {
+    return mappedFactor;
+  }
+
+  return formatDisplayText(factor.factor_text);
 }
 
 function normalize(value: string | null | undefined) {
@@ -1080,24 +1233,19 @@ function hasCurrentTimeStatus(value: string | null | undefined) {
   return normalized === "current" || normalized.includes("сейчас");
 }
 
-function hasCriticality(value: string | null | undefined, expected: string) {
-  const normalized = normalize(value);
-  if (normalized === expected) {
-    return true;
-  }
-
-  return (
-    (expected === "high" && normalized.includes("высок")) ||
-    (expected === "medium" && normalized.includes("сред")) ||
-    (expected === "low" && normalized.includes("низ")) ||
-    (expected === "unknown" && (normalized.includes("не указ") || normalized === "unknown"))
-  );
-}
-
 function formatLooseText(value: string | null | undefined) {
-  const text = formatText(value);
+  const text = formatDisplayText(value);
   if (/^[a-z]+(?:_[a-z]+)*$/.test(text)) {
     return "Не указано";
   }
   return text;
+}
+
+function formatDisplayText(value: string | null | undefined) {
+  const text = formatText(value);
+  if (text === "Не указано" || /^[A-ZА-ЯЁ0-9/.\-\s]+$/.test(text)) {
+    return text;
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

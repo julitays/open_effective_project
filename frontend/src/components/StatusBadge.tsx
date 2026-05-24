@@ -31,11 +31,23 @@ function getTone(value: string) {
 }
 
 export default function StatusBadge({ value }: StatusBadgeProps) {
+  const displayValue = formatBadgeText(value);
+
   return (
     <span
       className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-xs font-medium leading-5 ${getTone(value)}`}
     >
-      <span className="break-words">{value}</span>
+      <span className="break-words">{displayValue}</span>
     </span>
   );
+}
+
+function formatBadgeText(value: string) {
+  const trimmed = value.trim();
+
+  if (/^[A-ZА-ЯЁ0-9/.\-\s]+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }

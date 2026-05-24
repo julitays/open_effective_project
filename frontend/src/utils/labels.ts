@@ -51,49 +51,80 @@ const projectStatusLabels = {
 };
 
 const criticalityLabels = {
-  high: "Высокая",
-  medium: "Средняя",
-  low: "Низкая",
+  high: "Высокая критичность",
+  "высокая": "Высокая критичность",
+  "высокий": "Высокая критичность",
+  medium: "Средняя критичность",
+  "средняя": "Средняя критичность",
+  "средний": "Средняя критичность",
+  low: "Низкая критичность",
+  "низкая": "Низкая критичность",
+  "низкий": "Низкая критичность",
   unknown: emptyLabel,
 };
 
 const influenceLevelLabels = {
   high: "Высокое влияние",
+  "высокий": "Высокое влияние",
+  "высокое": "Высокое влияние",
   medium: "Среднее влияние",
+  "средний": "Среднее влияние",
+  "среднее": "Среднее влияние",
   low: "Низкое влияние",
+  "низкий": "Низкое влияние",
+  "низкое": "Низкое влияние",
   requires_confirmation: "Требует подтверждения",
+  "требует подтверждения": "Требует подтверждения",
   unknown: emptyLabel,
 };
 
 const relevanceStatusLabels = {
   actual: "Актуально",
+  "актуально": "Актуально",
   current: "Актуально",
   historical: "Историческое",
+  "историческое": "Историческое",
   requires_confirmation: "Требует подтверждения",
+  "требует подтверждения": "Требует подтверждения",
   not_actual: "Неактуально",
+  "неактуально": "Неактуально",
   unknown: emptyLabel,
 };
 
 const confidenceLevelLabels = {
   high: "Высокая уверенность",
+  "высокая": "Высокая уверенность",
+  "высокий": "Высокая уверенность",
   medium: "Средняя уверенность",
+  "средняя": "Средняя уверенность",
+  "средний": "Средняя уверенность",
   low: "Низкая уверенность",
+  "низкая": "Низкая уверенность",
+  "низкий": "Низкая уверенность",
   unknown: emptyLabel,
 };
 
 const relationshipStatusLabels = {
   loyal: "Лоялен",
+  "лоялен": "Лоялен",
   neutral: "Нейтрален",
+  "нейтрален": "Нейтрален",
   cautious: "Осторожен",
+  "осторожен": "Осторожен",
   critical: "Критичен",
+  "критичен": "Критичен",
   unknown: emptyLabel,
 };
 
 const activityStatusLabels = {
   active: "Активен",
+  "активен": "Активен",
   inactive: "Неактивен",
+  "неактивен": "Неактивен",
   requires_confirmation: "Требует подтверждения",
+  "требует подтверждения": "Требует подтверждения",
   historical: "Исторический",
+  "исторический": "Исторический",
   unknown: emptyLabel,
 };
 
@@ -132,17 +163,27 @@ const barrierTypeLabels = {
 
 const barrierTimeStatusLabels = {
   past: "Было",
+  "было": "Было",
   current: "Есть сейчас",
+  "есть сейчас": "Есть сейчас",
   future: "Может возникнуть",
+  "может возникнуть": "Может возникнуть",
   repeated: "Повторяется",
+  "повторяется": "Повторяется",
 };
 
 const barrierStatusLabels = {
   open: "Открыт",
+  "открыт": "Открыт",
   in_progress: "В работе",
+  "в работе": "В работе",
   contained: "Сдерживается",
+  "сдерживается": "Сдерживается",
   resolved: "Решён",
+  "решён": "Решён",
+  "решен": "Решён",
   monitoring: "На контроле",
+  "на контроле": "На контроле",
   unknown: emptyLabel,
 };
 
@@ -163,16 +204,24 @@ const expectationTypeLabels = {
 
 const explicitnessLabels = {
   explicit: "Явное",
+  "явное": "Явное",
   implicit: "Неявное",
+  "неявное": "Неявное",
   unknown: emptyLabel,
 };
 
 const communicationChannelLabels = {
   meeting: "Встреча",
+  "встреча": "Встреча",
   call: "Звонок",
+  "звонок": "Звонок",
   email: "Email",
+  "почта": "Email",
   messenger: "Мессенджер",
+  "мессенджер": "Мессенджер",
   report: "Отчёт",
+  "отчёт": "Отчёт",
+  "отчет": "Отчёт",
   bi_dashboard: "BI-дашборд",
   other: "Другое",
   unknown: emptyLabel,
@@ -180,11 +229,16 @@ const communicationChannelLabels = {
 
 const communicationFrequencyLabels = {
   on_request: "По запросу",
+  "по запросу": "По запросу",
   weekly: "Еженедельно",
+  "еженедельно": "Еженедельно",
   biweekly: "Раз в две недели",
   monthly: "Ежемесячно",
+  "ежемесячно": "Ежемесячно",
   quarterly: "Ежеквартально",
+  "ежеквартально": "Ежеквартально",
   rarely: "Редко",
+  "редко": "Редко",
   unknown: emptyLabel,
 };
 
@@ -193,8 +247,20 @@ const yesNoLabels = {
   false: "Нет",
   yes: "Да",
   no: "Нет",
+  "да": "Да",
+  "нет": "Нет",
   requires_confirmation: "Требует подтверждения",
   unknown: emptyLabel,
+};
+
+const goalTypeLabels = {
+  "финансовая": "Финансовый результат",
+  "финансовый": "Финансовый результат",
+  "клиентская": "Клиентский результат",
+  "клиентский": "Клиентский результат",
+  "бизнес клиента": "Бизнес-результат клиента",
+  "операционная": "Операционный результат",
+  "операционный": "Операционный результат",
 };
 
 type LabelDictionary = Record<string, string>;
@@ -205,6 +271,19 @@ function normalize(value: string | null | undefined) {
 
 function hasCyrillic(value: string) {
   return /[а-яё]/i.test(value);
+}
+
+function sentenceCase(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return emptyLabel;
+  }
+
+  if (/^[A-ZА-ЯЁ0-9/.\-\s]+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
 function labelFrom(
@@ -224,7 +303,7 @@ function labelFrom(
 
   const original = value?.trim() ?? "";
   if (options.allowRussianText && hasCyrillic(original)) {
-    return original;
+    return sentenceCase(original);
   }
 
   return emptyLabel;
@@ -237,6 +316,29 @@ export function formatText(value: string | null | undefined) {
 
 export function formatCode(value: string | null | undefined) {
   return value?.trim() || emptyLabel;
+}
+
+export function formatEntityCode(value: string | null | undefined) {
+  const normalized = normalize(value);
+  const match = normalized?.match(/^(goal|lpr|barrier|expectation|expect|kpi|comm|communication)_0*(\d+)$/);
+
+  if (!match) {
+    return formatCode(value);
+  }
+
+  const [, entity, number] = match;
+  const labels: Record<string, string> = {
+    goal: "Цель",
+    lpr: "ЛПР",
+    barrier: "Барьер",
+    expectation: "Ожидание",
+    expect: "Ожидание",
+    kpi: "KPI",
+    comm: "Коммуникация",
+    communication: "Коммуникация",
+  };
+
+  return `${labels[entity]} ${Number(number)}`;
 }
 
 export const formatDirection = (value: string | null | undefined) =>
@@ -298,6 +400,9 @@ export const formatCommunicationFrequency = (value: string | null | undefined) =
 
 export const formatYesNo = (value: string | null | undefined) =>
   labelFrom(value, yesNoLabels);
+
+export const formatGoalType = (value: string | null | undefined) =>
+  labelFrom(value, goalTypeLabels);
 
 export function isConfirmationRequired(value: string | null | undefined) {
   const normalized = normalize(value);
