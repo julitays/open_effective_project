@@ -11,7 +11,7 @@ export type CjmTabId =
 export const cjmTabs: Array<{ id: CjmTabId; label: string }> = [
   { id: "overview", label: "Обзор" },
   { id: "passport", label: "Паспорт" },
-  { id: "goals", label: "Цели" },
+  { id: "goals", label: "Цели OPEN и клиента" },
   { id: "lprs", label: "ЛПР" },
   { id: "barriers", label: "Барьеры" },
   { id: "expectations", label: "Ожидания" },

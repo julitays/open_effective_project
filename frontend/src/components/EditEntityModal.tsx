@@ -9,7 +9,7 @@ export interface EditOption {
 export interface EditField {
   name: string;
   label: string;
-  input?: "text" | "textarea" | "select";
+  input?: "text" | "textarea" | "select" | "multiselect";
   options?: EditOption[];
 }
 
@@ -47,6 +47,17 @@ export default function EditEntityModal({
 
   function setValue(name: string, value: string) {
     setDraft((current) => ({ ...current, [name]: value }));
+  }
+
+  function toggleMultiValue(name: string, value: string) {
+    setDraft((current) => {
+      const values = splitMultiValue(current[name] ?? "");
+      const nextValues = values.includes(value)
+        ? values.filter((item) => item !== value)
+        : [...values, value];
+
+      return { ...current, [name]: nextValues.join("; ") };
+    });
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -100,6 +111,37 @@ export default function EditEntityModal({
                     </option>
                   ))}
                 </select>
+              ) : field.input === "multiselect" ? (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  {options.length > 0 ? (
+                    <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                      {options.map((option) => {
+                        const checked = splitMultiValue(draft[field.name] ?? "").includes(option.value);
+                        return (
+                          <label
+                            key={option.value}
+                            className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm text-slate-800 hover:bg-white"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleMultiValue(field.name, option.value)}
+                              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-400"
+                            />
+                            <span className="leading-5">{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-slate-500">Нет доступных вариантов.</div>
+                  )}
+                  {draft[field.name] && !hasSelectedKnownOption(options, draft[field.name] ?? "") ? (
+                    <div className="mt-3 rounded-md bg-white px-3 py-2 text-xs leading-5 text-slate-500 ring-1 ring-slate-200">
+                      Текущее значение: {draft[field.name]}
+                    </div>
+                  ) : null}
+                </div>
               ) : field.input === "textarea" ? (
                 <textarea
                   value={draft[field.name] ?? ""}
@@ -151,16 +193,17 @@ function visibleOptions(options: EditOption[], currentValue: string) {
   const seenLabels = new Set<string>();
   const result: EditOption[] = [];
   const currentOption = options.find((option) => option.value === currentValue);
+  const orderedOptions = currentOption
+    ? [currentOption, ...options.filter((option) => option.value !== currentValue)]
+    : options;
 
-  options.forEach((option) => {
+  orderedOptions.forEach((option) => {
     if (option.label === "Не указано" && option.value !== currentValue) {
       return;
     }
 
     if (seenLabels.has(option.label)) {
-      if (currentOption?.label !== option.label || option.value !== currentValue) {
-        return;
-      }
+      return;
     }
 
     seenLabels.add(option.label);
@@ -177,5 +220,21 @@ function visibleOptions(options: EditOption[], currentValue: string) {
     ];
   }
 
+  if (currentValue && !result.some((option) => option.value === currentValue)) {
+    return [{ value: currentValue, label: currentValue }, ...result];
+  }
+
   return result;
+}
+
+function splitMultiValue(value: string) {
+  return value
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function hasSelectedKnownOption(options: EditOption[], value: string) {
+  const selected = splitMultiValue(value);
+  return selected.length > 0 && selected.every((item) => options.some((option) => option.value === item));
 }

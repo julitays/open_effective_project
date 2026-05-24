@@ -254,13 +254,53 @@ const yesNoLabels = {
 };
 
 const goalTypeLabels = {
+  open_internal: "Цель OPEN",
+  client_business: "Цель клиента",
+  joint_project: "Общая цель проекта",
+  service: "Сервисная цель",
+  operational: "Операционная цель",
+  financial: "Финансовая цель",
+  risk_control: "Контроль рисков",
+  other: "Другое",
+  "цель open": "Цель OPEN",
+  "open": "Цель OPEN",
+  "наша цель": "Цель OPEN",
+  "цель клиента": "Цель клиента",
+  "client": "Цель клиента",
   "финансовая": "Финансовый результат",
   "финансовый": "Финансовый результат",
-  "клиентская": "Клиентский результат",
-  "клиентский": "Клиентский результат",
-  "бизнес клиента": "Бизнес-результат клиента",
+  "клиентская": "Цель клиента",
+  "клиентский": "Цель клиента",
+  "бизнес клиента": "Цель клиента",
   "операционная": "Операционный результат",
   "операционный": "Операционный результат",
+};
+
+const priorityLabels = {
+  high: "Высокий приоритет",
+  "высокий": "Высокий приоритет",
+  "высокая": "Высокий приоритет",
+  medium: "Средний приоритет",
+  "средний": "Средний приоритет",
+  "средняя": "Средний приоритет",
+  low: "Низкий приоритет",
+  "низкий": "Низкий приоритет",
+  "низкая": "Низкий приоритет",
+  unknown: emptyLabel,
+};
+
+const kpiTypeLabels = {
+  service: "Сервисный KPI",
+  operational: "Операционный KPI",
+  financial: "Финансовый KPI",
+  quality: "Качество",
+  commercial: "Коммерческий KPI",
+  other: "Другое",
+  "сервисный": "Сервисный KPI",
+  "операционный": "Операционный KPI",
+  "финансовый": "Финансовый KPI",
+  "качество": "Качество",
+  "коммерческий": "Коммерческий KPI",
 };
 
 type LabelDictionary = Record<string, string>;
@@ -403,6 +443,12 @@ export const formatYesNo = (value: string | null | undefined) =>
 
 export const formatGoalType = (value: string | null | undefined) =>
   labelFrom(value, goalTypeLabels);
+
+export const formatPriority = (value: string | null | undefined) =>
+  labelFrom(value, priorityLabels);
+
+export const formatKpiType = (value: string | null | undefined) =>
+  labelFrom(value, kpiTypeLabels);
 
 export function isConfirmationRequired(value: string | null | undefined) {
   const normalized = normalize(value);
