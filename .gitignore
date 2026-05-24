@@ -6,6 +6,9 @@ venv/
 .env
 .env.*
 !.env.example
+backend/.env
+frontend/.env
+deploy/*.local.ps1
 
 # Python build and test artifacts
 __pycache__/

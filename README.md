@@ -115,4 +115,69 @@ Log out:
 Invoke-WebRequest -UseBasicParsing -Method Post http://127.0.0.1:8000/logout
 ```
 
-Yandex Serverless Container deployment is intentionally not covered here.
+## Yandex Serverless deploy
+
+The deploy script creates and updates a separate Yandex Serverless Container for
+OPEN Project Risk:
+
+- container name: `open-project-risk-web`;
+- image repository: `open-project-risk-web`;
+- API prefix: `/api/v1`.
+
+It does not use or update the Bot360 container or Bot360 image repository.
+
+Prepare local deploy settings:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk"
+Copy-Item .\deploy\deploy_open_project_risk_serverless.local.example.ps1 .\deploy\deploy_open_project_risk_serverless.local.ps1
+notepad .\deploy\deploy_open_project_risk_serverless.local.ps1
+```
+
+Fill these values in the local file:
+
+- `YC_FOLDER_ID` if it is not configured in `yc config`;
+- `DATABASE_URL`;
+- `DEMO_AUTH_USERNAME`;
+- `DEMO_AUTH_PASSWORD`;
+- `SECRET_KEY`.
+
+The local file `deploy_open_project_risk_serverless.local.ps1` is ignored by
+Git. Do not commit real secrets.
+
+Run deploy:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk"
+pwsh .\deploy\deploy_open_project_risk_serverless.ps1
+```
+
+The script:
+
+- logs in to Yandex Container Registry through `yc iam create-token`;
+- builds the Docker image;
+- tags and pushes `cr.yandex/crpj9tkd4nn6hsiuodlm/open-project-risk-web:<buildstamp>`;
+- finds or creates the `open-project-risk-web` serverless container;
+- deploys a new revision with demo-auth environment variables;
+- allows public invoke for the container URL;
+- runs smoke checks:
+  - `/api/v1/health` returns `200`;
+  - `/login` returns `200`;
+  - `/api/v1/projects` without session returns `401`;
+  - `/projects` redirects to `/login` or shows the login page;
+- removes old images from only the `open-project-risk-web` repository, keeping
+  the latest 5 images.
+
+After deploy, open:
+
+```text
+https://<CONTAINER_ID>.containers.yandexcloud.net/login
+https://<CONTAINER_ID>.containers.yandexcloud.net/projects
+https://<CONTAINER_ID>.containers.yandexcloud.net/api/v1/health
+```
+
+Demo-auth is enabled by setting:
+
+```powershell
+$DEMO_AUTH_ENABLED = 'true'
+```
