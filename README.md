@@ -149,6 +149,11 @@ For the first demo deploy keep `MIN_INSTANCES=0`. Setting it to `1` enables
 provisioned container workers and may fail if the Yandex Cloud quota
 `serverless.containersWorkersProvisioned.count` is not approved.
 
+For Yandex Serverless Container the Docker image defaults to `PORT=8080`.
+Do not pass `PORT` through `yc --environment`: it is reserved by Yandex.
+Local Docker runs can still override it with `-e PORT=8000` when publishing
+`8000:8000`.
+
 Run deploy:
 
 ```powershell
