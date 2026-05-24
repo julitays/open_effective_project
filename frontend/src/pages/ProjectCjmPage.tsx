@@ -1253,76 +1253,124 @@ function groupBarriersByTime(barriers: Barrier[]) {
 }
 
 function buildCompletenessItems(cjm: ProjectCjm) {
+  const lprProfilePercent = collectionPercent(cjm.lprs, [
+    "external_lpr_id",
+    "role_zone",
+    "influence_level",
+    "activity_status",
+    "relationship_status",
+    "evidence_basis",
+  ]);
+  const lprImportancePercent = collectionPercent(
+    cjm.lprs.flatMap((lpr) => lpr.importance_factors),
+    ["factor_type", "criticality", "source_text", "evidence_quote", "period_or_source", "confidence_level"],
+  );
+
   return [
     {
       label: "Паспорт",
       percent: filledPercent(cjm.project, [
         "project_code",
         "external_project_id",
+        "working_project_code",
         "direction",
         "project_scale",
+        "known_regions",
         "primary_operational_model",
+        "additional_operational_contours",
         "lifecycle_stage",
         "project_status",
+        "start_date",
         "short_description",
       ]),
     },
     {
       label: "Цели",
-      percent: collectionPercent(cjm.goals, ["goal_text", "goal_type", "relevance_status", "comment"]),
+      percent: collectionPercent(cjm.goals, [
+        "goal_owner",
+        "goal_type",
+        "goal_text",
+        "priority",
+        "related_kpi_or_criterion_text",
+        "source_text",
+        "relevance_status",
+        "comment",
+      ]),
     },
     {
       label: "ЛПР",
-      percent: collectionPercent(cjm.lprs, [
-        "lpr_code",
-        "role_zone",
-        "influence_level",
-        "activity_status",
-        "relationship_status",
-        "evidence_basis",
+      percent: weightedPercent([
+        [lprProfilePercent, 0.6],
+        [lprImportancePercent, 0.4],
       ]),
     },
     {
       label: "Коммуникации",
       percent: collectionPercent(cjm.communications, [
         "client_side",
+        "external_lpr_id",
         "open_side_role",
         "topic_text",
         "channel_text",
         "frequency",
         "criticality",
+        "source_text",
         "relevance_status",
+        "comment",
       ]),
     },
     {
       label: "Барьеры",
       percent: collectionPercent(cjm.barriers, [
+        "barrier_code",
         "barrier_title",
         "barrier_type",
         "time_status",
+        "description",
         "criticality",
+        "related_lpr_code",
+        "external_lpr_id",
+        "related_importance_text",
+        "linked_kpi_text",
+        "source_text",
         "relevance_status",
         "evidence_quote",
+        "first_seen_period",
+        "last_seen_period",
+        "status",
+        "confidence_level",
       ]),
     },
     {
       label: "Ожидания",
       percent: collectionPercent(cjm.expectations, [
+        "expectation_code",
         "expectation_text",
         "expectation_type",
+        "explicitness",
         "criticality",
+        "related_lpr_code",
+        "external_lpr_id",
+        "related_importance_text",
         "relevance_status",
         "linked_kpi_text",
+        "source_text",
+        "evidence_quote",
+        "confidence_level",
       ]),
     },
     {
       label: "KPI",
       percent: collectionPercent(cjm.kpis, [
+        "kpi_code",
         "kpi_name",
         "kpi_type",
+        "source_text",
         "relevance_status",
         "related_expectation_text",
         "related_barrier_text",
+        "client_criticality",
+        "requires_confirmation",
         "comment",
       ]),
     },
@@ -1339,24 +1387,54 @@ function collectionPercent<T extends object>(items: T[], keys: Array<keyof T>) {
 }
 
 function filledPercent<T extends object>(item: T, keys: Array<keyof T>) {
-  const filled = keys.filter((key) => {
-    const value = item[key];
-    return isFilledValue(value);
-  }).length;
+  const filled = keys.reduce((sum, key) => sum + fieldScore(item[key]), 0);
 
   return Math.round((filled / keys.length) * 100);
 }
 
-function isFilledValue(value: unknown) {
+function fieldScore(value: unknown): number {
   if (Array.isArray(value)) {
-    return value.length > 0;
+    return value.length > 0 ? 1 : 0;
   }
 
   if (typeof value === "string") {
-    return value.trim().length > 0;
+    const normalized = normalize(value);
+
+    if (
+      !normalized ||
+      normalized === "unknown" ||
+      normalized === "не указано" ||
+      normalized === "nan"
+    ) {
+      return 0;
+    }
+
+    if (isConfirmationRequired(value)) {
+      return 0.45;
+    }
+
+    if (normalized === "other" || normalized === "другое") {
+      return 0.7;
+    }
+
+    return 1;
   }
 
-  return Boolean(value);
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  return 1;
+}
+
+function weightedPercent(parts: Array<[number, number]>) {
+  const totalWeight = parts.reduce((sum, [, weight]) => sum + weight, 0);
+  if (totalWeight === 0) {
+    return 0;
+  }
+
+  const total = parts.reduce((sum, [percent, weight]) => sum + percent * weight, 0);
+  return Math.round(total / totalWeight);
 }
 
 function buildConfirmationItems(cjm: ProjectCjm) {
