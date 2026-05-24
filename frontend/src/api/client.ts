@@ -1,7 +1,7 @@
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
 export const apiBaseUrl =
-  configuredBaseUrl || "http://127.0.0.1:8000/api/v1";
+  configuredBaseUrl?.replace(/\/+$/, "") || "http://127.0.0.1:8000/api/v1";
 
 export class ApiError extends Error {
   status: number;
@@ -17,7 +17,7 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
   let response: Response;
 
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
+    response = await fetch(`${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`, {
       headers: { Accept: "application/json" },
       signal,
     });
