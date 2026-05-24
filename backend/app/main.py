@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.demo_auth import add_demo_auth
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 REPOSITORY_DIR = BACKEND_DIR.parent
@@ -35,7 +36,9 @@ def create_app() -> FastAPI:
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
         allow_methods=["GET"],
         allow_headers=["*"],
+        allow_credentials=True,
     )
+    add_demo_auth(app)
     app.include_router(api_router)
 
     frontend_dist_dir = get_frontend_dist_dir()

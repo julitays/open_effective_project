@@ -18,6 +18,7 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
 
   try {
     response = await fetch(`${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`, {
+      credentials: "include",
       headers: { Accept: "application/json" },
       signal,
     });

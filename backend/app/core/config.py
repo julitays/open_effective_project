@@ -19,8 +19,14 @@ class Settings(BaseSettings):
         "postgresql+psycopg://open_project_risk:change_me@localhost:5432/"
         "open_project_risk"
     )
+    DEMO_AUTH_ENABLED: bool = False
+    DEMO_AUTH_USERNAME: str = ""
+    DEMO_AUTH_PASSWORD: str = ""
+    SECRET_KEY: str = ""
+    SESSION_COOKIE_NAME: str = "open_project_risk_session"
+    SESSION_TTL_SECONDS: int = 86400
 
-    @field_validator("DEBUG", mode="before")
+    @field_validator("DEBUG", "DEMO_AUTH_ENABLED", mode="before")
     @classmethod
     def parse_debug_flag(cls, value: object) -> object:
         if not isinstance(value, str):
