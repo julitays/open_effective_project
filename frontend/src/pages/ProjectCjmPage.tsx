@@ -214,18 +214,17 @@ function OverviewPanel({
       </div>
 
       <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="space-y-4">
-          <MainFindingsCard
-            criticalClientItems={criticalClientItems}
-            mainRiskItems={mainRiskItems}
-            needsUpdate={confirmationItems.length > 0}
-          />
-          <BarrierTimelineCard groups={barrierGroups} relationResolver={relationResolver} />
-        </section>
+        <MainFindingsCard
+          criticalClientItems={criticalClientItems}
+          mainRiskItems={mainRiskItems}
+          needsUpdate={confirmationItems.length > 0}
+        />
 
-        <aside className="space-y-4">
-          <CompletenessCard items={completenessItems} />
-        </aside>
+        <CompletenessCard items={completenessItems} />
+
+        <div className="2xl:col-span-2">
+          <BarrierTimelineCard groups={barrierGroups} relationResolver={relationResolver} />
+        </div>
       </div>
     </PanelIntro>
   );
