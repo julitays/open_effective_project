@@ -41,7 +41,7 @@ export default function ProjectsPage() {
           Карты CJM
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Выберите обезличенный проект, чтобы открыть паспорт и CJM-разделы.
+          Выберите проект, чтобы открыть паспорт, роли, ожидания, барьеры и KPI.
         </p>
       </header>
 
@@ -52,7 +52,7 @@ export default function ProjectsPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           title="Проектов пока нет"
-          description="Read-only API вернул пустой список проектов."
+          description="Список проектов пока пуст."
         />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">

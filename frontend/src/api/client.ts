@@ -22,11 +22,11 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
       signal,
     });
   } catch {
-    throw new ApiError("API недоступно. Проверьте, что backend запущен.", 0);
+    throw new ApiError("Сервер данных недоступен. Проверьте, что он запущен.", 0);
   }
 
   if (!response.ok) {
-    let detail = `API вернул ошибку ${response.status}.`;
+    let detail = `Сервер данных вернул ошибку ${response.status}.`;
 
     try {
       const payload = (await response.json()) as { detail?: string };

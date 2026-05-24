@@ -1,18 +1,18 @@
 export type CjmTabId =
+  | "overview"
   | "passport"
   | "goals"
   | "lprs"
-  | "importance"
   | "barriers"
   | "expectations"
   | "kpis"
   | "communications";
 
 const tabs: Array<{ id: CjmTabId; label: string }> = [
+  { id: "overview", label: "Обзор" },
   { id: "passport", label: "Паспорт" },
   { id: "goals", label: "Цели" },
   { id: "lprs", label: "ЛПР" },
-  { id: "importance", label: "Важности ЛПР" },
   { id: "barriers", label: "Барьеры" },
   { id: "expectations", label: "Ожидания" },
   { id: "kpis", label: "KPI" },
@@ -26,7 +26,11 @@ interface CjmTabsProps {
 
 export default function CjmTabs({ activeTab, onChange }: CjmTabsProps) {
   return (
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Разделы CJM">
+    <nav
+      className="rounded-xl border border-slate-200/80 bg-white/90 p-2 shadow-sm shadow-slate-200/70"
+      role="tablist"
+      aria-label="Разделы CJM"
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -34,15 +38,15 @@ export default function CjmTabs({ activeTab, onChange }: CjmTabsProps) {
           role="tab"
           aria-selected={activeTab === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition ${
+          className={`mb-1 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition last:mb-0 ${
             activeTab === tab.id
-              ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              ? "bg-slate-950 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
           }`}
         >
           {tab.label}
         </button>
       ))}
-    </div>
+    </nav>
   );
 }

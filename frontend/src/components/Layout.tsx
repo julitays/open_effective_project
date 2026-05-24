@@ -1,9 +1,9 @@
-import { Database, FolderKanban, PanelsTopLeft } from "lucide-react";
+import { FolderKanban, PanelsTopLeft } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-[#eef3f8] text-slate-900">
+    <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-[1680px] flex-col lg:flex-row">
         <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:w-80 lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
           <div className="rounded-lg bg-slate-950 p-5 text-white shadow-sm">
@@ -13,7 +13,7 @@ export default function Layout() {
             </div>
             <div className="mt-3 text-xl font-semibold">CJM MVP</div>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Read-only просмотр паспортов проектов и клиентской карты риска.
+              Рабочая карта проекта, ролей, ожиданий и клиентских рисков.
             </p>
           </div>
 
@@ -32,16 +32,6 @@ export default function Layout() {
               Проекты
             </NavLink>
           </nav>
-
-          <div className="mt-4 hidden rounded-lg border border-slate-200 bg-slate-50 p-4 lg:block">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <Database aria-hidden="true" className="h-4 w-4" />
-              Данные API
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Интерфейс читает только согласованные CJM-блоки из backend API.
-            </p>
-          </div>
         </aside>
 
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
