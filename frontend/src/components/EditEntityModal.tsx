@@ -148,7 +148,34 @@ export default function EditEntityModal({
 }
 
 function visibleOptions(options: EditOption[], currentValue: string) {
-  return options.filter(
-    (option) => option.label !== "Не указано" || option.value === currentValue,
-  );
+  const seenLabels = new Set<string>();
+  const result: EditOption[] = [];
+  const currentOption = options.find((option) => option.value === currentValue);
+
+  options.forEach((option) => {
+    if (option.label === "Не указано" && option.value !== currentValue) {
+      return;
+    }
+
+    if (seenLabels.has(option.label)) {
+      if (currentOption?.label !== option.label || option.value !== currentValue) {
+        return;
+      }
+    }
+
+    seenLabels.add(option.label);
+    result.push(option);
+  });
+
+  if (
+    currentOption &&
+    !result.some((option) => option.value === currentValue)
+  ) {
+    return [
+      currentOption,
+      ...result.filter((option) => option.label !== currentOption.label),
+    ];
+  }
+
+  return result;
 }
