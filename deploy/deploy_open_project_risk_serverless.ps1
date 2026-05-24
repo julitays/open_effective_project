@@ -315,7 +315,16 @@ function Cleanup-OldImages {
 
     foreach ($image in $toDelete) {
       Write-Host ("  delete {0} ({1})" -f $image.id, $image.created_at)
-      yc container image delete --id $image.id | Out-Null
+      $deleteResult = Run-Proc -FilePath 'yc' -Args @(
+        'container',
+        'image',
+        'delete',
+        '--id',
+        $image.id
+      ) -TimeoutSec 60
+      if ($deleteResult.ExitCode -ne 0) {
+        Write-Warning ("Image cleanup skipped for {0}: {1}" -f $image.id, $deleteResult.StdErr)
+      }
     }
   }
   catch {
