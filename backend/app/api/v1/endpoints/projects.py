@@ -6,17 +6,25 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.repositories.cjm_read import CJMReadRepository
+from app.repositories.cjm_update import CJMUpdateRepository
 from app.schemas.cjm import (
     CJMBarrier,
+    CJMBarrierPatch,
     CJMCommunicationPoint,
+    CJMCommunicationPointPatch,
     CJMExpectation,
+    CJMExpectationPatch,
     CJMGoal,
+    CJMGoalPatch,
     CJMKPI,
+    CJMKPIPatch,
     CJMLPR,
+    CJMLPRPatch,
     CJMProjectRead,
 )
-from app.schemas.project import CJMProjectPassport
+from app.schemas.project import CJMProjectPassport, CJMProjectPatch
 from app.services.cjm_read import CJMReadService
+from app.services.cjm_update import CJMPatchValueError, CJMUpdateService
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -27,6 +35,14 @@ def get_cjm_read_service(db: Annotated[Session, Depends(get_db)]) -> CJMReadServ
     return CJMReadService(CJMReadRepository(db))
 
 
+def get_cjm_update_service(db: Annotated[Session, Depends(get_db)]) -> CJMUpdateService:
+    read_repository = CJMReadRepository(db)
+    return CJMUpdateService(
+        CJMUpdateRepository(db),
+        CJMReadService(read_repository),
+    )
+
+
 def _project_or_404(project_code: str, loader: Callable[[str], T | None]) -> T:
     result = loader(project_code)
     if result is None:
@@ -35,6 +51,19 @@ def _project_or_404(project_code: str, loader: Callable[[str], T | None]) -> T:
             detail=f"CJM project '{project_code}' was not found.",
         )
     return result
+
+
+def _entity_or_404(result: T | None, entity_name: str, entity_code: str) -> T:
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{entity_name} '{entity_code}' was not found.",
+        )
+    return result
+
+
+def _patch_value_error(error: CJMPatchValueError) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
 
 
 @router.get("", response_model=list[CJMProjectPassport])
@@ -50,6 +79,21 @@ def get_project(
     service: Annotated[CJMReadService, Depends(get_cjm_read_service)],
 ) -> CJMProjectPassport:
     return _project_or_404(project_code, service.get_project)
+
+
+@router.patch("/{project_code}", response_model=CJMProjectPassport)
+def patch_project(
+    project_code: str,
+    patch: CJMProjectPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMProjectPassport:
+    try:
+        return _project_or_404(
+            project_code,
+            lambda code: service.update_project(code, patch),
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
 
 
 @router.get("/{project_code}/cjm", response_model=CJMProjectRead)
@@ -106,3 +150,108 @@ def get_project_goals(
     service: Annotated[CJMReadService, Depends(get_cjm_read_service)],
 ) -> list[CJMGoal]:
     return _project_or_404(project_code, service.get_project_goals)
+
+
+@router.patch("/{project_code}/goals/{goal_code}", response_model=CJMGoal)
+def patch_project_goal(
+    project_code: str,
+    goal_code: str,
+    patch: CJMGoalPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMGoal:
+    try:
+        return _entity_or_404(
+            service.update_goal(project_code, goal_code, patch),
+            "Goal",
+            goal_code,
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
+
+
+@router.patch("/{project_code}/lprs/{lpr_code}", response_model=CJMLPR)
+def patch_project_lpr(
+    project_code: str,
+    lpr_code: str,
+    patch: CJMLPRPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMLPR:
+    try:
+        return _entity_or_404(
+            service.update_lpr(project_code, lpr_code, patch),
+            "LPR",
+            lpr_code,
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
+
+
+@router.patch("/{project_code}/barriers/{barrier_code}", response_model=CJMBarrier)
+def patch_project_barrier(
+    project_code: str,
+    barrier_code: str,
+    patch: CJMBarrierPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMBarrier:
+    try:
+        return _entity_or_404(
+            service.update_barrier(project_code, barrier_code, patch),
+            "Barrier",
+            barrier_code,
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
+
+
+@router.patch("/{project_code}/expectations/{expectation_code}", response_model=CJMExpectation)
+def patch_project_expectation(
+    project_code: str,
+    expectation_code: str,
+    patch: CJMExpectationPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMExpectation:
+    try:
+        return _entity_or_404(
+            service.update_expectation(project_code, expectation_code, patch),
+            "Expectation",
+            expectation_code,
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
+
+
+@router.patch("/{project_code}/kpis/{kpi_code}", response_model=CJMKPI)
+def patch_project_kpi(
+    project_code: str,
+    kpi_code: str,
+    patch: CJMKPIPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMKPI:
+    try:
+        return _entity_or_404(
+            service.update_kpi(project_code, kpi_code, patch),
+            "KPI",
+            kpi_code,
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
+
+
+@router.patch(
+    "/{project_code}/communications/{communication_code}",
+    response_model=CJMCommunicationPoint,
+)
+def patch_project_communication(
+    project_code: str,
+    communication_code: str,
+    patch: CJMCommunicationPointPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMCommunicationPoint:
+    try:
+        return _entity_or_404(
+            service.update_communication(project_code, communication_code, patch),
+            "Communication",
+            communication_code,
+        )
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error

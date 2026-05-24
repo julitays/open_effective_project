@@ -2,13 +2,29 @@ import {
   ArrowLeft,
   ChevronDown,
   MessageSquareText,
+  Pencil,
   Target,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 
-import { getProjectCjm } from "../api/projects";
+import {
+  getProjectCjm,
+  updateBarrier,
+  updateCommunication,
+  updateExpectation,
+  updateGoal,
+  updateKpi,
+  updateLpr,
+  updateProject,
+  type PatchPayload,
+} from "../api/projects";
 import type { LayoutOutletContext } from "../components/Layout";
+import EditEntityModal, {
+  type EditField,
+  type EditPayload,
+  type EditValues,
+} from "../components/EditEntityModal";
 import EmptyState from "../components/EmptyState";
 import StatusBadge from "../components/StatusBadge";
 import type {
@@ -54,6 +70,231 @@ import {
 
 type Formatter = (value: string | null | undefined) => string;
 type RelationResolver = ReturnType<typeof buildRelationResolver>;
+type EditTarget = {
+  title: string;
+  fields: EditField[];
+  values: EditValues;
+  save: (payload: PatchPayload) => Promise<unknown>;
+};
+
+const criticalityOptions = [
+  option("high", formatCriticality),
+  option("medium", formatCriticality),
+  option("low", formatCriticality),
+  option("unknown", formatCriticality),
+];
+const relevanceOptions = [
+  option("actual", formatRelevanceStatus),
+  option("current", formatRelevanceStatus),
+  option("historical", formatRelevanceStatus),
+  option("requires_confirmation", formatRelevanceStatus),
+  option("not_actual", formatRelevanceStatus),
+  option("unknown", formatRelevanceStatus),
+];
+const confidenceOptions = [
+  option("high", formatConfidenceLevel),
+  option("medium", formatConfidenceLevel),
+  option("low", formatConfidenceLevel),
+  option("unknown", formatConfidenceLevel),
+];
+const influenceOptions = [
+  option("high", formatInfluenceLevel),
+  option("medium", formatInfluenceLevel),
+  option("low", formatInfluenceLevel),
+  option("requires_confirmation", formatInfluenceLevel),
+  option("unknown", formatInfluenceLevel),
+];
+const activityOptions = [
+  option("active", formatActivityStatus),
+  option("inactive", formatActivityStatus),
+  option("requires_confirmation", formatActivityStatus),
+  option("historical", formatActivityStatus),
+  option("unknown", formatActivityStatus),
+];
+const barrierTypeOptions = [
+  option("communication", formatBarrierType),
+  option("execution_quality", formatBarrierType),
+  option("reporting", formatBarrierType),
+  option("timing", formatBarrierType),
+  option("staff", formatBarrierType),
+  option("kpi", formatBarrierType),
+  option("cost", formatBarrierType),
+  option("training", formatBarrierType),
+  option("control", formatBarrierType),
+  option("expectations", formatBarrierType),
+  option("process_organization", formatBarrierType),
+  option("other", formatBarrierType),
+];
+const barrierTimeOptions = [
+  option("past", formatBarrierTimeStatus),
+  option("current", formatBarrierTimeStatus),
+  option("future", formatBarrierTimeStatus),
+  option("repeated", formatBarrierTimeStatus),
+];
+const barrierStatusOptions = [
+  option("open", formatBarrierStatus),
+  option("in_progress", formatBarrierStatus),
+  option("contained", formatBarrierStatus),
+  option("resolved", formatBarrierStatus),
+  option("monitoring", formatBarrierStatus),
+  option("unknown", formatBarrierStatus),
+];
+const expectationTypeOptions = [
+  option("speed", formatExpectationType),
+  option("quality", formatExpectationType),
+  option("reporting", formatExpectationType),
+  option("initiative", formatExpectationType),
+  option("transparency", formatExpectationType),
+  option("cost", formatExpectationType),
+  option("expertise", formatExpectationType),
+  option("predictability", formatExpectationType),
+  option("minimum_manual_control", formatExpectationType),
+  option("flexibility", formatExpectationType),
+  option("agreements_compliance", formatExpectationType),
+  option("other", formatExpectationType),
+];
+const explicitnessOptions = [
+  option("explicit", formatExplicitness),
+  option("implicit", formatExplicitness),
+  option("unknown", formatExplicitness),
+];
+
+const projectEditFields: EditField[] = [
+  { name: "short_description", label: "Краткое описание", input: "textarea" },
+  { name: "known_regions", label: "Известные регионы", input: "textarea" },
+  {
+    name: "primary_operational_model",
+    label: "Основная операционная модель",
+    input: "select",
+    options: [
+      option("merchandising", formatOperationalModel),
+      option("combined_merchandising", formatOperationalModel),
+      option("promo_consulting", formatOperationalModel),
+      option("kaf", formatOperationalModel),
+      option("training", formatOperationalModel),
+      option("audit_quality_control", formatOperationalModel),
+      option("analytics_reporting", formatOperationalModel),
+      option("mixed", formatOperationalModel),
+      option("other", formatOperationalModel),
+    ],
+  },
+  {
+    name: "additional_operational_contours",
+    label: "Дополнительные операционные контуры",
+    input: "textarea",
+  },
+  {
+    name: "lifecycle_stage",
+    label: "Этап жизненного цикла",
+    input: "select",
+    options: [
+      option("launch", formatLifecycleStage),
+      option("stabilization", formatLifecycleStage),
+      option("development", formatLifecycleStage),
+      option("retention", formatLifecycleStage),
+      option("restart", formatLifecycleStage),
+      option("risk", formatLifecycleStage),
+      option("closing", formatLifecycleStage),
+      option("unknown", formatLifecycleStage),
+    ],
+  },
+  {
+    name: "project_status",
+    label: "Статус проекта",
+    input: "select",
+    options: [
+      option("active", formatProjectStatus),
+      option("completed", formatProjectStatus),
+      option("pilot", formatProjectStatus),
+      option("at_risk", formatProjectStatus),
+      option("unknown", formatProjectStatus),
+    ],
+  },
+];
+
+const goalEditFields: EditField[] = [
+  { name: "goal_owner", label: "Владелец цели" },
+  { name: "goal_type", label: "Тип цели" },
+  { name: "goal_text", label: "Текст цели", input: "textarea" },
+  { name: "priority", label: "Приоритет" },
+  { name: "related_kpi_or_criterion_text", label: "Связанный KPI / критерий", input: "textarea" },
+  { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+  { name: "comment", label: "Комментарий", input: "textarea" },
+];
+
+const lprEditFields: EditField[] = [
+  { name: "role_zone", label: "Роль / зона влияния", input: "textarea" },
+  { name: "influence_level", label: "Уровень влияния", input: "select", options: influenceOptions },
+  { name: "activity_status", label: "Статус активности", input: "select", options: activityOptions },
+  { name: "relationship_status", label: "Отношение" },
+  { name: "evidence_basis", label: "Основание вывода", input: "textarea" },
+  { name: "manual_comment", label: "Комментарий для ручного уточнения", input: "textarea" },
+];
+
+const barrierEditFields: EditField[] = [
+  { name: "barrier_title", label: "Название барьера", input: "textarea" },
+  { name: "barrier_type", label: "Тип барьера", input: "select", options: barrierTypeOptions },
+  { name: "time_status", label: "Временной статус", input: "select", options: barrierTimeOptions },
+  { name: "description", label: "Описание барьера", input: "textarea" },
+  { name: "criticality", label: "Критичность", input: "select", options: criticalityOptions },
+  { name: "related_importance_text", label: "Связанная важность", input: "textarea" },
+  { name: "linked_kpi_text", label: "Связанный KPI", input: "textarea" },
+  { name: "source_text", label: "Источник", input: "textarea" },
+  { name: "evidence_quote", label: "Доказательство / короткая цитата", input: "textarea" },
+  { name: "status", label: "Статус", input: "select", options: barrierStatusOptions },
+  { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+  { name: "confidence_level", label: "Уверенность", input: "select", options: confidenceOptions },
+];
+
+const expectationEditFields: EditField[] = [
+  { name: "expectation_text", label: "Ожидание клиента", input: "textarea" },
+  { name: "expectation_type", label: "Тип ожидания", input: "select", options: expectationTypeOptions },
+  { name: "explicitness", label: "Явное или неявное", input: "select", options: explicitnessOptions },
+  { name: "criticality", label: "Критичность", input: "select", options: criticalityOptions },
+  { name: "related_importance_text", label: "Связанная важность", input: "textarea" },
+  { name: "linked_kpi_text", label: "Связанный KPI", input: "textarea" },
+  { name: "source_text", label: "Источник", input: "textarea" },
+  { name: "evidence_quote", label: "Доказательство / короткая цитата", input: "textarea" },
+  { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+  { name: "confidence_level", label: "Уверенность", input: "select", options: confidenceOptions },
+];
+
+const kpiEditFields: EditField[] = [
+  { name: "kpi_name", label: "Название KPI / критерия", input: "textarea" },
+  { name: "kpi_type", label: "Тип KPI" },
+  { name: "source_text", label: "Источник", input: "textarea" },
+  { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+  { name: "related_expectation_text", label: "Связанное ожидание", input: "textarea" },
+  { name: "related_barrier_text", label: "Связанный барьер", input: "textarea" },
+  { name: "client_criticality", label: "Критичность для клиента", input: "select", options: criticalityOptions },
+  { name: "requires_confirmation", label: "Требует подтверждения" },
+  { name: "comment", label: "Комментарий", input: "textarea" },
+];
+
+const communicationEditFields: EditField[] = [
+  { name: "client_side", label: "Сторона клиента", input: "textarea" },
+  { name: "external_lpr_id", label: "ID в базе данных" },
+  { name: "open_side_role", label: "Сторона OPEN: роль", input: "textarea" },
+  { name: "topic_text", label: "Тема взаимодействия", input: "textarea" },
+  { name: "channel_text", label: "Канал" },
+  { name: "frequency", label: "Частота" },
+  { name: "criticality", label: "Критичность", input: "select", options: criticalityOptions },
+  { name: "source_text", label: "Источник", input: "textarea" },
+  { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+  { name: "comment", label: "Комментарий", input: "textarea" },
+];
+
+function option(value: string, formatter: Formatter) {
+  return { value, label: formatter(value) };
+}
+
+function pickValues(entity: object, fields: EditField[]): EditValues {
+  const record = entity as Record<string, string | null | undefined>;
+  return fields.reduce<EditValues>((values, field) => {
+    values[field.name] = record[field.name] ?? "";
+    return values;
+  }, {});
+}
 
 export default function ProjectCjmPage() {
   const { projectCode } = useParams();
@@ -61,35 +302,66 @@ export default function ProjectCjmPage() {
   const [projectCjm, setProjectCjm] = useState<ProjectCjm | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
-  useEffect(() => {
+  async function loadCjm(signal?: AbortSignal) {
     if (!projectCode) {
       setError("В адресе не найден код проекта.");
       setLoading(false);
       return;
     }
 
-    const controller = new AbortController();
-
     setLoading(true);
-    getProjectCjm(projectCode, controller.signal)
+    getProjectCjm(projectCode, signal)
       .then((payload) => {
         setProjectCjm(payload);
         setError(null);
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
+        if (!signal?.aborted) {
           setError(cause instanceof Error ? cause.message : "Не удалось загрузить CJM.");
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) {
+        if (!signal?.aborted) {
           setLoading(false);
         }
       });
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void loadCjm(controller.signal);
 
     return () => controller.abort();
   }, [projectCode]);
+
+  function openEdit(target: EditTarget) {
+    setEditTarget(target);
+    setEditError(null);
+  }
+
+  async function saveEdit(payload: EditPayload) {
+    if (!editTarget || !projectCode) {
+      return;
+    }
+
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await editTarget.save(payload);
+      const refreshed = await getProjectCjm(projectCode);
+      setProjectCjm(refreshed);
+      setEditTarget(null);
+    } catch (cause) {
+      setEditError(cause instanceof Error ? cause.message : "Не удалось сохранить правку.");
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   if (loading) {
     return <ProjectLoading />;
@@ -119,27 +391,131 @@ export default function ProjectCjmPage() {
           <OverviewPanel cjm={projectCjm} relationResolver={relationResolver} />
         ) : null}
         {activeTab === "passport" ? (
-          <PassportPanel project={projectCjm.project} />
+          <PassportPanel
+            project={projectCjm.project}
+            onEdit={() =>
+              openEdit({
+                title: "Паспорт проекта",
+                fields: projectEditFields,
+                values: pickValues(projectCjm.project, projectEditFields),
+                save: (payload) => updateProject(projectCjm.project.project_code, payload),
+              })
+            }
+          />
         ) : null}
         {activeTab === "goals" ? (
-          <GoalsPanel goals={projectCjm.goals} relationResolver={relationResolver} />
+          <GoalsPanel
+            goals={projectCjm.goals}
+            relationResolver={relationResolver}
+            onEdit={(goal) =>
+              openEdit({
+                title: formatEntityCode(goal.goal_code),
+                fields: goalEditFields,
+                values: pickValues(goal, goalEditFields),
+                save: (payload) =>
+                  updateGoal(projectCjm.project.project_code, goal.goal_code || "", payload),
+              })
+            }
+          />
         ) : null}
         {activeTab === "lprs" ? (
-          <LprsPanel lprs={projectCjm.lprs} relationResolver={relationResolver} />
+          <LprsPanel
+            lprs={projectCjm.lprs}
+            relationResolver={relationResolver}
+            onEdit={(lpr) =>
+              openEdit({
+                title: formatEntityCode(lpr.lpr_code),
+                fields: lprEditFields,
+                values: pickValues(lpr, lprEditFields),
+                save: (payload) => updateLpr(projectCjm.project.project_code, lpr.lpr_code, payload),
+              })
+            }
+          />
         ) : null}
         {activeTab === "barriers" ? (
-            <BarriersPanel barriers={projectCjm.barriers} relationResolver={relationResolver} />
+            <BarriersPanel
+              barriers={projectCjm.barriers}
+              relationResolver={relationResolver}
+              onEdit={(barrier) =>
+                openEdit({
+                  title: barrier.barrier_title,
+                  fields: barrierEditFields,
+                  values: pickValues(barrier, barrierEditFields),
+                  save: (payload) =>
+                    updateBarrier(projectCjm.project.project_code, barrier.barrier_code || "", payload),
+                })
+              }
+            />
         ) : null}
         {activeTab === "expectations" ? (
-            <ExpectationsPanel expectations={projectCjm.expectations} relationResolver={relationResolver} />
+            <ExpectationsPanel
+              expectations={projectCjm.expectations}
+              relationResolver={relationResolver}
+              onEdit={(expectation) =>
+                openEdit({
+                  title: expectation.expectation_text,
+                  fields: expectationEditFields,
+                  values: pickValues(expectation, expectationEditFields),
+                  save: (payload) =>
+                    updateExpectation(
+                      projectCjm.project.project_code,
+                      expectation.expectation_code || "",
+                      payload,
+                    ),
+                })
+              }
+            />
           ) : null}
         {activeTab === "kpis" ? (
-          <KpisPanel kpis={projectCjm.kpis} relationResolver={relationResolver} />
+          <KpisPanel
+            kpis={projectCjm.kpis}
+            relationResolver={relationResolver}
+            onEdit={(kpi) =>
+              openEdit({
+                title: kpi.kpi_name,
+                fields: kpiEditFields,
+                values: pickValues(kpi, kpiEditFields),
+                save: (payload) => updateKpi(projectCjm.project.project_code, kpi.kpi_code, payload),
+              })
+            }
+          />
         ) : null}
         {activeTab === "communications" ? (
-          <CommunicationsPanel communications={projectCjm.communications} relationResolver={relationResolver} />
+          <CommunicationsPanel
+            communications={projectCjm.communications}
+            relationResolver={relationResolver}
+            onEdit={(point) =>
+              openEdit({
+                title: formatText(point.topic_text || point.summary),
+                fields: communicationEditFields,
+                values: pickValues(point, communicationEditFields),
+                save: (payload) =>
+                  updateCommunication(
+                    projectCjm.project.project_code,
+                    point.communication_code || "",
+                    payload,
+                  ),
+              })
+            }
+          />
         ) : null}
       </div>
+
+      {editTarget ? (
+        <EditEntityModal
+          title={editTarget.title}
+          fields={editTarget.fields}
+          values={editTarget.values}
+          saving={editSaving}
+          error={editError}
+          onClose={() => {
+            if (!editSaving) {
+              setEditTarget(null);
+            }
+          }}
+          onSave={saveEdit}
+        />
+      ) : null}
     </section>
   );
 }
@@ -153,6 +529,19 @@ function BackLink() {
       <ArrowLeft aria-hidden="true" className="h-4 w-4" />
       К списку проектов
     </Link>
+  );
+}
+
+function EditButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium leading-5 text-slate-700 ring-1 ring-slate-100 hover:bg-slate-50"
+    >
+      <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
+      Редактировать
+    </button>
   );
 }
 
@@ -382,13 +771,22 @@ function CompletenessCard({ items }: { items: Array<{ label: string; percent: nu
   );
 }
 
-function PassportPanel({ project }: { project: ProjectPassport }) {
+function PassportPanel({
+  project,
+  onEdit,
+}: {
+  project: ProjectPassport;
+  onEdit: () => void;
+}) {
   return (
     <PanelIntro title="Паспорт" description="Ключевой проектный контекст.">
       <div className="content-card overflow-hidden">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_420px]">
           <div className="p-6">
-            <SectionEyebrow>Основная информация</SectionEyebrow>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <SectionEyebrow>Основная информация</SectionEyebrow>
+              <EditButton onClick={onEdit} />
+            </div>
             <h3 className="mt-2 text-2xl font-semibold text-slate-950">
               Проект {formatCode(project.working_project_code || project.external_project_id)}
             </h3>
@@ -433,9 +831,11 @@ function PassportPanel({ project }: { project: ProjectPassport }) {
 function GoalsPanel({
   goals,
   relationResolver,
+  onEdit,
 }: {
   goals: Goal[];
   relationResolver: RelationResolver;
+  onEdit: (goal: Goal) => void;
 }) {
   const [relevance, setRelevance] = useState("");
   const [goalType, setGoalType] = useState("");
@@ -492,6 +892,7 @@ function GoalsPanel({
               <div className="flex flex-wrap gap-2">
                 <StatusBadge value={formatRelevanceStatus(goal.relevance_status)} />
                 {goal.priority ? <StatusBadge value={formatLooseText(goal.priority)} /> : null}
+                {goal.goal_code ? <EditButton onClick={() => onEdit(goal)} /> : null}
               </div>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -509,9 +910,11 @@ function GoalsPanel({
 function LprsPanel({
   lprs,
   relationResolver,
+  onEdit,
 }: {
   lprs: LprProfile[];
   relationResolver: RelationResolver;
+  onEdit: (lpr: LprProfile) => void;
 }) {
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
 
@@ -572,6 +975,25 @@ function LprsPanel({
                   <StatusBadge value={formatInfluenceLevel(lpr.influence_level)} />
                   <StatusBadge value={formatActivityStatus(lpr.activity_status)} />
                   <StatusBadge value={formatRelationshipStatus(lpr.relationship_status)} />
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onEdit(lpr);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onEdit(lpr);
+                      }
+                    }}
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium leading-5 text-slate-700 ring-1 ring-slate-100 hover:bg-slate-50"
+                  >
+                    <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
+                    Редактировать
+                  </span>
                 </div>
               </button>
 
@@ -600,9 +1022,11 @@ function LprsPanel({
 function BarriersPanel({
   barriers,
   relationResolver,
+  onEdit,
 }: {
   barriers: Barrier[];
   relationResolver: RelationResolver;
+  onEdit: (barrier: Barrier) => void;
 }) {
   const [timeStatus, setTimeStatus] = useState("");
   const [relevance, setRelevance] = useState("");
@@ -656,6 +1080,7 @@ function BarriersPanel({
               <StatusBadge value={formatCriticality(barrier.criticality)} />
               <StatusBadge value={formatBarrierTimeStatus(barrier.time_status)} />
               <StatusBadge value={formatRelevanceStatus(barrier.relevance_status)} />
+              {barrier.barrier_code ? <EditButton onClick={() => onEdit(barrier)} /> : null}
             </div>
             <h3 className="mt-4 text-lg font-semibold leading-7 text-slate-950">
               {barrier.barrier_title}
@@ -681,9 +1106,11 @@ function BarriersPanel({
 function ExpectationsPanel({
   expectations,
   relationResolver,
+  onEdit,
 }: {
   expectations: Expectation[];
   relationResolver: RelationResolver;
+  onEdit: (expectation: Expectation) => void;
 }) {
   const [relevance, setRelevance] = useState("");
   const [criticality, setCriticality] = useState("");
@@ -735,6 +1162,9 @@ function ExpectationsPanel({
               <StatusBadge value={formatCriticality(expectation.criticality)} />
               <StatusBadge value={formatExplicitness(expectation.explicitness)} />
               <StatusBadge value={formatRelevanceStatus(expectation.relevance_status)} />
+              {expectation.expectation_code ? (
+                <EditButton onClick={() => onEdit(expectation)} />
+              ) : null}
             </div>
             <h3 className="mt-4 text-lg font-semibold leading-7 text-slate-950">
               {expectation.expectation_text}
@@ -757,9 +1187,11 @@ function ExpectationsPanel({
 function KpisPanel({
   kpis,
   relationResolver,
+  onEdit,
 }: {
   kpis: Kpi[];
   relationResolver: RelationResolver;
+  onEdit: (kpi: Kpi) => void;
 }) {
   const [kpiType, setKpiType] = useState("");
   const [relevance, setRelevance] = useState("");
@@ -815,6 +1247,7 @@ function KpisPanel({
           "Ожидание",
           "Барьер",
           "Комментарий",
+          "",
         ]}
       >
         {filteredKpis.map((kpi) => (
@@ -833,6 +1266,7 @@ function KpisPanel({
             <Cell value={relationResolver.format(kpi.related_expectation_text)} />
             <Cell value={relationResolver.format(kpi.related_barrier_text)} />
             <Cell value={formatText(kpi.comment)} />
+            <Cell value={<EditButton onClick={() => onEdit(kpi)} />} />
           </tr>
         ))}
       </DataTable>
@@ -843,9 +1277,11 @@ function KpisPanel({
 function CommunicationsPanel({
   communications,
   relationResolver,
+  onEdit,
 }: {
   communications: CommunicationPoint[];
   relationResolver: RelationResolver;
+  onEdit: (point: CommunicationPoint) => void;
 }) {
   if (communications.length === 0) {
     return <EmptyState title="Коммуникаций нет" description="В разделе пока нет каналов взаимодействия." />;
@@ -863,6 +1299,7 @@ function CommunicationsPanel({
           "Критичность",
           "Актуальность",
           "Комментарий",
+          "",
         ]}
       >
         {communications.map((point) => (
@@ -886,6 +1323,11 @@ function CommunicationsPanel({
             <Cell value={<StatusBadge value={formatCriticality(point.criticality)} />} />
             <Cell value={<StatusBadge value={formatRelevanceStatus(point.relevance_status)} />} />
             <Cell value={formatText(point.comment)} />
+            <Cell
+              value={
+                point.communication_code ? <EditButton onClick={() => onEdit(point)} /> : null
+              }
+            />
           </tr>
         ))}
       </DataTable>

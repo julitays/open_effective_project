@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.project import CJMProjectPassport
+from app.schemas.project import CJMProjectPassport, SanitizedPatchModel
 
 
 class ProjectBarrierRead(BaseModel):
@@ -165,3 +165,75 @@ class CJMProjectRead(BaseModel):
     expectations: list[CJMExpectation]
     kpis: list[CJMKPI]
     communications: list[CJMCommunicationPoint]
+
+
+class CJMGoalPatch(SanitizedPatchModel):
+    goal_owner: str | None = None
+    goal_type: str | None = None
+    goal_text: str | None = None
+    priority: str | None = None
+    related_kpi_or_criterion_text: str | None = None
+    relevance_status: str | None = None
+    comment: str | None = None
+
+
+class CJMLPRPatch(SanitizedPatchModel):
+    role_zone: str | None = None
+    influence_level: str | None = None
+    activity_status: str | None = None
+    relationship_status: str | None = None
+    evidence_basis: str | None = None
+    manual_comment: str | None = None
+
+
+class CJMBarrierPatch(SanitizedPatchModel):
+    barrier_title: str | None = None
+    barrier_type: str | None = None
+    time_status: str | None = None
+    description: str | None = None
+    criticality: str | None = None
+    related_importance_text: str | None = None
+    linked_kpi_text: str | None = None
+    source_text: str | None = None
+    evidence_quote: str | None = None
+    status: str | None = None
+    relevance_status: str | None = None
+    confidence_level: str | None = None
+
+
+class CJMExpectationPatch(SanitizedPatchModel):
+    expectation_text: str | None = None
+    expectation_type: str | None = None
+    explicitness: str | None = None
+    criticality: str | None = None
+    related_importance_text: str | None = None
+    linked_kpi_text: str | None = None
+    source_text: str | None = None
+    evidence_quote: str | None = None
+    relevance_status: str | None = None
+    confidence_level: str | None = None
+
+
+class CJMKPIPatch(SanitizedPatchModel):
+    kpi_name: str | None = None
+    kpi_type: str | None = None
+    source_text: str | None = None
+    relevance_status: str | None = None
+    related_expectation_text: str | None = None
+    related_barrier_text: str | None = None
+    client_criticality: str | None = None
+    requires_confirmation: str | None = None
+    comment: str | None = None
+
+
+class CJMCommunicationPointPatch(SanitizedPatchModel):
+    client_side: str | None = None
+    external_lpr_id: str | None = None
+    open_side_role: str | None = None
+    topic_text: str | None = None
+    channel_text: str | None = None
+    frequency: str | None = None
+    criticality: str | None = None
+    source_text: str | None = None
+    relevance_status: str | None = None
+    comment: str | None = None

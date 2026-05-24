@@ -2,7 +2,22 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class SanitizedPatchModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def normalize_patch_value(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+
+        trimmed = value.strip()
+        if not trimmed or trimmed.lower() in {"null", "nan"}:
+            return None
+        return trimmed
 
 
 class ProjectCreate(BaseModel):
@@ -77,3 +92,12 @@ class CJMProjectPassport(BaseModel):
     project_status: str
     start_date: str | None
     short_description: str | None
+
+
+class CJMProjectPatch(SanitizedPatchModel):
+    short_description: str | None = None
+    known_regions: str | None = None
+    primary_operational_model: str | None = None
+    additional_operational_contours: str | None = None
+    lifecycle_stage: str | None = None
+    project_status: str | None = None

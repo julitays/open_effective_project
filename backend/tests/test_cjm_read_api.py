@@ -6,7 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.db import get_db
+from app.core.demo_auth import create_session_token
 from app.main import app
 from app.models import (
     Base,
@@ -290,3 +292,87 @@ def test_linked_kpi_text_is_read_for_barriers_and_expectations(cjm_client: TestC
     assert expectations.json()[0]["relevance_status"] == "current"
     assert expectations.json()[0]["confidence_level"] == "high"
     assert expectations.json()[0]["source_text"] == "Restored CJM"
+
+
+def test_patch_project_updates_only_passed_fields(cjm_client: TestClient) -> None:
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001",
+        json={"short_description": "Updated summary"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["short_description"] == "Updated summary"
+    assert payload["known_regions"] == "Region A; Region B"
+
+
+def test_patch_goal_works(cjm_client: TestClient) -> None:
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001/goals/goal_001",
+        json={"goal_text": "Updated goal", "relevance_status": "Требует подтверждения"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["goal_text"] == "Updated goal"
+    assert response.json()["relevance_status"] == "requires_confirmation"
+
+
+def test_patch_barrier_works(cjm_client: TestClient) -> None:
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001/barriers/barrier_001",
+        json={"barrier_title": "Updated barrier", "time_status": "Повторяется"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["barrier_title"] == "Updated barrier"
+    assert response.json()["time_status"] == "repeated"
+
+
+def test_patch_unknown_entity_returns_404(cjm_client: TestClient) -> None:
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001/barriers/barrier_missing",
+        json={"barrier_title": "Updated barrier"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Barrier 'barrier_missing' was not found."
+
+
+def test_patch_without_auth_returns_401_when_demo_auth_enabled(
+    cjm_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "DEMO_AUTH_ENABLED", True)
+    monkeypatch.setattr(settings, "DEMO_AUTH_USERNAME", "demo")
+    monkeypatch.setattr(settings, "DEMO_AUTH_PASSWORD", "correct-password")
+    monkeypatch.setattr(settings, "SECRET_KEY", "test-secret-key")
+    monkeypatch.setattr(settings, "SESSION_COOKIE_NAME", "test_session")
+    monkeypatch.setattr(settings, "SESSION_TTL_SECONDS", 3600)
+
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001",
+        json={"short_description": "Should not update"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_patch_with_auth_works(
+    cjm_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "DEMO_AUTH_ENABLED", True)
+    monkeypatch.setattr(settings, "DEMO_AUTH_USERNAME", "demo")
+    monkeypatch.setattr(settings, "DEMO_AUTH_PASSWORD", "correct-password")
+    monkeypatch.setattr(settings, "SECRET_KEY", "test-secret-key")
+    monkeypatch.setattr(settings, "SESSION_COOKIE_NAME", "test_session")
+    monkeypatch.setattr(settings, "SESSION_TTL_SECONDS", 3600)
+    cjm_client.cookies.set(settings.SESSION_COOKIE_NAME, create_session_token("demo"))
+
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001",
+        json={"short_description": "Updated with auth"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["short_description"] == "Updated with auth"

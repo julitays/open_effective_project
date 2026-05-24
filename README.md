@@ -1,6 +1,7 @@
 # OPEN Project Risk
 
-MVP backend and read-only frontend for browsing structured CJM project data.
+MVP backend and frontend for browsing and lightly editing existing structured
+CJM project data.
 
 ## Docker local run
 
@@ -114,6 +115,40 @@ Log out:
 ```powershell
 Invoke-WebRequest -UseBasicParsing -Method Post http://127.0.0.1:8000/logout
 ```
+
+## CJM editing MVP
+
+The demo MVP supports editing existing CJM records from the project page.
+Changes are saved through PATCH API endpoints and persisted in Supabase.
+
+Supported sections:
+
+- project passport;
+- goals;
+- LPR profiles;
+- barriers;
+- client expectations;
+- KPI and success criteria;
+- communication points.
+
+Creation, deletion, bulk editing, Excel import through UI, action plans, survey
+history, insights, and AI workflows are not implemented in this step.
+
+Run locally and open a project:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\frontend"
+npm run dev
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5173/projects/project_001
+```
+
+With demo-auth enabled, PATCH endpoints require a valid session cookie. Without
+a session, protected API updates return `401`.
 
 ## Yandex Serverless deploy
 
