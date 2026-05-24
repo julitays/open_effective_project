@@ -376,3 +376,17 @@ def test_patch_with_auth_works(
 
     assert response.status_code == 200
     assert response.json()["short_description"] == "Updated with auth"
+
+
+def test_local_cors_allows_patch_preflight(cjm_client: TestClient) -> None:
+    response = cjm_client.options(
+        "/api/v1/projects/project_001",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "PATCH" in response.headers["access-control-allow-methods"]

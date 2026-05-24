@@ -81,7 +81,10 @@ export default function EditEntityModal({
         </div>
 
         <div className="max-h-[62vh] space-y-4 overflow-y-auto px-6 py-5">
-          {fields.map((field) => (
+          {fields.map((field) => {
+            const options = visibleOptions(field.options || [], draft[field.name] ?? "");
+            const showEmptyOption = !options.some((option) => option.label === "Не указано");
+            return (
             <label key={field.name} className="block">
               <span className="text-xs font-semibold uppercase text-slate-500">{field.label}</span>
               {field.input === "select" ? (
@@ -90,8 +93,8 @@ export default function EditEntityModal({
                   onChange={(event) => setValue(field.name, event.target.value)}
                   className="mt-2 min-h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
                 >
-                  <option value="">Не указано</option>
-                  {(field.options || []).map((option) => (
+                  {showEmptyOption ? <option value="">Не указано</option> : null}
+                  {options.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -112,7 +115,7 @@ export default function EditEntityModal({
                 />
               )}
             </label>
-          ))}
+          )})}
 
           {error ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -141,5 +144,11 @@ export default function EditEntityModal({
         </div>
       </form>
     </div>
+  );
+}
+
+function visibleOptions(options: EditOption[], currentValue: string) {
+  return options.filter(
+    (option) => option.label !== "Не указано" || option.value === currentValue,
   );
 }
