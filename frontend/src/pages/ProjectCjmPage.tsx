@@ -585,7 +585,6 @@ function OverviewPanel({
   cjm: ProjectCjm;
   relationResolver: RelationResolver;
 }) {
-  const confirmationItems = buildConfirmationItems(cjm);
   const criticalClientItems = buildCriticalClientItems(cjm);
   const mainRiskItems = buildMainRiskItems(cjm);
   const barrierGroups = groupBarriersByTime(cjm.barriers);
@@ -606,7 +605,6 @@ function OverviewPanel({
         <MainFindingsCard
           criticalClientItems={criticalClientItems}
           mainRiskItems={mainRiskItems}
-          needsUpdate={confirmationItems.length > 0}
         />
 
         <CompletenessCard items={completenessItems} />
@@ -631,17 +629,14 @@ function OverviewMetric({ label, value }: { label: string; value: string }) {
 function MainFindingsCard({
   criticalClientItems,
   mainRiskItems,
-  needsUpdate,
 }: {
   criticalClientItems: string[];
   mainRiskItems: string[];
-  needsUpdate: boolean;
 }) {
   return (
     <SoftCard>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-slate-950">Главные выводы по CJM</h3>
-        {needsUpdate ? <StatusBadge value="Требует подтверждения" /> : null}
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <FindingColumn title="Что критично клиенту" items={criticalClientItems} />
@@ -1877,38 +1872,6 @@ function weightedPercent(parts: Array<[number, number]>) {
 
   const total = parts.reduce((sum, [percent, weight]) => sum + percent * weight, 0);
   return Math.round(total / totalWeight);
-}
-
-function buildConfirmationItems(cjm: ProjectCjm) {
-  const items: Array<{ kind: string; title: string }> = [];
-
-  cjm.goals.forEach((goal) => {
-    if (isConfirmationRequired(goal.relevance_status)) {
-      items.push({ kind: "Цель", title: goal.goal_text });
-    }
-  });
-  cjm.barriers.forEach((barrier) => {
-    if (isConfirmationRequired(barrier.relevance_status)) {
-      items.push({ kind: "Барьер", title: barrier.barrier_title });
-    }
-  });
-  cjm.expectations.forEach((expectation) => {
-    if (isConfirmationRequired(expectation.relevance_status)) {
-      items.push({ kind: "Ожидание", title: expectation.expectation_text });
-    }
-  });
-  cjm.kpis.forEach((kpi) => {
-    if (isConfirmationRequired(kpi.relevance_status) || isConfirmationRequired(kpi.requires_confirmation)) {
-      items.push({ kind: "KPI", title: kpi.kpi_name });
-    }
-  });
-  cjm.communications.forEach((point) => {
-    if (isConfirmationRequired(point.relevance_status)) {
-      items.push({ kind: "Коммуникация", title: formatText(point.topic_text || point.summary) });
-    }
-  });
-
-  return items;
 }
 
 function buildOptions<T>(
