@@ -27,6 +27,7 @@ class ImportRunResult:
     report_path: Path
     validation: ValidationResult
     database_counts: dict[str, dict[str, int]]
+    force: bool = False
 
     @property
     def committed(self) -> bool:
@@ -70,15 +71,62 @@ def normalize_external_lpr_aliases(*values: object) -> str | None:
     return "; ".join(aliases) or None
 
 
+def _manual_update_marker(entity: object | None) -> str:
+    return _text(getattr(entity, "updated_by", None))
+
+
 class CJMImporter:
     def __init__(
         self,
         *,
         session_factory: sessionmaker[Session] | object = SessionLocal,
         report_dir: str | Path = DEFAULT_REPORT_DIR,
+        force: bool = False,
     ) -> None:
         self.session_factory = session_factory
         self.report_dir = Path(report_dir)
+        self.force = force
+
+    def _skip_manual_update(
+        self,
+        validation: ValidationResult,
+        row: NormalizedRow,
+        counts: dict[str, dict[str, int]],
+        entity_name: str,
+        entity_label: str,
+        entity: object,
+    ) -> bool:
+        manual_marker = _manual_update_marker(entity)
+        if not manual_marker:
+            return False
+        if self.force:
+            self._clear_manual_update_marker(entity)
+            return False
+
+        _increment(counts, entity_name, "skipped_manual")
+        validation.add_issue(
+            "warning",
+            row.sheet_name,
+            row.row_number,
+            (
+                f"Запись '{entity_label}' была изменена вручную пользователем "
+                f"'{manual_marker}'. Импорт пропустил обновление без --force."
+            ),
+            field_name="updated_by",
+            raw_value=entity_label,
+            current_mapping=manual_marker,
+            issue_type="manual_update_protection",
+            suggested_action=(
+                "После ручных правок Supabase считается источником истины. "
+                "Проверьте запись в системе или повторите commit с --force, "
+                "если Excel должен перезаписать ручные изменения."
+            ),
+        )
+        return True
+
+    def _clear_manual_update_marker(self, entity: object) -> None:
+        if hasattr(entity, "updated_by"):
+            setattr(entity, "updated_by", None)
 
     def run(self, file_path: str | Path, mode: ImportMode) -> ImportRunResult:
         workbook = read_cjm_workbook(file_path)
@@ -114,9 +162,10 @@ class CJMImporter:
             mode=mode,
             status=status,
             database_counts=database_counts,
+            force=self.force,
             report_dir=self.report_dir,
         )
-        return ImportRunResult(mode, status, report_path, validation, database_counts)
+        return ImportRunResult(mode, status, report_path, validation, database_counts, self.force)
 
     def _add_commit_reference_issues(self, session: Session, validation: ValidationResult) -> None:
         if validation.primary_project_id is None:
@@ -185,6 +234,15 @@ class CJMImporter:
             session.add(project)
             _increment(counts, "projects", "created")
         else:
+            if self._skip_manual_update(
+                validation,
+                row,
+                counts,
+                "projects",
+                project_code,
+                project,
+            ):
+                return project
             _increment(counts, "projects", "updated")
 
         project.project_type = _text(row.values.get("Направление проекта")) or project.project_type
@@ -234,6 +292,15 @@ class CJMImporter:
                 lprs[lpr_code] = lpr
                 _increment(counts, "lpr_profiles", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "lpr_profiles",
+                    lpr_code,
+                    lpr,
+                ):
+                    continue
                 _increment(counts, "lpr_profiles", "updated")
 
             lpr.external_lpr_id = normalize_external_lpr_aliases(
@@ -301,6 +368,15 @@ class CJMImporter:
                 session.add(factor)
                 _increment(counts, "lpr_importance_factors", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "lpr_importance_factors",
+                    f"{lpr.lpr_code}:{factor_type}",
+                    factor,
+                ):
+                    continue
                 _increment(counts, "lpr_importance_factors", "updated")
             factor.factor_type = factor_type
             factor.factor_text = factor_text
@@ -349,6 +425,15 @@ class CJMImporter:
                 barriers[barrier_code] = barrier
                 _increment(counts, "project_barriers", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "project_barriers",
+                    barrier_code,
+                    barrier,
+                ):
+                    continue
                 _increment(counts, "project_barriers", "updated")
             barrier.barrier_title = _text(row.values.get("Название барьера"))
             barrier.barrier_type = _text(row.values.get("Тип барьера"))
@@ -415,6 +500,15 @@ class CJMImporter:
                 session.add(expectation)
                 _increment(counts, "client_expectations", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "client_expectations",
+                    source_id or expectation_text,
+                    expectation,
+                ):
+                    continue
                 _increment(counts, "client_expectations", "updated")
             expectation.source_id = source_id or None
             expectation.expectation_text = expectation_text
@@ -460,6 +554,15 @@ class CJMImporter:
                 session.add(kpi)
                 _increment(counts, "project_kpis", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "project_kpis",
+                    kpi_code,
+                    kpi,
+                ):
+                    continue
                 _increment(counts, "project_kpis", "updated")
             kpi.metric_name = _text(row.values.get("Название KPI / критерия успеха"))
             kpi.kpi_type = _text(row.values.get("Тип KPI")) or None
@@ -513,6 +616,15 @@ class CJMImporter:
                 session.add(point)
                 _increment(counts, "communication_points", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "communication_points",
+                    source_id or summary,
+                    point,
+                ):
+                    continue
                 _increment(counts, "communication_points", "updated")
             point.source_id = source_id or None
             point.point_type = point_type
@@ -572,6 +684,15 @@ class CJMImporter:
                 session.add(goal)
                 _increment(counts, "project_goals", "created")
             else:
+                if self._skip_manual_update(
+                    validation,
+                    row,
+                    counts,
+                    "project_goals",
+                    source_id or goal_text,
+                    goal,
+                ):
+                    continue
                 _increment(counts, "project_goals", "updated")
             goal.source_id = source_id or None
             goal.goal_owner = _text(row.values.get("Владелец цели")) or None

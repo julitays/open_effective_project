@@ -487,3 +487,95 @@ def test_repeated_commit_does_not_duplicate_main_cjm_entities(tmp_path: Path) ->
         "communications": 1,
         "goals": 1,
     }
+
+
+def test_commit_skips_manually_updated_rows_without_force(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "manual_protection.xlsx")
+    workbook = load_workbook(workbook_path)
+    goals = workbook["08_Цели проекта"]
+    _append_named_row(
+        goals,
+        {
+            "Goal ID": "goal_001",
+            "Project ID": "project_001",
+            "Тип цели": "service",
+            "Цель проекта": "Excel goal text",
+            "Статус актуальности": "actual",
+        },
+    )
+    workbook.save(workbook_path)
+    workbook.close()
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    test_session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    importer = CJMImporter(session_factory=test_session_factory, report_dir=tmp_path / "reports")
+
+    first = importer.run(workbook_path, "commit")
+    assert first.committed
+
+    with test_session_factory() as session:
+        goal = session.scalar(select(ProjectGoal).where(ProjectGoal.source_id == "goal_001"))
+        assert goal is not None
+        goal.goal_text = "Manual goal text"
+        goal.updated_by = "demo_open"
+        session.commit()
+
+    second = importer.run(workbook_path, "commit")
+
+    assert second.committed
+    assert second.database_counts["project_goals"]["skipped_manual"] == 1
+    assert any(issue.issue_type == "manual_update_protection" for issue in second.validation.issues)
+    with test_session_factory() as session:
+        goal = session.scalar(select(ProjectGoal).where(ProjectGoal.source_id == "goal_001"))
+        assert goal is not None
+        assert goal.goal_text == "Manual goal text"
+        assert goal.updated_by == "demo_open"
+
+
+def test_force_commit_overwrites_manually_updated_rows(tmp_path: Path) -> None:
+    workbook_path = _minimal_workbook(tmp_path / "manual_force.xlsx")
+    workbook = load_workbook(workbook_path)
+    goals = workbook["08_Цели проекта"]
+    _append_named_row(
+        goals,
+        {
+            "Goal ID": "goal_001",
+            "Project ID": "project_001",
+            "Тип цели": "service",
+            "Цель проекта": "Excel goal text",
+            "Статус актуальности": "actual",
+        },
+    )
+    workbook.save(workbook_path)
+    workbook.close()
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    test_session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    importer = CJMImporter(session_factory=test_session_factory, report_dir=tmp_path / "reports")
+
+    first = importer.run(workbook_path, "commit")
+    assert first.committed
+
+    with test_session_factory() as session:
+        goal = session.scalar(select(ProjectGoal).where(ProjectGoal.source_id == "goal_001"))
+        assert goal is not None
+        goal.goal_text = "Manual goal text"
+        goal.updated_by = "demo_open"
+        session.commit()
+
+    forced = CJMImporter(
+        session_factory=test_session_factory,
+        report_dir=tmp_path / "reports",
+        force=True,
+    ).run(workbook_path, "commit")
+
+    assert forced.committed
+    assert forced.force
+    assert "skipped_manual" not in forced.database_counts.get("project_goals", {})
+    with test_session_factory() as session:
+        goal = session.scalar(select(ProjectGoal).where(ProjectGoal.source_id == "goal_001"))
+        assert goal is not None
+        assert goal.goal_text == "Excel goal text"
+        assert goal.updated_by is None

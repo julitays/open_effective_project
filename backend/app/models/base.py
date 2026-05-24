@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Uuid, func
+from sqlalchemy import DateTime, String, Uuid, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -29,3 +29,4 @@ class TimestampMixin:
         onupdate=func.now(),
         nullable=False,
     )
+    updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)

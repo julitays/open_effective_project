@@ -123,6 +123,18 @@ Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
 python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit
 ```
 
+After a CJM record is edited manually in the web interface, Supabase becomes the
+source of truth for that record. A normal Excel commit skips manually edited
+records and writes a `manual_update_protection` warning to the import report.
+Use `--force` only when the Excel file must deliberately overwrite manual
+changes:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit --force
+```
+
 The same flow works for the second anonymized CJM workbook:
 
 ```powershell

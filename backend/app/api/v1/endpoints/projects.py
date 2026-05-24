@@ -1,10 +1,11 @@
 from collections.abc import Callable
 from typing import Annotated, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
+from app.core.demo_auth import get_session_username
 from app.repositories.cjm_read import CJMReadRepository
 from app.repositories.cjm_update import CJMUpdateRepository
 from app.schemas.cjm import (
@@ -66,6 +67,10 @@ def _patch_value_error(error: CJMPatchValueError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
 
 
+def _updated_by(request: Request) -> str:
+    return get_session_username(request) or "local_dev"
+
+
 @router.get("", response_model=list[CJMProjectPassport])
 def list_projects(
     service: Annotated[CJMReadService, Depends(get_cjm_read_service)],
@@ -83,6 +88,7 @@ def get_project(
 
 @router.patch("/{project_code}", response_model=CJMProjectPassport)
 def patch_project(
+    request: Request,
     project_code: str,
     patch: CJMProjectPatch,
     service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
@@ -90,7 +96,7 @@ def patch_project(
     try:
         return _project_or_404(
             project_code,
-            lambda code: service.update_project(code, patch),
+            lambda code: service.update_project(code, patch, _updated_by(request)),
         )
     except CJMPatchValueError as error:
         raise _patch_value_error(error) from error
@@ -154,6 +160,7 @@ def get_project_goals(
 
 @router.patch("/{project_code}/goals/{goal_code}", response_model=CJMGoal)
 def patch_project_goal(
+    request: Request,
     project_code: str,
     goal_code: str,
     patch: CJMGoalPatch,
@@ -161,7 +168,7 @@ def patch_project_goal(
 ) -> CJMGoal:
     try:
         return _entity_or_404(
-            service.update_goal(project_code, goal_code, patch),
+            service.update_goal(project_code, goal_code, patch, _updated_by(request)),
             "Goal",
             goal_code,
         )
@@ -171,6 +178,7 @@ def patch_project_goal(
 
 @router.patch("/{project_code}/lprs/{lpr_code}", response_model=CJMLPR)
 def patch_project_lpr(
+    request: Request,
     project_code: str,
     lpr_code: str,
     patch: CJMLPRPatch,
@@ -178,7 +186,7 @@ def patch_project_lpr(
 ) -> CJMLPR:
     try:
         return _entity_or_404(
-            service.update_lpr(project_code, lpr_code, patch),
+            service.update_lpr(project_code, lpr_code, patch, _updated_by(request)),
             "LPR",
             lpr_code,
         )
@@ -188,6 +196,7 @@ def patch_project_lpr(
 
 @router.patch("/{project_code}/barriers/{barrier_code}", response_model=CJMBarrier)
 def patch_project_barrier(
+    request: Request,
     project_code: str,
     barrier_code: str,
     patch: CJMBarrierPatch,
@@ -195,7 +204,7 @@ def patch_project_barrier(
 ) -> CJMBarrier:
     try:
         return _entity_or_404(
-            service.update_barrier(project_code, barrier_code, patch),
+            service.update_barrier(project_code, barrier_code, patch, _updated_by(request)),
             "Barrier",
             barrier_code,
         )
@@ -205,6 +214,7 @@ def patch_project_barrier(
 
 @router.patch("/{project_code}/expectations/{expectation_code}", response_model=CJMExpectation)
 def patch_project_expectation(
+    request: Request,
     project_code: str,
     expectation_code: str,
     patch: CJMExpectationPatch,
@@ -212,7 +222,12 @@ def patch_project_expectation(
 ) -> CJMExpectation:
     try:
         return _entity_or_404(
-            service.update_expectation(project_code, expectation_code, patch),
+            service.update_expectation(
+                project_code,
+                expectation_code,
+                patch,
+                _updated_by(request),
+            ),
             "Expectation",
             expectation_code,
         )
@@ -222,6 +237,7 @@ def patch_project_expectation(
 
 @router.patch("/{project_code}/kpis/{kpi_code}", response_model=CJMKPI)
 def patch_project_kpi(
+    request: Request,
     project_code: str,
     kpi_code: str,
     patch: CJMKPIPatch,
@@ -229,7 +245,7 @@ def patch_project_kpi(
 ) -> CJMKPI:
     try:
         return _entity_or_404(
-            service.update_kpi(project_code, kpi_code, patch),
+            service.update_kpi(project_code, kpi_code, patch, _updated_by(request)),
             "KPI",
             kpi_code,
         )
@@ -242,6 +258,7 @@ def patch_project_kpi(
     response_model=CJMCommunicationPoint,
 )
 def patch_project_communication(
+    request: Request,
     project_code: str,
     communication_code: str,
     patch: CJMCommunicationPointPatch,
@@ -249,7 +266,12 @@ def patch_project_communication(
 ) -> CJMCommunicationPoint:
     try:
         return _entity_or_404(
-            service.update_communication(project_code, communication_code, patch),
+            service.update_communication(
+                project_code,
+                communication_code,
+                patch,
+                _updated_by(request),
+            ),
             "Communication",
             communication_code,
         )

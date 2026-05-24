@@ -40,6 +40,7 @@ def build_report_payload(
     mode: str,
     status: str,
     database_counts: dict[str, dict[str, int]] | None = None,
+    force: bool = False,
 ) -> dict[str, object]:
     sheet_summary = {
         sheet_name: {
@@ -64,12 +65,18 @@ def build_report_payload(
         for issue in validation.issues
         if issue.issue_type == "unmapped_importance_factor"
     ]
+    manual_update_protection = [
+        issue.as_dict()
+        for issue in validation.issues
+        if issue.issue_type == "manual_update_protection"
+    ]
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "file": str(validation.file_path),
         "mode": mode,
         "status": status,
+        "force": force,
         "summary": {
             "rows_total": sum(validation.rows_read.values()),
             "rows_valid": sum(validation.rows_valid.values()),
@@ -79,6 +86,7 @@ def build_report_payload(
         "sheet_summary": sheet_summary,
         "planned_create_or_update_ids": planned_upserts,
         "unmapped_importance_factors": unmapped_importance_factors,
+        "manual_update_protection": manual_update_protection,
         "importance_factor_mapping_summary": _build_importance_mapping_summary(validation),
         "database_counts": database_counts or {},
         "issues": [issue.as_dict() for issue in validation.issues],
@@ -91,6 +99,7 @@ def write_import_report(
     mode: str,
     status: str,
     database_counts: dict[str, dict[str, int]] | None = None,
+    force: bool = False,
     report_dir: str | Path = DEFAULT_REPORT_DIR,
 ) -> Path:
     report_path = Path(report_dir)
@@ -102,6 +111,7 @@ def write_import_report(
         mode=mode,
         status=status,
         database_counts=database_counts,
+        force=force,
     )
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return output_path

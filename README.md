@@ -150,6 +150,18 @@ http://127.0.0.1:5173/projects/project_001
 With demo-auth enabled, PATCH endpoints require a valid session cookie. Without
 a session, protected API updates return `401`.
 
+Manual edits are protected during later Excel imports. Once a CJM record is
+changed in the web interface, Supabase is treated as the source of truth for
+that record. A normal commit import skips it and records a
+`manual_update_protection` warning. To deliberately overwrite manual changes
+from Excel, run:
+
+```powershell
+Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
+.\.venv\Scripts\Activate.ps1
+python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit --force
+```
+
 ## Yandex Serverless deploy
 
 The deploy script creates and updates a separate Yandex Serverless Container for

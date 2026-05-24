@@ -113,30 +113,37 @@ def is_api_path(path: str) -> bool:
 
 
 def is_valid_session(request: Request) -> bool:
+    return get_session_username(request) is not None
+
+
+def get_session_username(request: Request) -> str | None:
     token = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not token or not is_auth_configured():
-        return False
+        return None
 
     try:
         payload_part, signature = token.split(".", 1)
     except ValueError:
-        return False
+        return None
 
     expected_signature = sign_value(payload_part)
     if not secrets.compare_digest(signature, expected_signature):
-        return False
+        return None
 
     try:
         payload = json.loads(base64url_decode(payload_part))
         expires_at = int(payload.get("exp", 0))
     except (binascii.Error, UnicodeDecodeError, ValueError, TypeError, json.JSONDecodeError):
-        return False
+        return None
 
     username = str(payload.get("sub", ""))
     if not secrets.compare_digest(username, settings.DEMO_AUTH_USERNAME):
-        return False
+        return None
 
-    return expires_at >= int(time.time())
+    if expires_at < int(time.time()):
+        return None
+
+    return username
 
 
 def create_session_token(username: str) -> str:

@@ -17,12 +17,18 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="Validate and create a report only.")
     mode.add_argument("--commit", action="store_true", help="Validate and write valid data to the DB.")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow Excel import to overwrite rows marked as manually edited.",
+    )
     args = parser.parse_args()
 
     import_mode = "commit" if args.commit else "dry-run"
-    result = CJMImporter().run(args.file, import_mode)
+    result = CJMImporter(force=args.force).run(args.file, import_mode)
     print(f"Mode: {result.mode}")
     print(f"Status: {result.status}")
+    print(f"Force: {result.force}")
     print(f"Rows read: {sum(result.validation.rows_read.values())}")
     print(f"Valid rows: {sum(result.validation.rows_valid.values())}")
     print(f"Errors: {result.validation.errors_count}")

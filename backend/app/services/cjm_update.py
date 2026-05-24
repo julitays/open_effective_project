@@ -48,6 +48,7 @@ class CJMUpdateService:
         self,
         project_code: str,
         patch: CJMProjectPatch,
+        updated_by: str,
     ) -> CJMProjectPassport | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -66,6 +67,7 @@ class CJMUpdateService:
                 "project_status": cjm_mappings.map_project_status,
             },
         )
+        self._mark_manual_update(project, updated_by)
         self.repository.save(project)
         return self.read_service._project_passport(project)
 
@@ -74,6 +76,7 @@ class CJMUpdateService:
         project_code: str,
         goal_code: str,
         patch: CJMGoalPatch,
+        updated_by: str,
     ) -> CJMGoal | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -87,6 +90,7 @@ class CJMUpdateService:
             patch,
             mappers={"relevance_status": map_relevance_status},
         )
+        self._mark_manual_update(goal, updated_by)
         self.repository.save(goal)
         return self.read_service._goal(goal)
 
@@ -95,6 +99,7 @@ class CJMUpdateService:
         project_code: str,
         lpr_code: str,
         patch: CJMLPRPatch,
+        updated_by: str,
     ) -> CJMLPR | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -113,6 +118,7 @@ class CJMUpdateService:
                 "relationship_status": map_relationship_status,
             },
         )
+        self._mark_manual_update(lpr, updated_by)
         self.repository.save(lpr)
         return self.read_service._lpr(lpr)
 
@@ -121,6 +127,7 @@ class CJMUpdateService:
         project_code: str,
         barrier_code: str,
         patch: CJMBarrierPatch,
+        updated_by: str,
     ) -> CJMBarrier | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -143,6 +150,7 @@ class CJMUpdateService:
                 "confidence_level": map_confidence_level,
             },
         )
+        self._mark_manual_update(barrier, updated_by)
         self.repository.save(barrier)
         return self.read_service._barrier(barrier)
 
@@ -151,6 +159,7 @@ class CJMUpdateService:
         project_code: str,
         expectation_code: str,
         patch: CJMExpectationPatch,
+        updated_by: str,
     ) -> CJMExpectation | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -170,6 +179,7 @@ class CJMUpdateService:
                 "confidence_level": map_confidence_level,
             },
         )
+        self._mark_manual_update(expectation, updated_by)
         self.repository.save(expectation)
         return self.read_service._expectation(expectation)
 
@@ -178,6 +188,7 @@ class CJMUpdateService:
         project_code: str,
         kpi_code: str,
         patch: CJMKPIPatch,
+        updated_by: str,
     ) -> CJMKPI | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -195,6 +206,7 @@ class CJMUpdateService:
                 "relevance_status": map_relevance_status,
             },
         )
+        self._mark_manual_update(kpi, updated_by)
         self.repository.save(kpi)
         return self.read_service._kpi(kpi)
 
@@ -203,6 +215,7 @@ class CJMUpdateService:
         project_code: str,
         communication_code: str,
         patch: CJMCommunicationPointPatch,
+        updated_by: str,
     ) -> CJMCommunicationPoint | None:
         project = self.repository.get_project(project_code)
         if project is None:
@@ -219,6 +232,7 @@ class CJMUpdateService:
                 "relevance_status": map_relevance_status,
             },
         )
+        self._mark_manual_update(point, updated_by)
         self.repository.save(point)
         return self.read_service._communication(point)
 
@@ -268,6 +282,10 @@ class CJMUpdateService:
     def _is_nullable(self, entity: object, field_name: str) -> bool:
         column = getattr(type(entity), field_name).property.columns[0]
         return bool(column.nullable)
+
+    def _mark_manual_update(self, entity: object, updated_by: str) -> None:
+        if hasattr(entity, "updated_by"):
+            setattr(entity, "updated_by", updated_by)
 
 
 def map_relevance_status(value: object) -> str | None:

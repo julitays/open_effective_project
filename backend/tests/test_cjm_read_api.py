@@ -2,7 +2,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -359,6 +359,7 @@ def test_patch_without_auth_returns_401_when_demo_auth_enabled(
 
 def test_patch_with_auth_works(
     cjm_client: TestClient,
+    cjm_session_factory: sessionmaker[Session],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(settings, "DEMO_AUTH_ENABLED", True)
@@ -376,6 +377,10 @@ def test_patch_with_auth_works(
 
     assert response.status_code == 200
     assert response.json()["short_description"] == "Updated with auth"
+    with cjm_session_factory() as session:
+        project = session.scalar(select(Project).where(Project.project_code == "project_001"))
+        assert project is not None
+        assert project.updated_by == "demo"
 
 
 def test_local_cors_allows_patch_preflight(cjm_client: TestClient) -> None:
