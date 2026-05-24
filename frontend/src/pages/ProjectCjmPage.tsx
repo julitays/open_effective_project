@@ -196,116 +196,190 @@ function OverviewPanel({
   cjm: ProjectCjm;
   relationResolver: RelationResolver;
 }) {
-  const highInfluenceLprs = cjm.lprs.filter((lpr) => hasHighInfluence(lpr.influence_level));
-  const watchedBarriers = cjm.barriers.filter(
-    (barrier) =>
-      isActual(barrier.relevance_status) ||
-      isRepeated(barrier.time_status) ||
-      hasCurrentTimeStatus(barrier.time_status),
-  );
-  const actualExpectations = cjm.expectations.filter((expectation) =>
-    isActual(expectation.relevance_status),
-  );
-  const linkedKpis = cjm.kpis.filter(
-    (kpi) =>
-      kpi.related_barrier_text ||
-      kpi.related_expectation_text ||
-      isConfirmationRequired(kpi.relevance_status) ||
-      isConfirmationRequired(kpi.requires_confirmation),
-  );
   const confirmationItems = buildConfirmationItems(cjm);
+  const criticalClientItems = buildCriticalClientItems(cjm);
+  const mainRiskItems = buildMainRiskItems(cjm);
+  const barrierGroups = groupBarriersByTime(cjm.barriers);
+  const completenessItems = buildCompletenessItems(cjm);
 
   return (
     <PanelIntro
-      title="Обзор"
-      description="Сжатая карта: кто влияет на проект, что болит, какие ожидания и KPI нужно держать в фокусе."
+      title="CJM проекта: рабочий обзор"
+      description="Сжатая управленческая карта клиента: что важно, где болит, кто влияет на решение и какие барьеры надо держать под контролем."
     >
-      <div className="grid gap-4 2xl:grid-cols-[1fr_360px]">
-        <section className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <OverviewList
-              title="Ключевые ЛПР"
-              emptyText="Высокое влияние пока не выделено."
-              items={highInfluenceLprs.slice(0, 5)}
-              renderItem={(lpr) => (
-                <>
-                  <div className="text-xs font-semibold uppercase text-slate-400">
-                    {formatEntityCode(lpr.lpr_code)}
-                  </div>
-                  <div className="mt-1 font-medium text-slate-950">
-                    {formatText(lpr.role_zone || lpr.role)}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    <StatusBadge value={formatInfluenceLevel(lpr.influence_level)} />
-                    <StatusBadge value={formatRelationshipStatus(lpr.relationship_status)} />
-                  </div>
-                </>
-              )}
-            />
-            <OverviewList
-              title="Барьеры на контроле"
-              emptyText="Актуальных или повторяющихся барьеров не найдено."
-              items={watchedBarriers.slice(0, 5)}
-              renderItem={(barrier) => (
-                <>
-                  <div className="font-medium text-slate-950">{barrier.barrier_title}</div>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    <StatusBadge value={formatCriticality(barrier.criticality)} />
-                    <StatusBadge value={formatBarrierTimeStatus(barrier.time_status)} />
-                  </div>
-                </>
-              )}
-            />
-          </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <OverviewMetric label="Направление" value={formatDirection(cjm.project.direction)} />
+        <OverviewMetric label="Этап жизненного цикла" value={formatLifecycleStage(cjm.project.lifecycle_stage)} />
+        <OverviewMetric label="Статус проекта" value={formatProjectStatus(cjm.project.project_status)} />
+      </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <OverviewList
-              title="Актуальные ожидания"
-              emptyText="Актуальные ожидания пока не выделены."
-              items={actualExpectations.slice(0, 5)}
-              renderItem={(expectation) => (
-                <>
-                  <div className="font-medium text-slate-950">{expectation.expectation_text}</div>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    <StatusBadge value={formatExpectationType(expectation.expectation_type)} />
-                    <StatusBadge value={formatCriticality(expectation.criticality)} />
-                  </div>
-                </>
-              )}
-            />
-            <OverviewList
-              title="Связанные KPI и критерии"
-              emptyText="Связанные KPI пока не заполнены."
-              items={linkedKpis.slice(0, 5)}
-              renderItem={(kpi) => (
-                <>
-                  <div className="font-medium text-slate-950">{kpi.kpi_name}</div>
-                  <div className="mt-1 text-xs leading-5 text-slate-500">
-                    {relationResolver.format(kpi.related_expectation_text || kpi.related_barrier_text)}
-                  </div>
-                </>
-              )}
-            />
-          </div>
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="space-y-4">
+          <MainFindingsCard
+            criticalClientItems={criticalClientItems}
+            mainRiskItems={mainRiskItems}
+            needsUpdate={confirmationItems.length > 0}
+          />
+          <BarrierTimelineCard groups={barrierGroups} relationResolver={relationResolver} />
         </section>
 
         <aside className="space-y-4">
-          {confirmationItems.length > 0 ? (
-            <SoftCard>
-              <SectionEyebrow>Что требует подтверждения</SectionEyebrow>
-              <ul className="mt-4 space-y-3">
-                {confirmationItems.slice(0, 8).map((item) => (
-                  <li key={`${item.kind}-${item.title}`} className="text-sm leading-6">
-                    <div className="font-medium text-slate-950">{item.title}</div>
-                    <div className="text-xs text-slate-500">{item.kind}</div>
-                  </li>
-                ))}
-              </ul>
-            </SoftCard>
-          ) : null}
+          <CompletenessCard items={completenessItems} />
         </aside>
       </div>
     </PanelIntro>
+  );
+}
+
+function OverviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="content-card p-5">
+      <SectionEyebrow>{label}</SectionEyebrow>
+      <div className="mt-2 text-base font-medium text-slate-950">{value}</div>
+    </div>
+  );
+}
+
+function MainFindingsCard({
+  criticalClientItems,
+  mainRiskItems,
+  needsUpdate,
+}: {
+  criticalClientItems: string[];
+  mainRiskItems: string[];
+  needsUpdate: boolean;
+}) {
+  return (
+    <SoftCard>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-slate-950">Главные выводы по CJM</h3>
+        {needsUpdate ? <StatusBadge value="Требует подтверждения" /> : null}
+      </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <FindingColumn title="Что критично клиенту" items={criticalClientItems} />
+        <FindingColumn title="Где основной риск" items={mainRiskItems} />
+      </div>
+    </SoftCard>
+  );
+}
+
+function FindingColumn({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl bg-slate-50 p-4">
+      <div className="text-sm font-semibold text-slate-950">{title}</div>
+      {items.length > 0 ? (
+        <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+          {items.slice(0, 5).map((item) => (
+            <li key={item}>• {item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm leading-6 text-slate-500">Данных для вывода пока недостаточно.</p>
+      )}
+    </div>
+  );
+}
+
+function BarrierTimelineCard({
+  groups,
+  relationResolver,
+}: {
+  groups: ReturnType<typeof groupBarriersByTime>;
+  relationResolver: RelationResolver;
+}) {
+  return (
+    <SoftCard>
+      <h3 className="text-base font-semibold text-slate-950">Барьеры: было / есть / будет</h3>
+      <div className="mt-5 grid gap-4 xl:grid-cols-3">
+        <BarrierTimelineColumn
+          title="Было"
+          tone="past"
+          barriers={groups.past}
+          relationResolver={relationResolver}
+        />
+        <BarrierTimelineColumn
+          title="Есть сейчас"
+          tone="current"
+          barriers={groups.current}
+          relationResolver={relationResolver}
+        />
+        <BarrierTimelineColumn
+          title="Будет"
+          tone="future"
+          barriers={groups.future}
+          relationResolver={relationResolver}
+        />
+      </div>
+    </SoftCard>
+  );
+}
+
+function BarrierTimelineColumn({
+  title,
+  tone,
+  barriers,
+  relationResolver,
+}: {
+  title: string;
+  tone: "past" | "current" | "future";
+  barriers: Barrier[];
+  relationResolver: RelationResolver;
+}) {
+  const toneClass = {
+    past: "border-slate-200 bg-slate-50",
+    current: "border-amber-200 bg-amber-50/70",
+    future: "border-rose-200 bg-rose-50/70",
+  }[tone];
+
+  return (
+    <section className={`rounded-xl border p-4 ${toneClass}`}>
+      <h4 className="text-sm font-semibold text-slate-950">{title}</h4>
+      {barriers.length > 0 ? (
+        <div className="mt-3 space-y-3">
+          {barriers.slice(0, 3).map((barrier) => (
+            <article key={barrier.barrier_code || barrier.barrier_title} className="rounded-xl bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <h5 className="min-w-0 text-sm font-semibold leading-6 text-slate-950">
+                  {barrier.barrier_title}
+                </h5>
+                <StatusBadge value={formatCriticality(barrier.criticality)} />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                {formatText(barrier.description || relationResolver.format(barrier.linked_kpi_text))}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-xl bg-white p-4 text-sm leading-6 text-slate-500">
+          В этом временном контуре барьеры не выделены.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function CompletenessCard({ items }: { items: Array<{ label: string; percent: number }> }) {
+  return (
+    <SoftCard>
+      <h3 className="text-base font-semibold text-slate-950">Полнота CJM</h3>
+      <div className="mt-5 space-y-4">
+        {items.map((item) => (
+          <div key={item.label}>
+            <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+              <span>{item.label}</span>
+              <span>{item.percent}%</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-slate-900"
+                style={{ width: `${item.percent}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </SoftCard>
   );
 }
 
@@ -1042,35 +1116,6 @@ function Cell({ value }: { value: ReactNode }) {
   return <td className="break-words px-4 py-4 leading-6 text-slate-700">{value}</td>;
 }
 
-function OverviewList<T>({
-  title,
-  items,
-  emptyText,
-  renderItem,
-}: {
-  title: string;
-  items: T[];
-  emptyText: string;
-  renderItem: (item: T) => ReactNode;
-}) {
-  return (
-    <SoftCard>
-      <SectionEyebrow>{title}</SectionEyebrow>
-      {items.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">{emptyText}</p>
-      ) : (
-        <ul className="mt-4 space-y-3">
-          {items.map((item, index) => (
-            <li key={index} className="rounded-xl bg-slate-50 p-3 text-sm leading-6">
-              {renderItem(item)}
-            </li>
-          ))}
-        </ul>
-      )}
-    </SoftCard>
-  );
-}
-
 function SoftCard({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70">
@@ -1154,6 +1199,167 @@ function buildRelationResolver(cjm: ProjectCjm) {
   return { format, resolve };
 }
 
+function buildCriticalClientItems(cjm: ProjectCjm) {
+  const items = [
+    ...cjm.expectations
+      .filter((expectation) => isHighCriticality(expectation.criticality))
+      .map((expectation) => expectation.expectation_text),
+    ...cjm.lprs.flatMap((lpr) =>
+      lpr.importance_factors
+        .filter((factor) => isHighCriticality(factor.criticality))
+        .map((factor) => factorTitle(factor)),
+    ),
+  ];
+
+  return uniqueFilled(items).slice(0, 5);
+}
+
+function buildMainRiskItems(cjm: ProjectCjm) {
+  const currentBarriers = cjm.barriers.filter(
+    (barrier) =>
+      isHighCriticality(barrier.criticality) ||
+      isRepeated(barrier.time_status) ||
+      hasCurrentTimeStatus(barrier.time_status),
+  );
+
+  return uniqueFilled(currentBarriers.map((barrier) => barrier.barrier_title)).slice(0, 5);
+}
+
+function groupBarriersByTime(barriers: Barrier[]) {
+  const past = barriers.filter(
+    (barrier) =>
+      normalize(barrier.time_status) === "past" ||
+      normalize(barrier.time_status).includes("было") ||
+      normalize(barrier.relevance_status).includes("истор"),
+  );
+  const future = barriers.filter(
+    (barrier) =>
+      normalize(barrier.time_status) === "future" ||
+      normalize(barrier.time_status).includes("может") ||
+      normalize(barrier.time_status).includes("буд"),
+  );
+  const current = barriers.filter((barrier) => {
+    if (past.includes(barrier) || future.includes(barrier)) {
+      return false;
+    }
+
+    return (
+      hasCurrentTimeStatus(barrier.time_status) ||
+      isRepeated(barrier.time_status) ||
+      isActual(barrier.relevance_status)
+    );
+  });
+
+  return { past, current, future };
+}
+
+function buildCompletenessItems(cjm: ProjectCjm) {
+  return [
+    {
+      label: "Паспорт",
+      percent: filledPercent(cjm.project, [
+        "project_code",
+        "external_project_id",
+        "direction",
+        "project_scale",
+        "primary_operational_model",
+        "lifecycle_stage",
+        "project_status",
+        "short_description",
+      ]),
+    },
+    {
+      label: "Цели",
+      percent: collectionPercent(cjm.goals, ["goal_text", "goal_type", "relevance_status", "comment"]),
+    },
+    {
+      label: "ЛПР",
+      percent: collectionPercent(cjm.lprs, [
+        "lpr_code",
+        "role_zone",
+        "influence_level",
+        "activity_status",
+        "relationship_status",
+        "evidence_basis",
+      ]),
+    },
+    {
+      label: "Коммуникации",
+      percent: collectionPercent(cjm.communications, [
+        "client_side",
+        "open_side_role",
+        "topic_text",
+        "channel_text",
+        "frequency",
+        "criticality",
+        "relevance_status",
+      ]),
+    },
+    {
+      label: "Барьеры",
+      percent: collectionPercent(cjm.barriers, [
+        "barrier_title",
+        "barrier_type",
+        "time_status",
+        "criticality",
+        "relevance_status",
+        "evidence_quote",
+      ]),
+    },
+    {
+      label: "Ожидания",
+      percent: collectionPercent(cjm.expectations, [
+        "expectation_text",
+        "expectation_type",
+        "criticality",
+        "relevance_status",
+        "linked_kpi_text",
+      ]),
+    },
+    {
+      label: "KPI",
+      percent: collectionPercent(cjm.kpis, [
+        "kpi_name",
+        "kpi_type",
+        "relevance_status",
+        "related_expectation_text",
+        "related_barrier_text",
+        "comment",
+      ]),
+    },
+  ];
+}
+
+function collectionPercent<T extends object>(items: T[], keys: Array<keyof T>) {
+  if (items.length === 0) {
+    return 0;
+  }
+
+  const total = items.reduce((sum, item) => sum + filledPercent(item, keys), 0);
+  return Math.round(total / items.length);
+}
+
+function filledPercent<T extends object>(item: T, keys: Array<keyof T>) {
+  const filled = keys.filter((key) => {
+    const value = item[key];
+    return isFilledValue(value);
+  }).length;
+
+  return Math.round((filled / keys.length) * 100);
+}
+
+function isFilledValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return Boolean(value);
+}
+
 function buildConfirmationItems(cjm: ProjectCjm) {
   const items: Array<{ kind: string; title: string }> = [];
 
@@ -1223,9 +1429,27 @@ function normalize(value: string | null | undefined) {
   return value?.trim().toLowerCase() || "";
 }
 
-function hasHighInfluence(value: string | null | undefined) {
+function isHighCriticality(value: string | null | undefined) {
   const normalized = normalize(value);
   return normalized === "high" || normalized.includes("высок");
+}
+
+function uniqueFilled(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  values.forEach((value) => {
+    const formatted = formatDisplayText(value);
+    const normalized = normalize(formatted);
+    if (!normalized || formatted === "Не указано" || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    result.push(formatted);
+  });
+
+  return result;
 }
 
 function hasCurrentTimeStatus(value: string | null | undefined) {

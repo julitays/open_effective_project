@@ -2,32 +2,61 @@ interface StatusBadgeProps {
   value: string;
 }
 
-const toneRules = [
-  {
-    tokens: ["high", "высок", "risk", "риск", "критич", "открыт"],
-    className: "border-rose-200 bg-rose-50 text-rose-800 ring-1 ring-rose-100",
-  },
-  {
-    tokens: ["medium", "сред", "актуал", "контрол", "подтверж", "осторож"],
-    className: "border-amber-200 bg-amber-50 text-amber-900 ring-1 ring-amber-100",
-  },
-  {
-    tokens: ["active", "актив", "done", "resolved", "заверш", "реш", "низк", "low", "лоялен"],
-    className: "border-emerald-200 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100",
-  },
-  {
-    tokens: ["не указано", "unknown", "истор"],
-    className: "border-slate-200 bg-slate-50 text-slate-600 ring-1 ring-slate-100",
-  },
-];
+const tones = {
+  danger: "border-rose-200 bg-rose-50 text-rose-800 ring-1 ring-rose-100",
+  warning: "border-amber-200 bg-amber-50 text-amber-900 ring-1 ring-amber-100",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100",
+  neutral: "border-slate-200 bg-slate-50 text-slate-600 ring-1 ring-slate-100",
+  info: "border-sky-200 bg-sky-50 text-sky-800 ring-1 ring-sky-100",
+};
 
 function getTone(value: string) {
   const normalized = value.toLowerCase();
-  return (
-    toneRules.find((rule) =>
-      rule.tokens.some((token) => normalized.includes(token)),
-    )?.className ?? "border-sky-200 bg-sky-50 text-sky-800"
-  );
+
+  if (
+    normalized.includes("требует подтверждения") ||
+    normalized.includes("не указано") ||
+    normalized.includes("unknown") ||
+    normalized.includes("истор")
+  ) {
+    return tones.neutral;
+  }
+
+  if (
+    normalized === "актуально" ||
+    normalized === "активен" ||
+    normalized.includes("лоялен") ||
+    normalized.includes("реш")
+  ) {
+    return tones.success;
+  }
+
+  if (
+    normalized.includes("высок") ||
+    normalized.includes("критичен") ||
+    normalized.includes("в зоне риска") ||
+    normalized.includes("открыт")
+  ) {
+    return tones.danger;
+  }
+
+  if (
+    normalized.includes("сред") ||
+    normalized.includes("осторож") ||
+    normalized.includes("контрол")
+  ) {
+    return tones.warning;
+  }
+
+  if (
+    normalized.includes("низк") ||
+    normalized.includes("неактуально") ||
+    normalized.includes("неактив")
+  ) {
+    return tones.neutral;
+  }
+
+  return tones.info;
 }
 
 export default function StatusBadge({ value }: StatusBadgeProps) {
@@ -35,9 +64,9 @@ export default function StatusBadge({ value }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-xs font-medium leading-5 ${getTone(value)}`}
+      className={`inline-flex max-w-full items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-5 ${getTone(value)}`}
     >
-      <span className="break-words">{displayValue}</span>
+      <span>{displayValue}</span>
     </span>
   );
 }
