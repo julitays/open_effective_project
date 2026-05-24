@@ -1,8 +1,8 @@
 import { FolderKanban, PanelsTopLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useSearchParams } from "react-router-dom";
 
-import CjmTabs, { type CjmTabId } from "./CjmTabs";
+import CjmTabs, { isCjmTabId, type CjmTabId } from "./CjmTabs";
 
 export interface LayoutOutletContext {
   activeCjmTab: CjmTabId;
@@ -11,14 +11,37 @@ export interface LayoutOutletContext {
 
 export default function Layout() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeCjmTab, setActiveCjmTab] = useState<CjmTabId>("overview");
   const isProjectCjmPage = /^\/projects\/[^/]+/.test(location.pathname);
+  const sectionParam = searchParams.get("section");
 
   useEffect(() => {
-    if (isProjectCjmPage) {
+    if (!isProjectCjmPage) {
       setActiveCjmTab("overview");
+      return;
     }
-  }, [isProjectCjmPage, location.pathname]);
+
+    setActiveCjmTab(isCjmTabId(sectionParam) ? sectionParam : "overview");
+  }, [isProjectCjmPage, location.pathname, sectionParam]);
+
+  function handleCjmTabChange(tabId: CjmTabId) {
+    setActiveCjmTab(tabId);
+    setSearchParams(
+      (currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+
+        if (tabId === "overview") {
+          nextParams.delete("section");
+        } else {
+          nextParams.set("section", tabId);
+        }
+
+        return nextParams;
+      },
+      { replace: true },
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
@@ -56,7 +79,7 @@ export default function Layout() {
               <div className="mb-2 px-3 text-xs font-semibold uppercase text-slate-400">
                 Разделы проекта
               </div>
-              <CjmTabs activeTab={activeCjmTab} onChange={setActiveCjmTab} />
+              <CjmTabs activeTab={activeCjmTab} onChange={handleCjmTabChange} />
             </div>
           ) : null}
         </aside>

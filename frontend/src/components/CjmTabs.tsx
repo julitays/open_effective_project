@@ -8,7 +8,7 @@ export type CjmTabId =
   | "kpis"
   | "communications";
 
-const tabs: Array<{ id: CjmTabId; label: string }> = [
+export const cjmTabs: Array<{ id: CjmTabId; label: string }> = [
   { id: "overview", label: "Обзор" },
   { id: "passport", label: "Паспорт" },
   { id: "goals", label: "Цели" },
@@ -18,6 +18,10 @@ const tabs: Array<{ id: CjmTabId; label: string }> = [
   { id: "kpis", label: "KPI" },
   { id: "communications", label: "Коммуникации" },
 ];
+
+export function isCjmTabId(value: string | null): value is CjmTabId {
+  return cjmTabs.some((tab) => tab.id === value);
+}
 
 interface CjmTabsProps {
   activeTab: CjmTabId;
@@ -31,7 +35,7 @@ export default function CjmTabs({ activeTab, onChange }: CjmTabsProps) {
       role="tablist"
       aria-label="Разделы CJM"
     >
-      {tabs.map((tab) => (
+      {cjmTabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
