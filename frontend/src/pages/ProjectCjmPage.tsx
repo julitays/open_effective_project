@@ -223,6 +223,7 @@ const projectEditFields: EditField[] = [
     label: "Дополнительные операционные контуры",
     input: "textarea",
   },
+  { name: "start_date", label: "Дата старта" },
   {
     name: "lifecycle_stage",
     label: "Этап жизненного цикла",

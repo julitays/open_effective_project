@@ -101,3 +101,4 @@ class CJMProjectPatch(SanitizedPatchModel):
     additional_operational_contours: str | None = None
     lifecycle_stage: str | None = None
     project_status: str | None = None
+    start_date: str | None = None
