@@ -1014,6 +1014,67 @@ type HistoryMilestone = {
   details?: string[];
 };
 
+const project1991History: HistoryMilestone[] = [
+  {
+    year: "2019",
+    title: "Перевод структуры в OPEN",
+    placement: "top",
+    details: ["Помощь в организации конференции в Москве"],
+  },
+  {
+    year: "2019",
+    title: "Проведение АЦ СВ",
+    placement: "bottom",
+    details: ["Разработка и внедрение КУ", "Внедрение структуры ОМ"],
+  },
+  {
+    year: "2020",
+    title: "Запуск проекта Fold",
+    placement: "top",
+    details: ["Внедрение процесса по сбору OOS", "Внедрение позиции OEM"],
+  },
+  {
+    year: "2020",
+    title: "Разработка и внедрение 9 шагов визита ТП",
+    placement: "bottom",
+    details: [
+      "Внедрение позиций Методолога и FT",
+      "Запуск Online проектов (E-Merch, E-Promo, Promocode)",
+    ],
+  },
+  {
+    year: "2021",
+    title: "Внедрение ЭДО",
+    placement: "top",
+    details: [
+      "Проекты: S-Com, Видео консультанты, MBM, Telecom, SES, Galaxy Pro",
+      "Переход на частичное авансирование",
+    ],
+  },
+  {
+    year: "2021",
+    title: "Реализация проекта Upgrade",
+    placement: "bottom",
+    details: [
+      "Пересмотр модели АК в период локдауна",
+      "Разработка и внедрение Power BI",
+      "Проведение оценки удовлетворенности",
+    ],
+  },
+  {
+    year: "2022",
+    title: "Разработка рейтинга СВ",
+    placement: "top",
+    details: ["Разработка и внедрение Кадрового Резерва"],
+  },
+  {
+    year: "2022",
+    title: "Разработка системы мотивации СВ",
+    placement: "bottom",
+    details: ["Запуск проекта Шоурум"],
+  },
+];
+
 const projectHistoryTimelines: Record<string, HistoryMilestone[]> = {
   project_001: [
     { year: "2010", title: "Аутстаффинг", placement: "top" },
@@ -1043,10 +1104,13 @@ const projectHistoryTimelines: Record<string, HistoryMilestone[]> = {
     },
     { year: "2020", title: "RTM", placement: "top" },
   ],
+  project_002: project1991History,
+  "1991": project1991History,
 };
 
 function ProjectHistoryTimeline({ project }: { project: ProjectPassport }) {
   const milestones = getProjectHistoryMilestones(project);
+  const isDenseTimeline = milestones.length > 7;
 
   return (
     <section className="content-card overflow-hidden">
@@ -1064,7 +1128,7 @@ function ProjectHistoryTimeline({ project }: { project: ProjectPassport }) {
       </div>
 
       <div className="hidden px-6 py-8 xl:block">
-        <div className="relative h-[330px]">
+        <div className={`relative ${isDenseTimeline ? "h-[460px]" : "h-[330px]"}`}>
           <div className="absolute left-4 right-4 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-950" />
           <div className="absolute right-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[9px] border-l-[20px] border-y-transparent border-l-slate-950" />
           <div className="absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 rotate-45 bg-slate-950" />
@@ -1074,6 +1138,7 @@ function ProjectHistoryTimeline({ project }: { project: ProjectPassport }) {
               key={`${milestone.year}-${milestone.title}`}
               milestone={milestone}
               leftPercent={timelineLeftPercent(index, milestones.length)}
+              dense={isDenseTimeline}
             />
           ))}
         </div>
@@ -1094,15 +1159,17 @@ function ProjectHistoryTimeline({ project }: { project: ProjectPassport }) {
 function HistoryMilestoneDesktop({
   milestone,
   leftPercent,
+  dense,
 }: {
   milestone: HistoryMilestone;
   leftPercent: number;
+  dense: boolean;
 }) {
   const isTop = milestone.placement === "top";
 
   return (
     <div
-      className="absolute top-1/2 w-44 -translate-x-1/2 -translate-y-1/2"
+      className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 ${dense ? "w-40" : "w-44"}`}
       style={{ left: `${leftPercent}%` }}
     >
       <div className="flex flex-col items-center">
