@@ -1,22 +1,50 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 
-import { getProjectEffectiveness } from "../api/projects";
-import type { ProjectEffectiveness } from "../types/cjm";
 import {
+  getProjectEffectiveness,
+  updateBarrier,
+  updateContextBlock,
+  updateGoal,
+  updateKpi,
+  updateLpr,
+  updateProject,
+  type PatchPayload,
+} from "../api/projects";
+import EditEntityModal, {
+  type EditField,
+  type EditOption,
+  type EditPayload,
+  type EditValues,
+} from "../components/EditEntityModal";
+import type {
+  Barrier,
+  Goal,
+  Kpi,
+  LprProfile,
+  ProjectEffectiveness,
+} from "../types/cjm";
+import {
+  formatActivityStatus,
   formatBarrierStatus,
   formatBarrierTimeStatus,
   formatBarrierType,
+  formatConfidenceLevel,
   formatCriticality,
   formatDirection,
+  formatEntityCode,
   formatGoalType,
   formatInfluenceLevel,
   formatKpiType,
   formatLifecycleStage,
   formatOperationalModel,
+  formatPriority,
   formatProjectScale,
+  formatProjectStatus,
   formatRelationshipStatus,
+  formatRelevanceStatus,
   formatText,
+  formatYesNo,
 } from "../utils/labels";
 
 type BadgeTone = "neutral" | "good" | "warn" | "danger" | "blue" | "violet" | "dark";
@@ -25,9 +53,153 @@ type SectionChromeProps = {
   title: string;
   description: string;
   action?: string;
+  onAction?: () => void;
+};
+type Formatter = (value: string | null | undefined) => string;
+type EditTarget = {
+  title: string;
+  fields: EditField[];
+  values: EditValues;
+  save: (payload: PatchPayload) => Promise<unknown>;
 };
 
 const EffectivenessContext = createContext<ProjectEffectiveness | null>(null);
+const ScreenActionsContext = createContext<{
+  editProject: () => void;
+  editGoal: (goal: Goal) => void;
+  editLpr: (lpr: LprProfile) => void;
+  editKpi: (kpi: Kpi) => void;
+  editBarrier: (barrier: Barrier) => void;
+  editSummary: () => void;
+} | null>(null);
+
+const criticalityOptions = [
+  option("high", formatCriticality),
+  option("medium", formatCriticality),
+  option("low", formatCriticality),
+  option("unknown", formatCriticality),
+];
+const relevanceOptions = [
+  option("actual", formatRelevanceStatus),
+  option("current", formatRelevanceStatus),
+  option("historical", formatRelevanceStatus),
+  option("requires_confirmation", formatRelevanceStatus),
+  option("not_actual", formatRelevanceStatus),
+  option("unknown", formatRelevanceStatus),
+];
+const influenceOptions = [
+  option("high", formatInfluenceLevel),
+  option("medium", formatInfluenceLevel),
+  option("low", formatInfluenceLevel),
+  option("requires_confirmation", formatInfluenceLevel),
+  option("unknown", formatInfluenceLevel),
+];
+const confidenceOptions = [
+  option("high", formatConfidenceLevel),
+  option("medium", formatConfidenceLevel),
+  option("low", formatConfidenceLevel),
+  option("unknown", formatConfidenceLevel),
+];
+const activityOptions = [
+  option("active", formatActivityStatus),
+  option("inactive", formatActivityStatus),
+  option("requires_confirmation", formatActivityStatus),
+  option("historical", formatActivityStatus),
+  option("unknown", formatActivityStatus),
+];
+const relationshipOptions = [
+  option("loyal", formatRelationshipStatus),
+  option("neutral", formatRelationshipStatus),
+  option("cautious", formatRelationshipStatus),
+  option("critical", formatRelationshipStatus),
+  option("unknown", formatRelationshipStatus),
+];
+const goalTypeOptions = [
+  option("open_internal", formatGoalType),
+  option("client_business", formatGoalType),
+  option("joint_project", formatGoalType),
+  option("service", formatGoalType),
+  option("operational", formatGoalType),
+  option("financial", formatGoalType),
+  option("risk_control", formatGoalType),
+  option("other", formatGoalType),
+];
+const priorityOptions = [
+  option("high", formatPriority),
+  option("medium", formatPriority),
+  option("low", formatPriority),
+  option("unknown", formatPriority),
+];
+const barrierTypeOptions = [
+  option("communication", formatBarrierType),
+  option("execution_quality", formatBarrierType),
+  option("reporting", formatBarrierType),
+  option("timing", formatBarrierType),
+  option("staff", formatBarrierType),
+  option("kpi", formatBarrierType),
+  option("cost", formatBarrierType),
+  option("training", formatBarrierType),
+  option("control", formatBarrierType),
+  option("expectations", formatBarrierType),
+  option("process_organization", formatBarrierType),
+  option("other", formatBarrierType),
+];
+const barrierTimeOptions = [
+  option("past", formatBarrierTimeStatus),
+  option("current", formatBarrierTimeStatus),
+  option("future", formatBarrierTimeStatus),
+  option("repeated", formatBarrierTimeStatus),
+];
+const barrierStatusOptions = [
+  option("open", formatBarrierStatus),
+  option("in_progress", formatBarrierStatus),
+  option("contained", formatBarrierStatus),
+  option("resolved", formatBarrierStatus),
+  option("monitoring", formatBarrierStatus),
+  option("unknown", formatBarrierStatus),
+];
+const projectStatusOptions = [
+  option("active", formatProjectStatus),
+  option("completed", formatProjectStatus),
+  option("pilot", formatProjectStatus),
+  option("at_risk", formatProjectStatus),
+  option("unknown", formatProjectStatus),
+];
+const lifecycleOptions = [
+  option("launch", formatLifecycleStage),
+  option("stabilization", formatLifecycleStage),
+  option("development", formatLifecycleStage),
+  option("retention", formatLifecycleStage),
+  option("restart", formatLifecycleStage),
+  option("risk", formatLifecycleStage),
+  option("closing", formatLifecycleStage),
+  option("unknown", formatLifecycleStage),
+];
+const operationalModelOptions = [
+  option("merchandising", formatOperationalModel),
+  option("combined_merchandising", formatOperationalModel),
+  option("promo_consulting", formatOperationalModel),
+  option("kaf", formatOperationalModel),
+  option("training", formatOperationalModel),
+  option("audit_quality_control", formatOperationalModel),
+  option("analytics_reporting", formatOperationalModel),
+  option("mixed", formatOperationalModel),
+  option("other", formatOperationalModel),
+];
+const kpiTypeOptions = [
+  option("service", formatKpiType),
+  option("operational", formatKpiType),
+  option("financial", formatKpiType),
+  option("quality", formatKpiType),
+  option("commercial", formatKpiType),
+  option("other", formatKpiType),
+];
+const confirmationOptions = [
+  option("yes", formatYesNo),
+  option("no", formatYesNo),
+  option("requires_confirmation", formatYesNo),
+  option("unknown", formatYesNo),
+];
 
 const passportSections = [
   { id: "passport", label: "Паспорт проекта" },
@@ -834,6 +1006,7 @@ function useScreenData() {
       swot,
       riskMap,
       dataModules,
+      contextBlocks: [],
     };
   }
 
@@ -862,21 +1035,24 @@ function useScreenData() {
 
   const realGoals = cjm.goals.map((goal, index) => ({
     id: goal.goal_code || `goal_${index + 1}`,
+    entityCode: goal.goal_code || goal.goal_id || `goal_${index + 1}`,
     contour: goal.goal_owner?.toLowerCase().includes("клиент") ? "Клиент" : "OPEN",
     goal: goal.goal_text,
     type: formatGoalType(goal.goal_type),
     meaning: goal.comment || goal.success_criteria || "Смысл цели можно уточнить при редактировании.",
     evidence: goal.related_kpi_or_criterion_text || "Связанный KPI / критерий не указан.",
     owner: goal.goal_owner || "Проектная команда",
+    raw: goal,
   }));
 
   const realContacts = cjm.lprs.map((lpr) => ({
     id: lpr.lpr_code,
+    entityCode: lpr.lpr_code,
     role: lpr.role_zone || lpr.role,
     decisionRole: lpr.evidence_basis || "Зона влияния уточняется в карточке ЛПР.",
     influence: formatInfluenceLevel(lpr.influence_level),
     attitude: formatRelationshipStatus(lpr.relationship_status),
-    profileStatus: formatText(lpr.activity_status),
+    profileStatus: formatActivityStatus(lpr.activity_status),
     profileSource: lpr.evidence_basis || "Данные внесены в CJM проекта.",
     profileEvidence: lpr.importance_factors.map((factor) => ({
       source: factor.source_text || "CJM",
@@ -897,6 +1073,7 @@ function useScreenData() {
     doRules: ["фиксировать договорённости", "показывать статус и следующий шаг"],
     dontRules: ["оставлять вопрос без владельца", "терять контекст договорённостей"],
     notes: lpr.manual_comment || "Карточка редактируется в интерфейсе.",
+    raw: lpr,
   }));
 
   const realCommunications = cjm.communications.map((row) => [
@@ -910,20 +1087,22 @@ function useScreenData() {
 
   const realKpis = cjm.kpis.map((kpi) => ({
     id: kpi.kpi_code,
+    entityCode: kpi.kpi_code,
     name: kpi.kpi_name,
-    sourceBlock: kpi.source_text || "KPI проекта",
+    sourceBlock: humanizeSourceLabel(kpi.source_text),
     stakeholder: "Клиент / OPEN",
     type: formatKpiType(kpi.kpi_type),
     purpose: kpi.comment || "Критерий успеха проекта.",
     measurement: [kpi.current_value, kpi.target_value, kpi.unit].filter(Boolean).join(" / ") || "Методика измерения уточняется.",
-    dataSource: kpi.source_text || "web",
-    clarify: formatText(kpi.requires_confirmation),
+    dataSource: humanizeSourceLabel(kpi.source_text),
+    clarify: formatYesNo(kpi.requires_confirmation),
     owner: "Проектная команда",
     priority: formatCriticality(kpi.client_criticality),
     linked: splitTextLinks([kpi.related_expectation_text, kpi.related_barrier_text].filter(Boolean).join("; ")),
     goals: cjm.goals
       .filter((goal) => goal.related_kpi_or_criterion_text?.includes(kpi.kpi_code))
-      .map((goal) => goal.goal_code || goal.goal_text),
+      .map((goal) => goal.goal_text),
+    raw: kpi,
   }));
 
   const realBarriers = ["past", "current", "future"].map((timeStatus) => ({
@@ -937,10 +1116,12 @@ function useScreenData() {
     items: cjm.barriers
       .filter((barrier) => barrier.time_status === timeStatus || (timeStatus === "current" && barrier.time_status === "repeated"))
       .map((barrier) => ({
+        entityCode: barrier.barrier_code || barrier.barrier_id || barrier.barrier_title,
         title: barrier.barrier_title,
         level: formatCriticality(barrier.criticality),
         text: barrier.description || barrier.evidence_quote || "Описание барьера можно уточнить.",
         links: splitTextLinks(barrier.linked_kpi_text || barrier.related_importance_text || ""),
+        raw: barrier,
       })),
   }));
 
@@ -958,6 +1139,7 @@ function useScreenData() {
     const level = String(source.level || source.criticality || "unknown");
     return {
       id: String(source.id || source.barrier_code || `risk_${index + 1}`),
+      entityCode: String(source.barrier_code || source.id || `risk_${index + 1}`),
       zone: formatBarrierType(String(source.barrier_type || "other")),
       risk: title,
       probability: { score: level === "high" ? 3 : 2, label: formatCriticality(level), basis: String(source.description || "") },
@@ -971,6 +1153,7 @@ function useScreenData() {
         review: "регулярно",
       },
       status: formatBarrierStatus(String(source.status || "monitoring")),
+      raw: source,
     };
   });
 
@@ -1001,7 +1184,16 @@ function useScreenData() {
     swot: realSwot,
     riskMap: realRiskMap.length ? realRiskMap : riskMap,
     dataModules: realDataModules,
+    contextBlocks,
   };
+}
+
+function useScreenActions() {
+  const actions = useContext(ScreenActionsContext);
+  if (!actions) {
+    throw new Error("Screen actions are unavailable outside the project effectiveness screen.");
+  }
+  return actions;
 }
 
 function estimateCompleteness(cjm: ProjectEffectiveness["cjm"]) {
@@ -1031,6 +1223,201 @@ function asStringList(value: unknown, fallback: string[]) {
     : fallback;
 }
 
+function splitLines(value: string | null | undefined) {
+  return (value || "")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function humanizeSourceLabel(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase() || "";
+  if (!normalized) {
+    return "Контур проекта";
+  }
+  if (normalized === "web") {
+    return "Веб-платформа";
+  }
+  if (normalized.includes("cjm")) {
+    return "Исторический контекст проекта";
+  }
+  return formatText(value);
+}
+
+function option(value: string, formatter: Formatter): EditOption {
+  return { value, label: formatter(value) };
+}
+
+function pickValues(entity: object, fields: EditField[]): EditValues {
+  const record = entity as Record<string, string | null | undefined>;
+  return fields.reduce<EditValues>((values, field) => {
+    values[field.name] = record[field.name] ?? "";
+    return values;
+  }, {});
+}
+
+function mergeOptions(base: EditOption[], extra: EditOption[]) {
+  const seen = new Set<string>();
+  return [...base, ...extra].filter((option) => {
+    const key = `${option.value}|${option.label}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildRawOptions<T>(
+  items: T[],
+  selector: (item: T) => string | null | undefined,
+  formatter: Formatter = formatText,
+) {
+  const seen = new Set<string>();
+  return items.flatMap((item) => {
+    const value = selector(item)?.trim();
+    if (!value || seen.has(value)) {
+      return [];
+    }
+    seen.add(value);
+    return [{ value, label: formatter(value) }];
+  });
+}
+
+function buildKpiRelationOptions(kpisList: Kpi[]) {
+  return kpisList.map((kpi) => ({
+    value: kpi.kpi_name,
+    label: kpi.kpi_name,
+  }));
+}
+
+function buildImportanceRelationOptions(lprsList: LprProfile[]) {
+  const values = lprsList.flatMap((lpr) => lpr.importance_factors.map((factor) => factor.factor_text));
+  return Array.from(new Set(values.filter(Boolean))).map((value) => ({
+    value,
+    label: value,
+  }));
+}
+
+function criticalityTone(value: string | null | undefined): BadgeTone {
+  const normalized = value?.toLowerCase() ?? "";
+  if (normalized.includes("high") || normalized.includes("высок")) {
+    return "danger";
+  }
+  if (normalized.includes("medium") || normalized.includes("средн")) {
+    return "warn";
+  }
+  if (normalized.includes("low") || normalized.includes("низк")) {
+    return "good";
+  }
+  return "neutral";
+}
+
+function priorityTone(value: string | null | undefined): BadgeTone {
+  return criticalityTone(value);
+}
+
+const projectEditFields: EditField[] = [
+  { name: "short_description", label: "Краткое описание", input: "textarea" },
+  { name: "known_regions", label: "Известные регионы", input: "textarea" },
+  {
+    name: "primary_operational_model",
+    label: "Основная операционная модель",
+    input: "select",
+    options: operationalModelOptions,
+  },
+  {
+    name: "additional_operational_contours",
+    label: "Дополнительные операционные контуры",
+    input: "textarea",
+  },
+  { name: "start_date", label: "Дата старта" },
+  { name: "lifecycle_stage", label: "Этап жизненного цикла", input: "select", options: lifecycleOptions },
+  { name: "project_status", label: "Статус проекта", input: "select", options: projectStatusOptions },
+];
+
+const lprEditFields: EditField[] = [
+  { name: "role_zone", label: "Место в структуре / зона влияния", input: "textarea" },
+  { name: "influence_level", label: "Уровень влияния", input: "select", options: influenceOptions },
+  { name: "activity_status", label: "Статус активности", input: "select", options: activityOptions },
+  { name: "relationship_status", label: "Отношение", input: "select", options: relationshipOptions },
+  { name: "evidence_basis", label: "Основание вывода", input: "textarea" },
+  { name: "manual_comment", label: "Комментарий", input: "textarea" },
+];
+
+function buildGoalEditFields(effectiveness: ProjectEffectiveness): EditField[] {
+  return [
+    { name: "goal_owner", label: "Владелец цели" },
+    { name: "goal_type", label: "Тип цели", input: "select", options: goalTypeOptions },
+    { name: "goal_text", label: "Текст цели", input: "textarea" },
+    { name: "priority", label: "Приоритет", input: "select", options: priorityOptions },
+    {
+      name: "related_kpi_or_criterion_text",
+      label: "Связанные KPI / критерии",
+      input: "multiselect",
+      options: buildKpiRelationOptions(effectiveness.cjm.kpis),
+    },
+    { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+    { name: "comment", label: "Комментарий", input: "textarea" },
+  ];
+}
+
+function buildKpiEditFields(effectiveness: ProjectEffectiveness): EditField[] {
+  return [
+    { name: "kpi_name", label: "Название KPI / критерия", input: "textarea" },
+    {
+      name: "kpi_type",
+      label: "Тип KPI",
+      input: "select",
+      options: mergeOptions(kpiTypeOptions, buildRawOptions(effectiveness.cjm.kpis, (kpi) => kpi.kpi_type, formatKpiType)),
+    },
+    { name: "source_text", label: "Источник", input: "textarea" },
+    { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+    {
+      name: "related_expectation_text",
+      label: "Связанные ожидания",
+      input: "multiselect",
+      options: effectiveness.cjm.expectations.map((item) => ({ value: item.expectation_text, label: item.expectation_text })),
+    },
+    {
+      name: "related_barrier_text",
+      label: "Связанные барьеры",
+      input: "multiselect",
+      options: effectiveness.cjm.barriers.map((item) => ({ value: item.barrier_title, label: item.barrier_title })),
+    },
+    { name: "client_criticality", label: "Критичность для клиента", input: "select", options: criticalityOptions },
+    { name: "requires_confirmation", label: "Требует подтверждения", input: "select", options: confirmationOptions },
+    { name: "comment", label: "Комментарий", input: "textarea" },
+  ];
+}
+
+function buildBarrierEditFields(effectiveness: ProjectEffectiveness): EditField[] {
+  return [
+    { name: "barrier_title", label: "Название барьера", input: "textarea" },
+    { name: "barrier_type", label: "Тип барьера", input: "select", options: barrierTypeOptions },
+    { name: "time_status", label: "Временной статус", input: "select", options: barrierTimeOptions },
+    { name: "description", label: "Описание барьера", input: "textarea" },
+    { name: "criticality", label: "Критичность", input: "select", options: criticalityOptions },
+    {
+      name: "related_importance_text",
+      label: "Связанные важности",
+      input: "multiselect",
+      options: buildImportanceRelationOptions(effectiveness.cjm.lprs),
+    },
+    {
+      name: "linked_kpi_text",
+      label: "Связанные KPI",
+      input: "multiselect",
+      options: buildKpiRelationOptions(effectiveness.cjm.kpis),
+    },
+    { name: "source_text", label: "Источник", input: "textarea" },
+    { name: "evidence_quote", label: "Подтверждение / цитата", input: "textarea" },
+    { name: "status", label: "Статус", input: "select", options: barrierStatusOptions },
+    { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
+    { name: "confidence_level", label: "Уверенность", input: "select", options: confidenceOptions },
+  ];
+}
+
 function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: BadgeTone }) {
   const tones: Record<BadgeTone, string> = {
     neutral: "bg-slate-100 text-slate-700 border-slate-200",
@@ -1051,16 +1438,21 @@ function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: Bad
   );
 }
 
-function SectionTitle({ title, description, action = "Редактировать" }: SectionChromeProps) {
+function SectionTitle({ title, description, action, onAction }: SectionChromeProps) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <h2 className="text-lg font-semibold text-slate-950 sm:text-xl">{title}</h2>
         <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-500">{description}</p>
       </div>
-      <button className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto">
-        {action}
-      </button>
+      {action ? (
+        <button
+          onClick={onAction}
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto"
+        >
+          {action}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1075,6 +1467,7 @@ function Card({ children, className = "" }: { children: ReactNode; className?: s
 
 function Passport() {
   const { project } = useScreenData();
+  const { editProject } = useScreenActions();
   const facts = [
     { label: "Код проекта", value: project.externalId },
     { label: "Направление", value: project.direction },
@@ -1166,7 +1559,10 @@ function Passport() {
           <div className="border-t border-white/10 bg-slate-950 p-4 text-white sm:p-6 xl:border-l xl:border-t-0">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Последнее обновление</div>
             <div className="mt-2 text-lg font-semibold text-white">{project.lastUpdated}</div>
-            <button className="mt-5 w-full rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
+            <button
+              onClick={editProject}
+              className="mt-5 w-full rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100"
+            >
               Редактировать паспорт
             </button>
           </div>
@@ -1255,6 +1651,7 @@ function Passport() {
 
 function Goals() {
   const { projectGoals } = useScreenData();
+  const { editGoal } = useScreenActions();
   const NeedPyramid = ({
     title,
     items,
@@ -1311,9 +1708,6 @@ function Goals() {
                 Здесь хранится управленческая рамка: какой результат нужен клиенту, ЛПР и OPEN.
               </p>
             </div>
-            <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-              Добавить цель
-            </button>
           </div>
         </div>
 
@@ -1342,13 +1736,27 @@ function Goals() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {projectGoals.map((goal) => (
                 <tr key={goal.id} className="align-top hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{goal.id}</td>
+                  <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">
+                    {formatEntityCode((goal as { entityCode?: string }).entityCode || goal.id)}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-4"><Badge tone={contourTone(goal.contour)}>{goal.contour}</Badge></td>
                   <td className="px-4 py-4 font-medium leading-6 text-slate-900">{goal.goal}</td>
                   <td className="whitespace-nowrap px-4 py-4 text-slate-700">{goal.type}</td>
                   <td className="px-4 py-4 leading-6 text-slate-600">{goal.meaning}</td>
                   <td className="px-4 py-4 leading-6 text-slate-600">{goal.evidence}</td>
-                  <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-900">{goal.owner}</td>
+                  <td className="px-4 py-4 font-medium text-slate-900">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>{goal.owner}</span>
+                      {"raw" in goal ? (
+                        <button
+                          onClick={() => editGoal((goal as { raw: Goal }).raw)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Редактировать
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1361,15 +1769,14 @@ function Goals() {
 
 function ProjectMap() {
   const { contacts } = useScreenData();
+  const { editLpr } = useScreenActions();
   const [expandedContact, setExpandedContact] = useState<string | null>("LPR-001");
-  const priorityTone = (priority: string): BadgeTone => (priority === "Высокий" ? "danger" : "warn");
 
   return (
     <div>
       <SectionTitle
         title="Карта влияния и ЛПР"
         description="Раздел фиксирует роли влияния, ожидания ЛПР и правила взаимодействия: кто влияет на решение, что для него важно, кто ведёт контакт со стороны OPEN и на чём основан профиль."
-        action="Добавить контакт"
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -1432,8 +1839,10 @@ function ProjectMap() {
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{contact.id}</div>
-                      <Badge tone={contact.influence === "Высокое" ? "danger" : "warn"}>влияние: {contact.influence}</Badge>
+                      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        {formatEntityCode((contact as { entityCode?: string }).entityCode || contact.id)}
+                      </div>
+                      <Badge tone={criticalityTone(contact.influence)}>влияние: {contact.influence}</Badge>
                       <Badge tone="neutral">{contact.attitude}</Badge>
                     </div>
                     <h3 className="mt-2 text-lg font-semibold text-slate-900">{contact.role}</h3>
@@ -1446,6 +1855,16 @@ function ProjectMap() {
 
                 {isOpen && (
                   <div className="mt-5 space-y-4 border-t border-slate-100 pt-5">
+                    {"raw" in contact ? (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => editLpr((contact as { raw: LprProfile }).raw)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Редактировать ЛПР
+                        </button>
+                      </div>
+                    ) : null}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Роль в решении</div>
@@ -1586,7 +2005,7 @@ function Competitors() {
       />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Block title="Примеры конкурентов OPEN" items={competitorsOpen} tone="violet" />
-        <Block title="Конкуренты клиента в электронике" items={competitorsClient} tone="blue" />
+        <Block title="Конкуренты клиента" items={competitorsClient} tone="blue" />
       </div>
     </div>
   );
@@ -1646,7 +2065,7 @@ function Communications() {
               <tr key={row.join("-")} className="hover:bg-slate-50">
                 {row.map((cell, i) => (
                   <td key={i} className="px-4 py-4 text-slate-700">
-                    {i === 5 ? <Badge tone={cell === "Высокая" ? "danger" : "warn"}>{cell}</Badge> : cell}
+                    {i === 5 ? <Badge tone={criticalityTone(cell)}>{cell}</Badge> : cell}
                   </td>
                 ))}
               </tr>
@@ -1665,7 +2084,6 @@ function InterpretationRules() {
       <SectionTitle
         title="Правила интерпретации проекта"
         description="Методические правила чтения будущих данных по проекту: опросов, 360, ОЭД, KPI, финансов и проектных исключений."
-        action="Добавить правило"
       />
 
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
@@ -1730,9 +2148,9 @@ function InterpretationRules() {
 
 function Kpi() {
   const { kpis } = useScreenData();
+  const { editKpi } = useScreenActions();
   const [selectedKpiId, setSelectedKpiId] = useState("KPI-01");
   const selectedKpi = kpis.find((item) => item.id === selectedKpiId) || kpis[0];
-  const priorityTone = (priority: string): BadgeTone => (priority === "Высокая" ? "danger" : "warn");
 
   const kpiGroups = Array.from(new Set(kpis.map((item) => item.sourceBlock))).map((group) => ({
     group,
@@ -1744,7 +2162,6 @@ function Kpi() {
       <SectionTitle
         title="KPI проекта"
         description="Критерии, по которым проект оценивается клиентом, ЛПР и OPEN: коммерческие цели, качество услуги, полевое исполнение, риски и экономика."
-        action="Добавить KPI"
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1803,7 +2220,9 @@ function Kpi() {
                     onClick={() => setSelectedKpiId(kpi.id)}
                     className={`cursor-pointer align-top hover:bg-slate-50 ${isActive ? "bg-slate-50" : ""}`}
                   >
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{kpi.id}</td>
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">
+                      {formatEntityCode((kpi as { entityCode?: string }).entityCode || kpi.id)}
+                    </td>
                     <td className="px-4 py-4">
                       <div className="font-medium leading-5 text-slate-900">{kpi.name}</div>
                       <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{kpi.purpose}</div>
@@ -1811,8 +2230,8 @@ function Kpi() {
                     <td className="px-4 py-4 text-slate-700">{kpi.sourceBlock}</td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
-                        {kpi.goals.map((goalId) => (
-                          <Badge key={`${kpi.id}-${goalId}`} tone="neutral">{goalId}</Badge>
+                        {kpi.goals.map((goalName) => (
+                          <Badge key={`${kpi.id}-${goalName}`} tone="neutral">{goalName}</Badge>
                         ))}
                       </div>
                     </td>
@@ -1830,7 +2249,9 @@ function Kpi() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="whitespace-nowrap text-sm font-semibold text-slate-900">{selectedKpi.id}</span>
+              <span className="whitespace-nowrap text-sm font-semibold text-slate-900">
+                {formatEntityCode((selectedKpi as { entityCode?: string }).entityCode || selectedKpi.id)}
+              </span>
               <Badge tone="neutral">{selectedKpi.sourceBlock}</Badge>
               <Badge tone={priorityTone(selectedKpi.priority)}>приоритет: {selectedKpi.priority}</Badge>
               <Badge tone="blue">{selectedKpi.type}</Badge>
@@ -1838,7 +2259,10 @@ function Kpi() {
             <h3 className="mt-3 text-lg font-semibold leading-7 text-slate-950">{selectedKpi.name}</h3>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{selectedKpi.purpose}</p>
           </div>
-          <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+          <button
+            onClick={() => "raw" in selectedKpi && editKpi((selectedKpi as { raw: Kpi }).raw)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
             Редактировать KPI
           </button>
         </div>
@@ -1877,6 +2301,7 @@ function Kpi() {
 
 function RiskMap() {
   const { riskMap } = useScreenData();
+  const { editBarrier } = useScreenActions();
   const [expandedRisk, setExpandedRisk] = useState("R-01");
 
   type RiskItem = (typeof riskMap)[number];
@@ -1890,7 +2315,7 @@ function RiskMap() {
   const riskTone = (level: string): BadgeTone => {
     if (level === "Высокий") return "danger";
     if (level === "Средний") return "warn";
-    return "neutral";
+    return "good";
   };
 
   const riskStats = [
@@ -1927,7 +2352,6 @@ function RiskMap() {
       <SectionTitle
         title="Карта рисков"
         description="Рабочий реестр рисков проекта. В MVP риски добавляются вручную проектной командой; автоматические сигналы могут быть только подсказками на проверку."
-        action="Добавить риск"
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -2036,13 +2460,22 @@ function RiskMap() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="whitespace-nowrap text-sm font-semibold text-slate-900">{selectedRisk.id}</span>
+              <span className="whitespace-nowrap text-sm font-semibold text-slate-900">
+                {formatEntityCode((selectedRisk as { entityCode?: string }).entityCode || selectedRisk.id)}
+              </span>
               <Badge tone={riskTone(selectedLevel)}>{riskScore(selectedRisk)} · {selectedLevel}</Badge>
               <Badge tone="neutral">{selectedRisk.zone}</Badge>
             </div>
             <h3 className="mt-3 text-lg font-semibold leading-7 text-slate-950">{selectedRisk.risk}</h3>
           </div>
-          <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+          <button
+            onClick={() => {
+              if ("raw" in selectedRisk && (selectedRisk as { raw?: Barrier }).raw) {
+                editBarrier((selectedRisk as { raw: Barrier }).raw);
+              }
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
             Редактировать риск
           </button>
         </div>
@@ -2104,21 +2537,19 @@ function Barriers() {
       <SectionTitle
         title="Барьеры: было / есть сейчас / будет"
         description="История и прогноз проблем проекта с привязкой к контактам, KPI, коммуникациям и правилам работы."
-        action="Добавить барьер"
       />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {barriers.map((group) => (
           <div key={group.period} className={`min-h-[520px] rounded-3xl border p-4 ${group.color}`}>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold text-slate-900">{group.period}</h3>
-              <button className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm">+ Барьер</button>
             </div>
             <div className="space-y-3">
               {group.items.map((item) => (
                 <div key={item.title} className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="text-sm font-semibold text-slate-900">{item.title}</div>
-                    <Badge tone={item.level === "Высокая" ? "danger" : "warn"}>{item.level}</Badge>
+                    <Badge tone={criticalityTone(item.level)}>{item.level}</Badge>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{item.text}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -2137,6 +2568,7 @@ function Barriers() {
 }
 
 function Summary() {
+  const { editSummary } = useScreenActions();
   const confirmedFacts = [
     { label: "Код проекта", value: project.externalId },
     { label: "Направление", value: project.direction },
@@ -2183,7 +2615,7 @@ function Summary() {
     { section: "Правила интерпретации", status: "Как методика", content: "как читать KPI, опросы, 360, ОЭД и проектные исключения" },
     { section: "Карта влияния и ЛПР", status: "Частично", content: "структура OPEN, структура клиента и обезличенные карточки ЛПР" },
     { section: "Коммуникации", status: "Частично", content: "контакты, темы, частота, канал, критичность" },
-    { section: "Конкуренты", status: "Как пример", content: "конкуренты OPEN и конкуренты клиента в электронике" },
+    { section: "Конкуренты", status: "Как пример", content: "конкуренты OPEN и конкуренты клиента по проектному сегменту" },
     { section: "SWOT", status: "Как гипотеза", content: "сильные стороны, слабые стороны, возможности, угрозы" },
     { section: "Барьеры", status: "Как пример", content: "было / есть сейчас / будет" },
   ];
@@ -2209,6 +2641,7 @@ function Summary() {
         title="Бриф проекта"
         description="Один лист для быстрой передачи проекта: что уже известно, что заполнено частично и какие факты нужно подтвердить перед использованием контекста в аналитике."
         action="Обновить бриф"
+        onAction={editSummary}
       />
 
       <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
@@ -2342,7 +2775,6 @@ function DataModule({ moduleId }: { moduleId: DataModuleId }) {
       <SectionTitle
         title={module.title}
         description={module.description}
-        action="Спланировать данные"
       />
       <div className="mb-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
@@ -2373,6 +2805,24 @@ export default function ProjectEffectivenessScreenMockup() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [active, setActive] = useState("passport");
   const [passportOpen, setPassportOpen] = useState(true);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const loadEffectiveness = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!projectCode) {
+        setLoadError("Код проекта не указан.");
+        setLoading(false);
+        return;
+      }
+
+      const payload = await getProjectEffectiveness(projectCode, signal);
+      setEffectiveness(payload);
+      setLoadError(null);
+    },
+    [projectCode],
+  );
 
   useEffect(() => {
     if (!projectCode) {
@@ -2385,8 +2835,7 @@ export default function ProjectEffectivenessScreenMockup() {
     setLoading(true);
     setLoadError(null);
 
-    getProjectEffectiveness(projectCode, controller.signal)
-      .then((payload) => setEffectiveness(payload))
+    loadEffectiveness(controller.signal)
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
           setLoadError(error instanceof Error ? error.message : "Не удалось загрузить проект.");
@@ -2399,7 +2848,36 @@ export default function ProjectEffectivenessScreenMockup() {
       });
 
     return () => controller.abort();
-  }, [projectCode]);
+  }, [loadEffectiveness, projectCode]);
+
+  async function refreshEffectiveness() {
+    setLoading(true);
+    try {
+      await loadEffectiveness();
+    } catch (error: unknown) {
+      setLoadError(error instanceof Error ? error.message : "Не удалось загрузить проект.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveEdit(payload: EditPayload) {
+    if (!editTarget) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await editTarget.save(payload);
+      setEditTarget(null);
+      await refreshEffectiveness();
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const content = useMemo(() => {
     const map: Record<string, ReactNode> = {
@@ -2428,6 +2906,100 @@ export default function ProjectEffectivenessScreenMockup() {
 
   const hideBigHeaderOnPassport = active === "passport";
   const screenData = effectiveness ? buildHeaderProject(effectiveness) : project;
+  const actions = useMemo(() => {
+    if (!effectiveness || !projectCode) {
+      return null;
+    }
+
+    const summaryBlock =
+      effectiveness.context_blocks.find((block) => block.section_key === "summary")
+      || null;
+
+    return {
+      editProject: () => {
+        setSaveError(null);
+        setEditTarget({
+          title: `Редактирование проекта ${effectiveness.cjm.project.external_project_id || effectiveness.cjm.project.project_code}`,
+          fields: projectEditFields,
+          values: pickValues(effectiveness.cjm.project, projectEditFields),
+          save: (payload) => updateProject(projectCode, payload),
+        });
+      },
+      editGoal: (goal: Goal) => {
+        const fields = buildGoalEditFields(effectiveness);
+        setSaveError(null);
+        setEditTarget({
+          title: goal.goal_text,
+          fields,
+          values: pickValues(goal, fields),
+          save: (payload) => updateGoal(projectCode, goal.goal_code || goal.goal_id || "", payload),
+        });
+      },
+      editLpr: (lpr: LprProfile) => {
+        setSaveError(null);
+        setEditTarget({
+          title: lpr.role_zone || lpr.role,
+          fields: lprEditFields,
+          values: pickValues(lpr, lprEditFields),
+          save: (payload) => updateLpr(projectCode, lpr.lpr_code, payload),
+        });
+      },
+      editKpi: (kpi: Kpi) => {
+        const fields = buildKpiEditFields(effectiveness);
+        setSaveError(null);
+        setEditTarget({
+          title: kpi.kpi_name,
+          fields,
+          values: pickValues(kpi, fields),
+          save: (payload) => updateKpi(projectCode, kpi.kpi_code, payload),
+        });
+      },
+      editBarrier: (barrier: Barrier) => {
+        const fields = buildBarrierEditFields(effectiveness);
+        setSaveError(null);
+        setEditTarget({
+          title: barrier.barrier_title,
+          fields,
+          values: pickValues(barrier, fields),
+          save: (payload) =>
+            updateBarrier(projectCode, barrier.barrier_code || barrier.barrier_id || "", payload),
+        });
+      },
+      editSummary: () => {
+        if (!summaryBlock) {
+          return;
+        }
+
+        const values: EditValues = {
+          title: summaryBlock.title ?? "",
+          critical_to_client: asStringList(summaryBlock.content.critical_to_client, []).join("\n"),
+          main_risks: asStringList(summaryBlock.content.main_risks, []).join("\n"),
+          note: String(summaryBlock.content.note || ""),
+        };
+
+        setSaveError(null);
+        setEditTarget({
+          title: summaryBlock.title || "Бриф проекта",
+          fields: [
+            { name: "title", label: "Заголовок" },
+            { name: "critical_to_client", label: "Что критично клиенту", input: "textarea" },
+            { name: "main_risks", label: "Где основной риск", input: "textarea" },
+            { name: "note", label: "Комментарий", input: "textarea" },
+          ],
+          values,
+          save: (payload) =>
+            updateContextBlock(projectCode, summaryBlock.section_key, summaryBlock.block_code, {
+              title: payload.title,
+              content: {
+                critical_to_client: splitLines(payload.critical_to_client),
+                main_risks: splitLines(payload.main_risks),
+                note: payload.note,
+              },
+            }),
+        });
+      },
+    };
+  }, [effectiveness, projectCode]);
 
   if (loading) {
     return (
@@ -2449,6 +3021,7 @@ export default function ProjectEffectivenessScreenMockup() {
 
   return (
     <EffectivenessContext.Provider value={effectiveness}>
+    <ScreenActionsContext.Provider value={actions}>
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="flex min-h-screen flex-col xl:flex-row">
         <aside className="w-full shrink-0 border-b border-slate-200 bg-white p-4 sm:p-5 xl:w-80 xl:border-b-0 xl:border-r">
@@ -2550,6 +3123,23 @@ export default function ProjectEffectivenessScreenMockup() {
         </main>
       </div>
     </div>
+    {editTarget ? (
+      <EditEntityModal
+        title={editTarget.title}
+        fields={editTarget.fields}
+        values={editTarget.values}
+        saving={saving}
+        error={saveError}
+        onClose={() => {
+          if (!saving) {
+            setEditTarget(null);
+            setSaveError(null);
+          }
+        }}
+        onSave={saveEdit}
+      />
+    ) : null}
+    </ScreenActionsContext.Provider>
     </EffectivenessContext.Provider>
   );
 }

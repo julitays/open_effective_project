@@ -278,6 +278,13 @@ class ProjectContextBlockCreate(SanitizedPatchModel):
     display_order: int = 0
 
 
+class ProjectContextBlockPatch(SanitizedPatchModel):
+    block_type: str | None = None
+    title: str | None = None
+    content: dict[str, object] | None = None
+    display_order: int | None = None
+
+
 class CJMGoalPatch(SanitizedPatchModel):
     goal_owner: str | None = None
     goal_type: str | None = None

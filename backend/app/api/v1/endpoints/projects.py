@@ -30,6 +30,7 @@ from app.schemas.cjm import (
     CJMLPRPatch,
     CJMProjectRead,
     ProjectContextBlockCreate,
+    ProjectContextBlockPatch,
     ProjectContextBlockRead,
     ProjectEffectivenessRead,
 )
@@ -308,6 +309,31 @@ def create_project_context_block(
         service.create_context_block(project_code, payload, _updated_by(request)),
         "Project",
         project_code,
+    )
+
+
+@router.patch(
+    "/{project_code}/context-blocks/{section_key}/{block_code}",
+    response_model=ProjectContextBlockRead,
+)
+def patch_project_context_block(
+    request: Request,
+    project_code: str,
+    section_key: str,
+    block_code: str,
+    patch: ProjectContextBlockPatch,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> ProjectContextBlockRead:
+    return _entity_or_404(
+        service.update_context_block(
+            project_code,
+            section_key,
+            block_code,
+            patch,
+            _updated_by(request),
+        ),
+        "Context block",
+        block_code,
     )
 
 

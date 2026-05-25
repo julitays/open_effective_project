@@ -30,6 +30,7 @@ from app.schemas.cjm import (
     CJMLPRCreate,
     CJMLPRPatch,
     ProjectContextBlockCreate,
+    ProjectContextBlockPatch,
     ProjectContextBlockRead,
 )
 from app.schemas.project import CJMProjectCreate, CJMProjectPassport, CJMProjectPatch
@@ -310,6 +311,26 @@ class CJMUpdateService:
             content=payload.content,
             display_order=payload.display_order,
         )
+        self._mark_manual_update(block, updated_by)
+        self.repository.save(block)
+        return self.read_service._context_block(block)
+
+    def update_context_block(
+        self,
+        project_code: str,
+        section_key: str,
+        block_code: str,
+        patch: ProjectContextBlockPatch,
+        updated_by: str,
+    ) -> ProjectContextBlockRead | None:
+        project = self.repository.get_project(project_code)
+        if project is None:
+            return None
+        block = self.repository.get_context_block(project.id, section_key, block_code)
+        if block is None:
+            return None
+
+        self._apply_patch(block, patch)
         self._mark_manual_update(block, updated_by)
         self.repository.save(block)
         return self.read_service._context_block(block)

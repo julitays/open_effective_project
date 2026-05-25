@@ -321,6 +321,42 @@ def test_patch_project_updates_only_passed_fields(cjm_client: TestClient) -> Non
     assert payload["known_regions"] == "Region A; Region B"
 
 
+def test_patch_context_block_updates_content(cjm_client: TestClient) -> None:
+    create_response = cjm_client.post(
+        "/api/v1/projects/project_001/context-blocks",
+        json={
+            "section_key": "summary",
+            "block_code": "summary_001",
+            "title": "Главные выводы по CJM",
+            "content": {
+                "critical_to_client": ["Скорость реакции"],
+                "main_risks": ["Риск 1"],
+                "note": "Черновик",
+            },
+            "display_order": 10,
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001/context-blocks/summary/summary_001",
+        json={
+            "title": "Обновлённый бриф",
+            "content": {
+                "critical_to_client": ["Скорость реакции"],
+                "main_risks": ["Риск 1"],
+                "note": "Проверено вручную",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["title"] == "Обновлённый бриф"
+    assert payload["content"]["note"] == "Проверено вручную"
+
+
 def test_create_goal_adds_web_first_record(cjm_client: TestClient) -> None:
     response = cjm_client.post(
         "/api/v1/projects/project_001/goals",

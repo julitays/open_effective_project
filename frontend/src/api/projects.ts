@@ -7,6 +7,7 @@ import type {
   Kpi,
   LprProfile,
   ProjectCjm,
+  ProjectContextBlock,
   ProjectEffectiveness,
   ProjectPassport,
 } from "../types/cjm";
@@ -110,6 +111,18 @@ export function createKpi(projectCode: string, payload: CreatePayload) {
 export function createCommunication(projectCode: string, payload: CreatePayload) {
   return apiPost<CommunicationPoint>(
     `/projects/${encodeURIComponent(projectCode)}/communications`,
+    payload,
+  );
+}
+
+export function updateContextBlock(
+  projectCode: string,
+  sectionKey: string,
+  blockCode: string,
+  payload: Record<string, unknown>,
+) {
+  return apiPatch<ProjectContextBlock>(
+    `/projects/${encodeURIComponent(projectCode)}/context-blocks/${encodeURIComponent(sectionKey)}/${encodeURIComponent(blockCode)}`,
     payload,
   );
 }
