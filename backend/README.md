@@ -1,9 +1,9 @@
 # OPEN Project Risk backend
 
 This directory contains the backend scaffold for the MVP of **OPEN Project Risk**,
-an internal AI-analyst workflow for early project-risk detection from anonymized
-CJM data, client surveys, decision-maker comments, barriers, expectations, KPI
-tracking, and action plans.
+an internal workflow for early project-risk detection from anonymized CJM data,
+decision-maker context, barriers, expectations, KPI tracking, communications,
+and project effectiveness context.
 
 The first step is intentionally narrow: FastAPI, PostgreSQL-ready SQLAlchemy
 models, Alembic migrations, Pydantic schemas, and a health endpoint. The MVP
@@ -17,9 +17,8 @@ history, and data sent to external services. Use `project_code` values such as
 `project_001` and `lpr_code` values such as `lpr_001`; do not place real project
 names, client names, decision-maker names, or personal data in source files.
 
-`survey_answers.original_comment_text` stores the original comment available to
-the MVP storage boundary. That comment is expected to be anonymized before it is
-loaded.
+Supabase is the source of truth for MVP project data. New project records should
+be created through the web/API flow, not through workbook imports.
 
 ## Local setup in Windows PowerShell
 
@@ -85,64 +84,12 @@ status service
 ok     open-project-risk-api
 ```
 
-## CJM MVP manual import
+## CJM web-first API
 
-The manual intake layer generates a Russian structured CJM workbook, validates a
-filled copy, writes JSON reports, and loads valid CJM MVP data only when commit
-mode is requested. It does not import survey-history, AI-summary, or ID-directory
-sheets from the CJM file. Filled import files and reports stay local under
-`data`.
+The MVP no longer uses Excel as an intake path. Supabase is the source of truth:
+the web/API layer creates, edits, and archives CJM records.
 
-Create the template:
-
-```powershell
-Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
-.\.venv\Scripts\Activate.ps1
-python .\scripts\generate_cjm_mvp_template.py
-```
-
-Put a filled anonymized file here:
-
-```text
-.\data\imports\cjm_project_001.xlsx
-```
-
-Validate and inspect the dry-run report:
-
-```powershell
-Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
-.\.venv\Scripts\Activate.ps1
-python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --dry-run
-```
-
-Commit the same file after dry-run has no critical errors:
-
-```powershell
-Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
-.\.venv\Scripts\Activate.ps1
-python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit
-```
-
-After a CJM record is edited manually in the web interface, Supabase becomes the
-source of truth for that record. A normal Excel commit skips manually edited
-records and writes a `manual_update_protection` warning to the import report.
-Use `--force` only when the Excel file must deliberately overwrite manual
-changes:
-
-```powershell
-Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
-.\.venv\Scripts\Activate.ps1
-python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit --force
-```
-
-The same flow works for the second anonymized CJM workbook:
-
-```powershell
-python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\CJM_project_002_MVP_v2.xlsx --dry-run
-python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\CJM_project_002_MVP_v2.xlsx --commit
-```
-
-Read back the imported CJM project:
+Read back a CJM project:
 
 ```powershell
 Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
@@ -150,7 +97,7 @@ Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
 python .\scripts\check_cjm_project.py --project project_001
 ```
 
-## CJM read-only API
+## CJM read/write API
 
 Start the backend:
 
@@ -178,6 +125,32 @@ Check the full CJM object:
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/projects/project_001/cjm
 ```
 
+Check the extended project-effectiveness context:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/projects/project_001/effectiveness
+```
+
+Create a goal:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -ContentType "application/json" `
+  -Uri "http://127.0.0.1:8000/api/v1/projects/project_001/goals" `
+  -Body '{"goal_text":"Новая цель проекта","goal_type":"service","priority":"high"}'
+```
+
+Archive a goal:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -ContentType "application/json" `
+  -Uri "http://127.0.0.1:8000/api/v1/projects/project_001/goals/goal_001/archive" `
+  -Body '{"archive_reason":"Больше не актуально"}'
+```
+
 Open Swagger:
 
 ```text
@@ -187,5 +160,3 @@ http://127.0.0.1:8000/docs
 Reference docs:
 
 - `docs/cjm_mvp_data_dictionary.md`
-- `docs/cjm_excel_template_spec.md`
-- `docs/cjm_import_process.md`

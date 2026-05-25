@@ -246,6 +246,21 @@ def test_composite_cjm_endpoint_contains_frontend_sections(cjm_client: TestClien
     }
 
 
+def test_effectiveness_endpoint_contains_extended_context(cjm_client: TestClient) -> None:
+    response = cjm_client.get("/api/v1/projects/project_001/effectiveness")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"cjm", "context_blocks"}
+    assert payload["cjm"]["project"]["project_code"] == "project_001"
+    assert {block["section_key"] for block in payload["context_blocks"]} >= {
+        "summary",
+        "swot",
+        "risk_map",
+        "effectiveness_layers",
+    }
+
+
 def test_lpr_read_does_not_duplicate_external_aliases(cjm_client: TestClient) -> None:
     response = cjm_client.get("/api/v1/projects/project_001/lprs")
 
@@ -304,6 +319,53 @@ def test_patch_project_updates_only_passed_fields(cjm_client: TestClient) -> Non
     payload = response.json()
     assert payload["short_description"] == "Updated summary"
     assert payload["known_regions"] == "Region A; Region B"
+
+
+def test_create_goal_adds_web_first_record(cjm_client: TestClient) -> None:
+    response = cjm_client.post(
+        "/api/v1/projects/project_001/goals",
+        json={
+            "goal_text": "New web goal",
+            "goal_type": "service",
+            "priority": "Высокий",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["goal_code"] == "goal_002"
+    assert payload["goal_text"] == "New web goal"
+    assert payload["priority"] == "high"
+
+
+def test_archive_barrier_hides_it_from_read_api(cjm_client: TestClient) -> None:
+    archive = cjm_client.post(
+        "/api/v1/projects/project_001/barriers/barrier_001/archive",
+        json={"archive_reason": "No longer relevant"},
+    )
+    assert archive.status_code == 200
+
+    response = cjm_client.get("/api/v1/projects/project_001/barriers")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_create_project_generates_code(cjm_client: TestClient) -> None:
+    response = cjm_client.post(
+        "/api/v1/projects",
+        json={
+            "external_project_id": "external_project_002",
+            "direction": "Электроника",
+            "project_scale": "Федеральный",
+            "project_status": "Активный",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["project_code"] == "project_002"
+    assert payload["direction"] == "electronics"
+    assert payload["project_scale"] == "federal"
 
 
 def test_patch_goal_works(cjm_client: TestClient) -> None:

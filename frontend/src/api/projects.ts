@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from "./client";
+import { apiGet, apiPatch, apiPost } from "./client";
 import type {
   Barrier,
   CommunicationPoint,
@@ -7,6 +7,7 @@ import type {
   Kpi,
   LprProfile,
   ProjectCjm,
+  ProjectEffectiveness,
   ProjectPassport,
 } from "../types/cjm";
 
@@ -18,7 +19,15 @@ export function getProjectCjm(projectCode: string, signal?: AbortSignal) {
   return apiGet<ProjectCjm>(`/projects/${encodeURIComponent(projectCode)}/cjm`, signal);
 }
 
+export function getProjectEffectiveness(projectCode: string, signal?: AbortSignal) {
+  return apiGet<ProjectEffectiveness>(
+    `/projects/${encodeURIComponent(projectCode)}/effectiveness`,
+    signal,
+  );
+}
+
 export type PatchPayload = Record<string, string | null>;
+export type CreatePayload = Record<string, string | null | Record<string, unknown>>;
 
 export function updateProject(projectCode: string, payload: PatchPayload) {
   return apiPatch<ProjectPassport>(`/projects/${encodeURIComponent(projectCode)}`, payload);
@@ -71,5 +80,48 @@ export function updateCommunication(
   return apiPatch<CommunicationPoint>(
     `/projects/${encodeURIComponent(projectCode)}/communications/${encodeURIComponent(communicationCode)}`,
     payload,
+  );
+}
+
+export function createProject(payload: CreatePayload) {
+  return apiPost<ProjectPassport>("/projects", payload);
+}
+
+export function createGoal(projectCode: string, payload: CreatePayload) {
+  return apiPost<Goal>(`/projects/${encodeURIComponent(projectCode)}/goals`, payload);
+}
+
+export function createLpr(projectCode: string, payload: CreatePayload) {
+  return apiPost<LprProfile>(`/projects/${encodeURIComponent(projectCode)}/lprs`, payload);
+}
+
+export function createBarrier(projectCode: string, payload: CreatePayload) {
+  return apiPost<Barrier>(`/projects/${encodeURIComponent(projectCode)}/barriers`, payload);
+}
+
+export function createExpectation(projectCode: string, payload: CreatePayload) {
+  return apiPost<Expectation>(`/projects/${encodeURIComponent(projectCode)}/expectations`, payload);
+}
+
+export function createKpi(projectCode: string, payload: CreatePayload) {
+  return apiPost<Kpi>(`/projects/${encodeURIComponent(projectCode)}/kpis`, payload);
+}
+
+export function createCommunication(projectCode: string, payload: CreatePayload) {
+  return apiPost<CommunicationPoint>(
+    `/projects/${encodeURIComponent(projectCode)}/communications`,
+    payload,
+  );
+}
+
+export function archiveEntity(
+  projectCode: string,
+  entity: "goals" | "lprs" | "barriers" | "expectations" | "kpis" | "communications",
+  code: string,
+  archiveReason?: string | null,
+) {
+  return apiPost<unknown>(
+    `/projects/${encodeURIComponent(projectCode)}/${entity}/${encodeURIComponent(code)}/archive`,
+    { archive_reason: archiveReason ?? null },
   );
 }

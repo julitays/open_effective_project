@@ -116,10 +116,11 @@ Log out:
 Invoke-WebRequest -UseBasicParsing -Method Post http://127.0.0.1:8000/logout
 ```
 
-## CJM editing MVP
+## CJM web-first workspace
 
-The demo MVP supports editing existing CJM records from the project page.
-Changes are saved through PATCH API endpoints and persisted in Supabase.
+The demo MVP now treats Supabase as the source of truth. CJM records are created,
+edited, and archived through the web/API flow; Excel import is no longer part of
+the product workflow.
 
 Supported sections:
 
@@ -131,8 +132,15 @@ Supported sections:
 - KPI and success criteria;
 - communication points.
 
-Creation, deletion, bulk editing, Excel import through UI, action plans, survey
-history, insights, and AI workflows are not implemented in this step.
+Supported API actions:
+
+- `POST` creates new project/CJM records;
+- `PATCH` updates only passed fields;
+- `POST .../archive` hides a record from the workspace without deleting audit
+  history.
+
+Bulk editing, Excel import, action plans, survey-history ingestion, insights,
+and AI workflows are not active in the MVP workspace.
 
 Run locally and open a project:
 
@@ -150,16 +158,10 @@ http://127.0.0.1:5173/projects/project_001
 With demo-auth enabled, PATCH endpoints require a valid session cookie. Without
 a session, protected API updates return `401`.
 
-Manual edits are protected during later Excel imports. Once a CJM record is
-changed in the web interface, Supabase is treated as the source of truth for
-that record. A normal commit import skips it and records a
-`manual_update_protection` warning. To deliberately overwrite manual changes
-from Excel, run:
+The extended context screen is available at:
 
-```powershell
-Set-Location "d:\OPEN Project Risk\open-project-risk\backend"
-.\.venv\Scripts\Activate.ps1
-python .\scripts\import_cjm_mvp_excel.py --file .\data\imports\cjm_project_001.xlsx --commit --force
+```text
+http://127.0.0.1:5173/projects/project_001/context-mockup
 ```
 
 ## Yandex Serverless deploy

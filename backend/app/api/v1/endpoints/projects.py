@@ -9,21 +9,31 @@ from app.core.demo_auth import get_session_username
 from app.repositories.cjm_read import CJMReadRepository
 from app.repositories.cjm_update import CJMUpdateRepository
 from app.schemas.cjm import (
+    ArchiveRequest,
     CJMBarrier,
+    CJMBarrierCreate,
     CJMBarrierPatch,
     CJMCommunicationPoint,
+    CJMCommunicationPointCreate,
     CJMCommunicationPointPatch,
     CJMExpectation,
+    CJMExpectationCreate,
     CJMExpectationPatch,
     CJMGoal,
+    CJMGoalCreate,
     CJMGoalPatch,
     CJMKPI,
+    CJMKPICreate,
     CJMKPIPatch,
     CJMLPR,
+    CJMLPRCreate,
     CJMLPRPatch,
     CJMProjectRead,
+    ProjectContextBlockCreate,
+    ProjectContextBlockRead,
+    ProjectEffectivenessRead,
 )
-from app.schemas.project import CJMProjectPassport, CJMProjectPatch
+from app.schemas.project import CJMProjectCreate, CJMProjectPassport, CJMProjectPatch
 from app.services.cjm_read import CJMReadService
 from app.services.cjm_update import CJMPatchValueError, CJMUpdateService
 
@@ -78,6 +88,18 @@ def list_projects(
     return service.list_projects()
 
 
+@router.post("", response_model=CJMProjectPassport, status_code=status.HTTP_201_CREATED)
+def create_project(
+    request: Request,
+    payload: CJMProjectCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMProjectPassport:
+    try:
+        return service.create_project(payload, _updated_by(request))
+    except CJMPatchValueError as error:
+        raise _patch_value_error(error) from error
+
+
 @router.get("/{project_code}", response_model=CJMProjectPassport)
 def get_project(
     project_code: str,
@@ -102,12 +124,33 @@ def patch_project(
         raise _patch_value_error(error) from error
 
 
+@router.post("/{project_code}/archive", response_model=CJMProjectPassport)
+def archive_project(
+    request: Request,
+    project_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMProjectPassport:
+    return _project_or_404(
+        project_code,
+        lambda code: service.archive_project(code, _updated_by(request), payload.archive_reason),
+    )
+
+
 @router.get("/{project_code}/cjm", response_model=CJMProjectRead)
 def get_project_cjm(
     project_code: str,
     service: Annotated[CJMReadService, Depends(get_cjm_read_service)],
 ) -> CJMProjectRead:
     return _project_or_404(project_code, service.get_project_cjm)
+
+
+@router.get("/{project_code}/effectiveness", response_model=ProjectEffectivenessRead)
+def get_project_effectiveness(
+    project_code: str,
+    service: Annotated[CJMReadService, Depends(get_cjm_read_service)],
+) -> ProjectEffectivenessRead:
+    return _project_or_404(project_code, service.get_project_effectiveness)
 
 
 @router.get("/{project_code}/lprs", response_model=list[CJMLPR])
@@ -158,6 +201,116 @@ def get_project_goals(
     return _project_or_404(project_code, service.get_project_goals)
 
 
+@router.post("/{project_code}/goals", response_model=CJMGoal, status_code=status.HTTP_201_CREATED)
+def create_project_goal(
+    request: Request,
+    project_code: str,
+    payload: CJMGoalCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMGoal:
+    return _entity_or_404(
+        service.create_goal(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
+@router.post("/{project_code}/lprs", response_model=CJMLPR, status_code=status.HTTP_201_CREATED)
+def create_project_lpr(
+    request: Request,
+    project_code: str,
+    payload: CJMLPRCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMLPR:
+    return _entity_or_404(
+        service.create_lpr(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
+@router.post("/{project_code}/barriers", response_model=CJMBarrier, status_code=status.HTTP_201_CREATED)
+def create_project_barrier(
+    request: Request,
+    project_code: str,
+    payload: CJMBarrierCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMBarrier:
+    return _entity_or_404(
+        service.create_barrier(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
+@router.post(
+    "/{project_code}/expectations",
+    response_model=CJMExpectation,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_project_expectation(
+    request: Request,
+    project_code: str,
+    payload: CJMExpectationCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMExpectation:
+    return _entity_or_404(
+        service.create_expectation(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
+@router.post("/{project_code}/kpis", response_model=CJMKPI, status_code=status.HTTP_201_CREATED)
+def create_project_kpi(
+    request: Request,
+    project_code: str,
+    payload: CJMKPICreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMKPI:
+    return _entity_or_404(
+        service.create_kpi(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
+@router.post(
+    "/{project_code}/communications",
+    response_model=CJMCommunicationPoint,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_project_communication(
+    request: Request,
+    project_code: str,
+    payload: CJMCommunicationPointCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMCommunicationPoint:
+    return _entity_or_404(
+        service.create_communication(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
+@router.post(
+    "/{project_code}/context-blocks",
+    response_model=ProjectContextBlockRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_project_context_block(
+    request: Request,
+    project_code: str,
+    payload: ProjectContextBlockCreate,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> ProjectContextBlockRead:
+    return _entity_or_404(
+        service.create_context_block(project_code, payload, _updated_by(request)),
+        "Project",
+        project_code,
+    )
+
+
 @router.patch("/{project_code}/goals/{goal_code}", response_model=CJMGoal)
 def patch_project_goal(
     request: Request,
@@ -174,6 +327,21 @@ def patch_project_goal(
         )
     except CJMPatchValueError as error:
         raise _patch_value_error(error) from error
+
+
+@router.post("/{project_code}/goals/{goal_code}/archive", response_model=CJMGoal)
+def archive_project_goal(
+    request: Request,
+    project_code: str,
+    goal_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMGoal:
+    return _entity_or_404(
+        service.archive_goal(project_code, goal_code, _updated_by(request), payload.archive_reason),
+        "Goal",
+        goal_code,
+    )
 
 
 @router.patch("/{project_code}/lprs/{lpr_code}", response_model=CJMLPR)
@@ -194,6 +362,21 @@ def patch_project_lpr(
         raise _patch_value_error(error) from error
 
 
+@router.post("/{project_code}/lprs/{lpr_code}/archive", response_model=CJMLPR)
+def archive_project_lpr(
+    request: Request,
+    project_code: str,
+    lpr_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMLPR:
+    return _entity_or_404(
+        service.archive_lpr(project_code, lpr_code, _updated_by(request), payload.archive_reason),
+        "LPR",
+        lpr_code,
+    )
+
+
 @router.patch("/{project_code}/barriers/{barrier_code}", response_model=CJMBarrier)
 def patch_project_barrier(
     request: Request,
@@ -210,6 +393,26 @@ def patch_project_barrier(
         )
     except CJMPatchValueError as error:
         raise _patch_value_error(error) from error
+
+
+@router.post("/{project_code}/barriers/{barrier_code}/archive", response_model=CJMBarrier)
+def archive_project_barrier(
+    request: Request,
+    project_code: str,
+    barrier_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMBarrier:
+    return _entity_or_404(
+        service.archive_barrier(
+            project_code,
+            barrier_code,
+            _updated_by(request),
+            payload.archive_reason,
+        ),
+        "Barrier",
+        barrier_code,
+    )
 
 
 @router.patch("/{project_code}/expectations/{expectation_code}", response_model=CJMExpectation)
@@ -235,6 +438,29 @@ def patch_project_expectation(
         raise _patch_value_error(error) from error
 
 
+@router.post(
+    "/{project_code}/expectations/{expectation_code}/archive",
+    response_model=CJMExpectation,
+)
+def archive_project_expectation(
+    request: Request,
+    project_code: str,
+    expectation_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMExpectation:
+    return _entity_or_404(
+        service.archive_expectation(
+            project_code,
+            expectation_code,
+            _updated_by(request),
+            payload.archive_reason,
+        ),
+        "Expectation",
+        expectation_code,
+    )
+
+
 @router.patch("/{project_code}/kpis/{kpi_code}", response_model=CJMKPI)
 def patch_project_kpi(
     request: Request,
@@ -251,6 +477,21 @@ def patch_project_kpi(
         )
     except CJMPatchValueError as error:
         raise _patch_value_error(error) from error
+
+
+@router.post("/{project_code}/kpis/{kpi_code}/archive", response_model=CJMKPI)
+def archive_project_kpi(
+    request: Request,
+    project_code: str,
+    kpi_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMKPI:
+    return _entity_or_404(
+        service.archive_kpi(project_code, kpi_code, _updated_by(request), payload.archive_reason),
+        "KPI",
+        kpi_code,
+    )
 
 
 @router.patch(
@@ -277,3 +518,26 @@ def patch_project_communication(
         )
     except CJMPatchValueError as error:
         raise _patch_value_error(error) from error
+
+
+@router.post(
+    "/{project_code}/communications/{communication_code}/archive",
+    response_model=CJMCommunicationPoint,
+)
+def archive_project_communication(
+    request: Request,
+    project_code: str,
+    communication_code: str,
+    payload: ArchiveRequest,
+    service: Annotated[CJMUpdateService, Depends(get_cjm_update_service)],
+) -> CJMCommunicationPoint:
+    return _entity_or_404(
+        service.archive_communication(
+            project_code,
+            communication_code,
+            _updated_by(request),
+            payload.archive_reason,
+        ),
+        "Communication",
+        communication_code,
+    )

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String, Uuid, func
+from sqlalchemy import DateTime, String, Text, Uuid, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -30,3 +30,6 @@ class TimestampMixin:
         nullable=False,
     )
     updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    archive_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

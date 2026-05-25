@@ -57,11 +57,6 @@ class ProjectStatus(MVPCodeEnum):
     UNKNOWN = "unknown"
 
 
-class SurveyType(MVPCodeEnum):
-    BLITZ = "blitz"
-    OPERATIONAL = "operational"
-
-
 class ImportanceFactorType(MVPCodeEnum):
     RESPONSE_SPEED = "response_speed"
     EXECUTION_QUALITY = "execution_quality"
@@ -157,44 +152,4 @@ class CommunicationFrequency(MVPCodeEnum):
     MONTHLY = "monthly"
     QUARTERLY = "quarterly"
     RARELY = "rarely"
-    UNKNOWN = "unknown"
-
-
-class ActionType(MVPCodeEnum):
-    ELIMINATION = "elimination"
-    CONTAINMENT = "containment"
-    PREVENTION = "prevention"
-    ESCALATION = "escalation"
-    COMMUNICATION_ACTION = "communication_action"
-    TRAINING = "training"
-    CONTROL = "control"
-    PROCESS_CHANGE = "process_change"
-    KPI_REVIEW = "kpi_review"
-    OTHER = "other"
-
-
-class ActionStatus(MVPCodeEnum):
-    TODO = "todo"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
-    UNKNOWN = "unknown"
-
-
-class PlanConfirmationStatus(MVPCodeEnum):
-    CONFIRMED_PLAN = "confirmed_plan"
-    DRAFT = "draft"
-    AI_HYPOTHESIS = "ai_hypothesis"
-    REQUIRES_APPROVAL = "requires_approval"
-
-
-class AnalysisSource(MVPCodeEnum):
-    MANUAL = "manual"
-    AI = "ai"
-
-
-class Sentiment(MVPCodeEnum):
-    POSITIVE = "positive"
-    NEUTRAL = "neutral"
-    NEGATIVE = "negative"
-    MIXED = "mixed"
     UNKNOWN = "unknown"

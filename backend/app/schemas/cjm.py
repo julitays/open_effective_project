@@ -167,6 +167,117 @@ class CJMProjectRead(BaseModel):
     communications: list[CJMCommunicationPoint]
 
 
+class ProjectContextBlockRead(BaseModel):
+    section_key: str
+    block_code: str
+    block_type: str | None
+    title: str | None
+    content: dict[str, object]
+    display_order: int
+
+
+class ProjectEffectivenessRead(BaseModel):
+    cjm: CJMProjectRead
+    context_blocks: list[ProjectContextBlockRead]
+
+
+class ArchiveRequest(SanitizedPatchModel):
+    archive_reason: str | None = None
+
+
+class CJMGoalCreate(SanitizedPatchModel):
+    goal_code: str | None = None
+    goal_owner: str | None = None
+    goal_type: str | None = None
+    goal_text: str
+    priority: str | None = None
+    related_kpi_or_criterion_text: str | None = None
+    source_text: str | None = "web"
+    relevance_status: str | None = "actual"
+    comment: str | None = None
+
+
+class CJMLPRCreate(SanitizedPatchModel):
+    lpr_code: str | None = None
+    external_lpr_id: str | None = None
+    role_zone: str
+    influence_level: str | None = "unknown"
+    activity_status: str | None = "active"
+    relationship_status: str | None = "unknown"
+    evidence_basis: str | None = None
+    manual_comment: str | None = None
+
+
+class CJMBarrierCreate(SanitizedPatchModel):
+    barrier_code: str | None = None
+    barrier_title: str
+    barrier_type: str = "other"
+    time_status: str = "current"
+    description: str | None = None
+    criticality: str = "unknown"
+    related_lpr_code: str | None = None
+    external_lpr_id: str | None = None
+    related_importance_text: str | None = None
+    linked_kpi_text: str | None = None
+    source_text: str | None = "web"
+    evidence_quote: str | None = None
+    status: str = "open"
+    relevance_status: str | None = "actual"
+    confidence_level: str | None = "unknown"
+
+
+class CJMExpectationCreate(SanitizedPatchModel):
+    expectation_code: str | None = None
+    expectation_text: str
+    expectation_type: str = "other"
+    explicitness: str = "unknown"
+    criticality: str = "unknown"
+    related_lpr_code: str | None = None
+    external_lpr_id: str | None = None
+    related_importance_text: str | None = None
+    linked_kpi_text: str | None = None
+    source_text: str | None = "web"
+    evidence_quote: str | None = None
+    relevance_status: str | None = "actual"
+    confidence_level: str | None = "unknown"
+
+
+class CJMKPICreate(SanitizedPatchModel):
+    kpi_code: str | None = None
+    kpi_name: str
+    kpi_type: str | None = None
+    source_text: str | None = "web"
+    relevance_status: str | None = "actual"
+    related_expectation_text: str | None = None
+    related_barrier_text: str | None = None
+    client_criticality: str | None = "unknown"
+    requires_confirmation: str | None = "unknown"
+    comment: str | None = None
+
+
+class CJMCommunicationPointCreate(SanitizedPatchModel):
+    communication_code: str | None = None
+    client_side: str | None = None
+    external_lpr_id: str | None = None
+    open_side_role: str | None = None
+    topic_text: str | None = None
+    channel_text: str | None = None
+    frequency: str | None = None
+    criticality: str | None = "unknown"
+    source_text: str | None = "web"
+    relevance_status: str | None = "actual"
+    comment: str | None = None
+
+
+class ProjectContextBlockCreate(SanitizedPatchModel):
+    section_key: str
+    block_code: str | None = None
+    block_type: str | None = None
+    title: str | None = None
+    content: dict[str, object]
+    display_order: int = 0
+
+
 class CJMGoalPatch(SanitizedPatchModel):
     goal_owner: str | None = None
     goal_type: str | None = None

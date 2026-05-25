@@ -16,7 +16,6 @@ dependencies = [
     "pydantic-settings",
     "pytest",
     "httpx",
-    "openpyxl",
 ]
 
 [tool.setuptools.packages.find]

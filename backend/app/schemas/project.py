@@ -102,3 +102,18 @@ class CJMProjectPatch(SanitizedPatchModel):
     lifecycle_stage: str | None = None
     project_status: str | None = None
     start_date: str | None = None
+
+
+class CJMProjectCreate(SanitizedPatchModel):
+    project_code: str | None = Field(default=None, pattern=r"^project_[A-Za-z0-9_-]+$")
+    external_project_id: str | None = None
+    working_project_code: str | None = None
+    direction: str | None = None
+    project_scale: str | None = None
+    known_regions: str | None = None
+    primary_operational_model: str | None = None
+    additional_operational_contours: str | None = None
+    lifecycle_stage: str | None = None
+    project_status: str = "active"
+    start_date: str | None = None
+    short_description: str | None = None

@@ -142,3 +142,17 @@ export interface ProjectCjm {
   kpis: Kpi[];
   communications: CommunicationPoint[];
 }
+
+export interface ProjectContextBlock {
+  section_key: string;
+  block_code: string;
+  block_type: string | null;
+  title: string | null;
+  content: Record<string, unknown>;
+  display_order: number;
+}
+
+export interface ProjectEffectiveness {
+  cjm: ProjectCjm;
+  context_blocks: ProjectContextBlock[];
+}

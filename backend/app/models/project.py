@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -53,11 +53,6 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="project",
         cascade="all, delete-orphan",
     )
-    survey_batches: Mapped[list["SurveyBatch"]] = relationship(
-        "SurveyBatch",
-        back_populates="project",
-        cascade="all, delete-orphan",
-    )
     goals: Mapped[list["ProjectGoal"]] = relationship(
         "ProjectGoal",
         back_populates="project",
@@ -78,23 +73,13 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="project",
         cascade="all, delete-orphan",
     )
-    mitigation_plans: Mapped[list["BarrierMitigationPlan"]] = relationship(
-        "BarrierMitigationPlan",
-        back_populates="project",
-        cascade="all, delete-orphan",
-    )
     communication_points: Mapped[list["CommunicationPoint"]] = relationship(
         "CommunicationPoint",
         back_populates="project",
         cascade="all, delete-orphan",
     )
-    ai_findings: Mapped[list["AIProjectFinding"]] = relationship(
-        "AIProjectFinding",
-        back_populates="project",
-        cascade="all, delete-orphan",
-    )
-    ai_recommendations: Mapped[list["AIRecommendation"]] = relationship(
-        "AIRecommendation",
+    context_blocks: Mapped[list["ProjectContextBlock"]] = relationship(
+        "ProjectContextBlock",
         back_populates="project",
         cascade="all, delete-orphan",
     )
@@ -115,7 +100,7 @@ class ProjectGoal(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         String(128),
         index=True,
         nullable=True,
-        comment="Stable manual CJM Goal ID from Excel.",
+        comment="Stable web-facing CJM Goal code.",
     )
     goal_owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
     goal_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -180,7 +165,7 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         String(128),
         index=True,
         nullable=True,
-        comment="Stable manual CJM Expectation ID from Excel.",
+        comment="Stable web-facing CJM Expectation code.",
     )
     expectation_text: Mapped[str] = mapped_column(Text, nullable=False)
     expectation_type: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -201,3 +186,29 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     confidence_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     project: Mapped[Project] = relationship("Project", back_populates="expectations")
+
+
+class ProjectContextBlock(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "project_context_blocks"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "section_key",
+            "block_code",
+            name="uq_project_context_blocks_project_section_code",
+        ),
+    )
+
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    section_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    block_code: Mapped[str] = mapped_column(String(128), nullable=False)
+    block_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    display_order: Mapped[int] = mapped_column(default=0, nullable=False)
+
+    project: Mapped[Project] = relationship("Project", back_populates="context_blocks")

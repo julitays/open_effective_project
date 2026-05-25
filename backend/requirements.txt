@@ -6,4 +6,3 @@ psycopg[binary]
 pydantic-settings
 pytest
 httpx
-openpyxl

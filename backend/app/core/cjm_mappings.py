@@ -6,8 +6,6 @@ from collections.abc import Mapping
 from enum import StrEnum
 
 from app.core.enums import (
-    ActionStatus,
-    ActionType,
     BarrierStatus,
     BarrierTimeStatus,
     BarrierType,
@@ -20,11 +18,8 @@ from app.core.enums import (
     ImportanceFactorType,
     LifecycleStage,
     OperationalModel,
-    PlanConfirmationStatus,
     ProjectScale,
     ProjectStatus,
-    Sentiment,
-    SurveyType,
 )
 
 
@@ -126,16 +121,6 @@ PROJECT_STATUS_ALIASES = _aliases(
         "Под риском": "at_risk",
         "Требует подтверждения": "unknown",
         "Неизвестно": "unknown",
-    },
-)
-SURVEY_TYPE_ALIASES = _aliases(
-    SurveyType,
-    {
-        "Блиц": "blitz",
-        "Блиц-опрос": "blitz",
-        "Блиц опрос": "blitz",
-        "Операционный": "operational",
-        "Операционный опрос": "operational",
     },
 )
 IMPORTANCE_FACTOR_TYPE_ALIASES = _aliases(
@@ -267,54 +252,6 @@ COMMUNICATION_FREQUENCY_ALIASES = _aliases(
         "Неизвестно": "unknown",
     },
 )
-ACTION_TYPE_ALIASES = _aliases(
-    ActionType,
-    {
-        "Устранение": "elimination",
-        "Сдерживание": "containment",
-        "Профилактика": "prevention",
-        "Эскалация": "escalation",
-        "Коммуникационное действие": "communication_action",
-        "Обучение": "training",
-        "Контроль": "control",
-        "Изменение процесса": "process_change",
-        "Пересмотр KPI": "kpi_review",
-        "Другое": "other",
-    },
-)
-ACTION_STATUS_ALIASES = _aliases(
-    ActionStatus,
-    {
-        "Сделать": "todo",
-        "В работе": "in_progress",
-        "Сделано": "done",
-        "Неизвестно": "unknown",
-    },
-)
-PLAN_CONFIRMATION_STATUS_ALIASES = _aliases(
-    PlanConfirmationStatus,
-    {
-        "Подтвержденный план": "confirmed_plan",
-        "Черновик": "draft",
-        "AI-гипотеза": "ai_hypothesis",
-        "AI гипотеза": "ai_hypothesis",
-        "Требует согласования": "requires_approval",
-    },
-)
-SENTIMENT_ALIASES = _aliases(
-    Sentiment,
-    {
-        "Позитивная": "positive",
-        "Положительная": "positive",
-        "Нейтральная": "neutral",
-        "Негативная": "negative",
-        "Отрицательная": "negative",
-        "Смешанная": "mixed",
-        "Неизвестно": "unknown",
-    },
-)
-
-
 def map_direction(value: object) -> str | None:
     return map_code(value, Direction, DIRECTION_ALIASES)
 
@@ -333,10 +270,6 @@ def map_lifecycle_stage(value: object) -> str | None:
 
 def map_project_status(value: object) -> str | None:
     return map_code(value, ProjectStatus, PROJECT_STATUS_ALIASES)
-
-
-def map_survey_type(value: object) -> str | None:
-    return map_code(value, SurveyType, SURVEY_TYPE_ALIASES)
 
 
 def map_importance_factor_type(value: object) -> str | None:
@@ -392,18 +325,3 @@ def map_communication_frequency(value: object) -> str | None:
     known = [part for part in parts if part is not None]
     return known[0] if known else "unknown" if normalize_label(value) else None
 
-
-def map_action_type(value: object) -> str | None:
-    return map_code(value, ActionType, ACTION_TYPE_ALIASES)
-
-
-def map_action_status(value: object) -> str | None:
-    return map_code(value, ActionStatus, ACTION_STATUS_ALIASES)
-
-
-def map_plan_confirmation_status(value: object) -> str | None:
-    return map_code(value, PlanConfirmationStatus, PLAN_CONFIRMATION_STATUS_ALIASES)
-
-
-def map_sentiment(value: object) -> str | None:
-    return map_code(value, Sentiment, SENTIMENT_ALIASES)

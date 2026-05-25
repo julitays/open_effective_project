@@ -1,8 +1,10 @@
 import {
   ArrowLeft,
+  Archive,
   ChevronDown,
   MessageSquareText,
   Pencil,
+  Plus,
   Target,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -10,6 +12,13 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import {
   getProjectCjm,
+  archiveEntity,
+  createBarrier,
+  createCommunication,
+  createExpectation,
+  createGoal,
+  createKpi,
+  createLpr,
   updateBarrier,
   updateCommunication,
   updateExpectation,
@@ -526,6 +535,14 @@ export default function ProjectCjmPage() {
     setEditError(null);
   }
 
+  function openCreate(title: string, fields: EditField[], save: EditTarget["save"]) {
+    const values = fields.reduce<EditValues>((draft, field) => {
+      draft[field.name] = null;
+      return draft;
+    }, {});
+    openEdit({ title, fields, values, save });
+  }
+
   async function saveEdit(payload: EditPayload) {
     if (!editTarget || !projectCode) {
       return;
@@ -543,6 +560,22 @@ export default function ProjectCjmPage() {
     } finally {
       setEditSaving(false);
     }
+  }
+
+  async function archiveAndRefresh(
+    entity: "goals" | "lprs" | "barriers" | "expectations" | "kpis" | "communications",
+    code: string | null | undefined,
+  ) {
+    if (!projectCode || !code) {
+      return;
+    }
+    const confirmed = window.confirm("Перенести запись в архив? Она исчезнет из рабочего CJM, но останется в базе.");
+    if (!confirmed) {
+      return;
+    }
+    await archiveEntity(projectCode, entity, code, "Archived from web interface");
+    const refreshed = await getProjectCjm(projectCode);
+    setProjectCjm(refreshed);
   }
 
   if (loading) {
@@ -589,6 +622,11 @@ export default function ProjectCjmPage() {
           <GoalsPanel
             goals={projectCjm.goals}
             relationResolver={relationResolver}
+            onCreate={() =>
+              openCreate("Новая цель", buildGoalEditFields(projectCjm), (payload) =>
+                createGoal(projectCjm.project.project_code, payload),
+              )
+            }
             onEdit={(goal) =>
               openEdit({
                 title: formatEntityCode(goal.goal_code),
@@ -598,12 +636,18 @@ export default function ProjectCjmPage() {
                   updateGoal(projectCjm.project.project_code, goal.goal_code || "", payload),
               })
             }
+            onArchive={(goal) => void archiveAndRefresh("goals", goal.goal_code)}
           />
         ) : null}
         {activeTab === "lprs" ? (
           <LprsPanel
             lprs={projectCjm.lprs}
             relationResolver={relationResolver}
+            onCreate={() =>
+              openCreate("Новый ЛПР", lprEditFields, (payload) =>
+                createLpr(projectCjm.project.project_code, payload),
+              )
+            }
             onEdit={(lpr) =>
               openEdit({
                 title: formatEntityCode(lpr.lpr_code),
@@ -612,12 +656,18 @@ export default function ProjectCjmPage() {
                 save: (payload) => updateLpr(projectCjm.project.project_code, lpr.lpr_code, payload),
               })
             }
+            onArchive={(lpr) => void archiveAndRefresh("lprs", lpr.lpr_code)}
           />
         ) : null}
         {activeTab === "barriers" ? (
             <BarriersPanel
               barriers={projectCjm.barriers}
               relationResolver={relationResolver}
+              onCreate={() =>
+                openCreate("Новый барьер", buildBarrierEditFields(projectCjm), (payload) =>
+                  createBarrier(projectCjm.project.project_code, payload),
+                )
+              }
               onEdit={(barrier) =>
                 openEdit({
                   title: barrier.barrier_title,
@@ -627,12 +677,18 @@ export default function ProjectCjmPage() {
                     updateBarrier(projectCjm.project.project_code, barrier.barrier_code || "", payload),
                 })
               }
+              onArchive={(barrier) => void archiveAndRefresh("barriers", barrier.barrier_code)}
             />
         ) : null}
         {activeTab === "expectations" ? (
             <ExpectationsPanel
               expectations={projectCjm.expectations}
               relationResolver={relationResolver}
+              onCreate={() =>
+                openCreate("Новое ожидание", buildExpectationEditFields(projectCjm), (payload) =>
+                  createExpectation(projectCjm.project.project_code, payload),
+                )
+              }
               onEdit={(expectation) =>
                 openEdit({
                   title: expectation.expectation_text,
@@ -646,12 +702,20 @@ export default function ProjectCjmPage() {
                     ),
                 })
               }
+              onArchive={(expectation) =>
+                void archiveAndRefresh("expectations", expectation.expectation_code)
+              }
             />
           ) : null}
         {activeTab === "kpis" ? (
           <KpisPanel
             kpis={projectCjm.kpis}
             relationResolver={relationResolver}
+            onCreate={() =>
+              openCreate("Новый KPI", buildKpiEditFields(projectCjm), (payload) =>
+                createKpi(projectCjm.project.project_code, payload),
+              )
+            }
             onEdit={(kpi) =>
               openEdit({
                 title: kpi.kpi_name,
@@ -660,12 +724,18 @@ export default function ProjectCjmPage() {
                 save: (payload) => updateKpi(projectCjm.project.project_code, kpi.kpi_code, payload),
               })
             }
+            onArchive={(kpi) => void archiveAndRefresh("kpis", kpi.kpi_code)}
           />
         ) : null}
         {activeTab === "communications" ? (
           <CommunicationsPanel
             communications={projectCjm.communications}
             relationResolver={relationResolver}
+            onCreate={() =>
+              openCreate("Новая коммуникация", buildCommunicationEditFields(projectCjm), (payload) =>
+                createCommunication(projectCjm.project.project_code, payload),
+              )
+            }
             onEdit={(point) =>
               openEdit({
                 title: formatText(point.topic_text || point.summary),
@@ -678,6 +748,9 @@ export default function ProjectCjmPage() {
                     payload,
                   ),
               })
+            }
+            onArchive={(point) =>
+              void archiveAndRefresh("communications", point.communication_code)
             }
           />
         ) : null}
@@ -723,6 +796,31 @@ function EditButton({ onClick }: { onClick: () => void }) {
     >
       <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
       Редактировать
+    </button>
+  );
+}
+
+function CreateButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+    >
+      <Plus aria-hidden="true" className="h-4 w-4" />
+      Добавить
+    </button>
+  );
+}
+
+function ArchiveButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium leading-5 text-amber-800 ring-1 ring-amber-100 hover:bg-amber-100"
+    >
+      <Archive aria-hidden="true" className="h-3.5 w-3.5" />В архив
     </button>
   );
 }
@@ -1260,11 +1358,15 @@ function extractYear(value: string | null | undefined) {
 function GoalsPanel({
   goals,
   relationResolver,
+  onCreate,
   onEdit,
+  onArchive,
 }: {
   goals: Goal[];
   relationResolver: RelationResolver;
+  onCreate: () => void;
   onEdit: (goal: Goal) => void;
+  onArchive: (goal: Goal) => void;
 }) {
   const [relevance, setRelevance] = useState("");
   const [goalType, setGoalType] = useState("");
@@ -1280,13 +1382,22 @@ function GoalsPanel({
   const clientGoals = filteredGoals.filter(isClientGoal);
 
   if (goals.length === 0) {
-    return <EmptyState title="Целей нет" description="В разделе пока нет целей проекта." />;
+    return (
+      <PanelIntro
+        title="Цели OPEN и клиента"
+        description="Слева — цели OPEN и проектной команды, справа — цели клиента."
+        actions={<CreateButton onClick={onCreate} />}
+      >
+        <EmptyState title="Целей нет" description="В разделе пока нет целей проекта." />
+      </PanelIntro>
+    );
   }
 
   return (
     <PanelIntro
       title="Цели OPEN и клиента"
       description="Слева — цели OPEN и проектной команды, справа — цели клиента."
+      actions={<CreateButton onClick={onCreate} />}
     >
       <FilterBar>
         <SelectFilter
@@ -1318,6 +1429,7 @@ function GoalsPanel({
           goals={openGoals}
           relationResolver={relationResolver}
           onEdit={onEdit}
+          onArchive={onArchive}
         />
         <GoalColumn
           title="Цели клиента"
@@ -1325,6 +1437,7 @@ function GoalsPanel({
           goals={clientGoals}
           relationResolver={relationResolver}
           onEdit={onEdit}
+          onArchive={onArchive}
         />
       </div>
     </PanelIntro>
@@ -1337,12 +1450,14 @@ function GoalColumn({
   goals,
   relationResolver,
   onEdit,
+  onArchive,
 }: {
   title: string;
   emptyText: string;
   goals: Goal[];
   relationResolver: RelationResolver;
   onEdit: (goal: Goal) => void;
+  onArchive: (goal: Goal) => void;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/70">
@@ -1355,6 +1470,7 @@ function GoalColumn({
               goal={goal}
               relationResolver={relationResolver}
               onEdit={onEdit}
+              onArchive={onArchive}
             />
           ))}
         </div>
@@ -1369,10 +1485,12 @@ function GoalCard({
   goal,
   relationResolver,
   onEdit,
+  onArchive,
 }: {
   goal: Goal;
   relationResolver: RelationResolver;
   onEdit: (goal: Goal) => void;
+  onArchive: (goal: Goal) => void;
 }) {
   return (
     <article className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
@@ -1389,6 +1507,7 @@ function GoalCard({
           <StatusBadge value={formatRelevanceStatus(goal.relevance_status)} />
           {goal.priority ? <StatusBadge value={formatPriority(goal.priority)} /> : null}
           {goal.goal_code ? <EditButton onClick={() => onEdit(goal)} /> : null}
+          {goal.goal_code ? <ArchiveButton onClick={() => onArchive(goal)} /> : null}
         </div>
       </div>
       <div className="mt-4 grid gap-3">
@@ -1403,16 +1522,28 @@ function GoalCard({
 function LprsPanel({
   lprs,
   relationResolver,
+  onCreate,
   onEdit,
+  onArchive,
 }: {
   lprs: LprProfile[];
   relationResolver: RelationResolver;
+  onCreate: () => void;
   onEdit: (lpr: LprProfile) => void;
+  onArchive: (lpr: LprProfile) => void;
 }) {
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
 
   if (lprs.length === 0) {
-    return <EmptyState title="ЛПР нет" description="В разделе пока нет клиентских ролей." />;
+    return (
+      <PanelIntro
+        title="ЛПР"
+        description="Ключевые клиентские роли и зоны влияния."
+        actions={<CreateButton onClick={onCreate} />}
+      >
+        <EmptyState title="ЛПР нет" description="В разделе пока нет клиентских ролей." />
+      </PanelIntro>
+    );
   }
 
   function toggle(lprCode: string) {
@@ -1428,7 +1559,11 @@ function LprsPanel({
   }
 
   return (
-    <PanelIntro title="ЛПР" description="Ключевые клиентские роли и зоны влияния.">
+    <PanelIntro
+      title="ЛПР"
+      description="Ключевые клиентские роли и зоны влияния."
+      actions={<CreateButton onClick={onCreate} />}
+    >
       <InfluenceLegend />
       <div className="grid gap-4 xl:grid-cols-2">
         {lprs.map((lpr) => {
@@ -1487,6 +1622,25 @@ function LprsPanel({
                     <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
                     Редактировать
                   </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onArchive(lpr);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArchive(lpr);
+                      }
+                    }}
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium leading-5 text-amber-800 ring-1 ring-amber-100 hover:bg-amber-100"
+                  >
+                    <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                    В архив
+                  </span>
                 </div>
               </button>
 
@@ -1515,11 +1669,15 @@ function LprsPanel({
 function BarriersPanel({
   barriers,
   relationResolver,
+  onCreate,
   onEdit,
+  onArchive,
 }: {
   barriers: Barrier[];
   relationResolver: RelationResolver;
+  onCreate: () => void;
   onEdit: (barrier: Barrier) => void;
+  onArchive: (barrier: Barrier) => void;
 }) {
   const [timeStatus, setTimeStatus] = useState("");
   const [relevance, setRelevance] = useState("");
@@ -1534,11 +1692,23 @@ function BarriersPanel({
   );
 
   if (barriers.length === 0) {
-    return <EmptyState title="Барьеров нет" description="В разделе пока нет барьеров." />;
+    return (
+      <PanelIntro
+        title="Барьеры"
+        description="Барьеры, которые влияют на восприятие и устойчивость проекта."
+        actions={<CreateButton onClick={onCreate} />}
+      >
+        <EmptyState title="Барьеров нет" description="В разделе пока нет барьеров." />
+      </PanelIntro>
+    );
   }
 
   return (
-    <PanelIntro title="Барьеры" description="Барьеры, которые влияют на восприятие и устойчивость проекта.">
+    <PanelIntro
+      title="Барьеры"
+      description="Барьеры, которые влияют на восприятие и устойчивость проекта."
+      actions={<CreateButton onClick={onCreate} />}
+    >
       <FilterBar>
         <SelectFilter
           label="Временной статус"
@@ -1574,6 +1744,7 @@ function BarriersPanel({
               <StatusBadge value={formatBarrierTimeStatus(barrier.time_status)} />
               <StatusBadge value={formatRelevanceStatus(barrier.relevance_status)} />
               {barrier.barrier_code ? <EditButton onClick={() => onEdit(barrier)} /> : null}
+              {barrier.barrier_code ? <ArchiveButton onClick={() => onArchive(barrier)} /> : null}
             </div>
             <h3 className="mt-4 text-lg font-semibold leading-7 text-slate-950">
               {barrier.barrier_title}
@@ -1599,11 +1770,15 @@ function BarriersPanel({
 function ExpectationsPanel({
   expectations,
   relationResolver,
+  onCreate,
   onEdit,
+  onArchive,
 }: {
   expectations: Expectation[];
   relationResolver: RelationResolver;
+  onCreate: () => void;
   onEdit: (expectation: Expectation) => void;
+  onArchive: (expectation: Expectation) => void;
 }) {
   const [relevance, setRelevance] = useState("");
   const [criticality, setCriticality] = useState("");
@@ -1616,13 +1791,22 @@ function ExpectationsPanel({
   );
 
   if (expectations.length === 0) {
-    return <EmptyState title="Ожиданий нет" description="В разделе пока нет ожиданий клиента." />;
+    return (
+      <PanelIntro
+        title="Ожидания клиента"
+        description="То, по чему клиент оценивает пользу и качество проекта."
+        actions={<CreateButton onClick={onCreate} />}
+      >
+        <EmptyState title="Ожиданий нет" description="В разделе пока нет ожиданий клиента." />
+      </PanelIntro>
+    );
   }
 
   return (
     <PanelIntro
       title="Ожидания клиента"
       description="То, по чему клиент оценивает пользу и качество проекта."
+      actions={<CreateButton onClick={onCreate} />}
     >
       <FilterBar>
         <SelectFilter
@@ -1658,6 +1842,9 @@ function ExpectationsPanel({
               {expectation.expectation_code ? (
                 <EditButton onClick={() => onEdit(expectation)} />
               ) : null}
+              {expectation.expectation_code ? (
+                <ArchiveButton onClick={() => onArchive(expectation)} />
+              ) : null}
             </div>
             <h3 className="mt-4 text-lg font-semibold leading-7 text-slate-950">
               {expectation.expectation_text}
@@ -1680,11 +1867,15 @@ function ExpectationsPanel({
 function KpisPanel({
   kpis,
   relationResolver,
+  onCreate,
   onEdit,
+  onArchive,
 }: {
   kpis: Kpi[];
   relationResolver: RelationResolver;
+  onCreate: () => void;
   onEdit: (kpi: Kpi) => void;
+  onArchive: (kpi: Kpi) => void;
 }) {
   const [kpiType, setKpiType] = useState("");
   const [relevance, setRelevance] = useState("");
@@ -1699,11 +1890,23 @@ function KpisPanel({
   );
 
   if (kpis.length === 0) {
-    return <EmptyState title="KPI нет" description="В разделе пока нет KPI и критериев." />;
+    return (
+      <PanelIntro
+        title="KPI"
+        description="KPI и критерии успеха, связанные с ожиданиями и барьерами."
+        actions={<CreateButton onClick={onCreate} />}
+      >
+        <EmptyState title="KPI нет" description="В разделе пока нет KPI и критериев." />
+      </PanelIntro>
+    );
   }
 
   return (
-    <PanelIntro title="KPI" description="KPI и критерии успеха, связанные с ожиданиями и барьерами.">
+    <PanelIntro
+      title="KPI"
+      description="KPI и критерии успеха, связанные с ожиданиями и барьерами."
+      actions={<CreateButton onClick={onCreate} />}
+    >
       <FilterBar>
         <SelectFilter
           label="Тип KPI"
@@ -1759,7 +1962,14 @@ function KpisPanel({
             <Cell value={relationResolver.format(kpi.related_expectation_text)} />
             <Cell value={relationResolver.format(kpi.related_barrier_text)} />
             <Cell value={formatText(kpi.comment)} />
-            <Cell value={<EditButton onClick={() => onEdit(kpi)} />} />
+            <Cell
+              value={
+                <div className="flex flex-wrap gap-2">
+                  <EditButton onClick={() => onEdit(kpi)} />
+                  <ArchiveButton onClick={() => onArchive(kpi)} />
+                </div>
+              }
+            />
           </tr>
         ))}
       </DataTable>
@@ -1770,18 +1980,34 @@ function KpisPanel({
 function CommunicationsPanel({
   communications,
   relationResolver,
+  onCreate,
   onEdit,
+  onArchive,
 }: {
   communications: CommunicationPoint[];
   relationResolver: RelationResolver;
+  onCreate: () => void;
   onEdit: (point: CommunicationPoint) => void;
+  onArchive: (point: CommunicationPoint) => void;
 }) {
   if (communications.length === 0) {
-    return <EmptyState title="Коммуникаций нет" description="В разделе пока нет каналов взаимодействия." />;
+    return (
+      <PanelIntro
+        title="Коммуникации"
+        description="Каналы, темы и частота взаимодействия."
+        actions={<CreateButton onClick={onCreate} />}
+      >
+        <EmptyState title="Коммуникаций нет" description="В разделе пока нет каналов взаимодействия." />
+      </PanelIntro>
+    );
   }
 
   return (
-    <PanelIntro title="Коммуникации" description="Каналы, темы и частота взаимодействия.">
+    <PanelIntro
+      title="Коммуникации"
+      description="Каналы, темы и частота взаимодействия."
+      actions={<CreateButton onClick={onCreate} />}
+    >
       <DataTable
         headers={[
           "Сторона клиента",
@@ -1818,7 +2044,12 @@ function CommunicationsPanel({
             <Cell value={formatText(point.comment)} />
             <Cell
               value={
-                point.communication_code ? <EditButton onClick={() => onEdit(point)} /> : null
+                point.communication_code ? (
+                  <div className="flex flex-wrap gap-2">
+                    <EditButton onClick={() => onEdit(point)} />
+                    <ArchiveButton onClick={() => onArchive(point)} />
+                  </div>
+                ) : null
               }
             />
           </tr>
@@ -1884,17 +2115,22 @@ function ImportanceList({ factors }: { factors: LprImportanceFactor[] }) {
 function PanelIntro({
   title,
   description,
+  actions,
   children,
 }: {
   title: string;
   description: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="space-y-5">
-      <div className="border-b border-slate-200 pb-4">
-        <h2 className="text-2xl font-semibold text-slate-950">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+        </div>
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
       {children}
     </section>

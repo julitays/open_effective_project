@@ -48,13 +48,6 @@ class ProjectBarrier(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     confidence_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     project: Mapped["Project"] = relationship("Project", back_populates="barriers")
-    mitigation_plans: Mapped[list["BarrierMitigationPlan"]] = relationship(
-        "BarrierMitigationPlan",
-        back_populates="barrier",
-        cascade="all, delete-orphan",
-    )
-
-
 class CommunicationPoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "communication_points"
     __table_args__ = (
@@ -79,7 +72,7 @@ class CommunicationPoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         String(128),
         index=True,
         nullable=True,
-        comment="Stable manual CJM Communication ID from Excel.",
+        comment="Stable web-facing CJM Communication code.",
     )
     cjm_stage: Mapped[str | None] = mapped_column(String(128), nullable=True)
     point_type: Mapped[str] = mapped_column(String(64), nullable=False)
