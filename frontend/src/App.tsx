@@ -2,7 +2,6 @@ import { Navigate, Route, BrowserRouter, Routes } from "react-router-dom";
 
 import EmptyState from "./components/EmptyState";
 import Layout from "./components/Layout";
-import ProjectCjmPage from "./pages/ProjectCjmPage";
 import ProjectEffectivenessScreenMockup from "./pages/ProjectEffectivenessScreenMockup";
 import ProjectsPage from "./pages/ProjectsPage";
 
@@ -11,13 +10,16 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route
-          path="/projects/:projectCode/context-mockup"
+          path="/projects/:projectCode"
           element={<ProjectEffectivenessScreenMockup />}
+        />
+        <Route
+          path="/projects/:projectCode/context-mockup"
+          element={<Navigate replace to=".." relative="path" />}
         />
         <Route element={<Layout />}>
           <Route index element={<Navigate replace to="/projects" />} />
           <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:projectCode" element={<ProjectCjmPage />} />
           <Route
             path="*"
             element={
