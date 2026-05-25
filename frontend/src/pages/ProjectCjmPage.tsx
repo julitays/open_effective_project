@@ -1000,8 +1000,188 @@ function PassportPanel({
           <PassportItem label="Известные регионы" value={formatText(project.known_regions)} />
         </div>
       </div>
+
+      <LifecycleRoadmap project={project} />
     </PanelIntro>
   );
+}
+
+const lifecycleRoadmapStages = [
+  {
+    ids: ["launch"],
+    title: "Запуск",
+    description: "Старт проекта, согласование формата работы, ролей и базовых правил.",
+  },
+  {
+    ids: ["stabilization"],
+    title: "Стабилизация",
+    description: "Процессы закрепляются, команда выравнивает качество и регулярность сервиса.",
+  },
+  {
+    ids: ["development"],
+    title: "Развитие",
+    description: "Проект масштабируется, появляются новые задачи, регионы или контуры услуги.",
+  },
+  {
+    ids: ["retention"],
+    title: "Удержание",
+    description: "Фокус на ценности для клиента, продлении и защите ключевых договорённостей.",
+  },
+  {
+    ids: ["restart", "risk"],
+    title: "Перезапуск / риск",
+    description: "Нужно пересобрать ожидания, коммуникацию, KPI или операционную модель.",
+  },
+  {
+    ids: ["closing"],
+    title: "Завершение",
+    description: "Фиксация итогов, передача знаний и закрытие обязательств по проекту.",
+  },
+];
+
+function LifecycleRoadmap({ project }: { project: ProjectPassport }) {
+  const activeIndex = lifecycleRoadmapStages.findIndex((stage) =>
+    stage.ids.some((id) => isLifecycleStage(project.lifecycle_stage, id)),
+  );
+  const progressIndex = activeIndex >= 0 ? activeIndex : 0;
+  const progressPercent =
+    lifecycleRoadmapStages.length > 1
+      ? (progressIndex / (lifecycleRoadmapStages.length - 1)) * 100
+      : 0;
+
+  return (
+    <section className="content-card overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <SectionEyebrow>Жизненный цикл в агентстве</SectionEyebrow>
+          <h3 className="mt-2 text-xl font-semibold text-slate-950">Дорожная карта проекта</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Путь проекта от запуска до завершения. Текущий этап подсвечен по данным паспорта проекта.
+          </p>
+        </div>
+        <div className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-800">
+          Сейчас: {formatLifecycleStage(project.lifecycle_stage)}
+        </div>
+      </div>
+
+      <div className="hidden px-6 py-7 xl:block">
+        <div className="relative">
+          <div className="absolute left-0 right-0 top-[1.375rem] h-1 rounded-full bg-slate-200" />
+          <div
+            className="absolute left-0 top-[1.375rem] h-1 rounded-full bg-slate-950 transition-all"
+            style={{ width: `${progressPercent}%` }}
+          />
+
+          <div className="grid grid-cols-6 gap-4">
+            {lifecycleRoadmapStages.map((stage, index) => (
+              <LifecycleRoadmapStep
+                key={stage.title}
+                stage={stage}
+                index={index}
+                state={roadmapState(index, activeIndex)}
+                compact={false}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 px-5 py-5 xl:hidden">
+        {lifecycleRoadmapStages.map((stage, index) => (
+          <LifecycleRoadmapStep
+            key={stage.title}
+            stage={stage}
+            index={index}
+            state={roadmapState(index, activeIndex)}
+            compact
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LifecycleRoadmapStep({
+  stage,
+  index,
+  state,
+  compact,
+}: {
+  stage: (typeof lifecycleRoadmapStages)[number];
+  index: number;
+  state: "done" | "active" | "future" | "unknown";
+  compact: boolean;
+}) {
+  const stateClasses = {
+    done: {
+      node: "border-slate-950 bg-slate-950 text-white",
+      card: "border-slate-200 bg-white",
+      label: "Пройдено",
+    },
+    active: {
+      node: "border-sky-500 bg-sky-500 text-white shadow-lg shadow-sky-200",
+      card: "border-sky-200 bg-sky-50",
+      label: "Текущий этап",
+    },
+    future: {
+      node: "border-slate-300 bg-white text-slate-500",
+      card: "border-slate-200 bg-white",
+      label: "Далее",
+    },
+    unknown: {
+      node: "border-slate-300 bg-white text-slate-500",
+      card: "border-slate-200 bg-white",
+      label: "Этап",
+    },
+  }[state];
+
+  return (
+    <article
+      className={
+        compact
+          ? `relative rounded-xl border p-4 ${stateClasses.card}`
+          : "relative min-w-0"
+      }
+    >
+      <div
+        className={
+          compact
+            ? "flex items-start gap-3"
+            : "flex min-w-0 flex-col items-center text-center"
+        }
+      >
+        <div
+          className={`z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold ${stateClasses.node}`}
+        >
+          {index + 1}
+        </div>
+        <div
+          className={
+            compact
+              ? "min-w-0"
+              : `mt-4 min-h-[154px] rounded-xl border p-4 ${stateClasses.card}`
+          }
+        >
+          <div className="text-xs font-semibold uppercase text-slate-400">{stateClasses.label}</div>
+          <h4 className="mt-1 text-sm font-semibold leading-5 text-slate-950">{stage.title}</h4>
+          <p className="mt-2 text-xs leading-5 text-slate-600">{stage.description}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function roadmapState(index: number, activeIndex: number): "done" | "active" | "future" | "unknown" {
+  if (activeIndex < 0) {
+    return "unknown";
+  }
+  if (index < activeIndex) {
+    return "done";
+  }
+  if (index === activeIndex) {
+    return "active";
+  }
+  return "future";
 }
 
 function GoalsPanel({
@@ -2159,6 +2339,21 @@ function factorTitle(factor: LprImportanceFactor) {
 function isClientGoal(goal: Goal) {
   const marker = normalize(`${goal.goal_type || ""} ${goal.goal_owner || ""}`);
   return marker.includes("client") || marker.includes("клиент") || marker.includes("бизнес клиента");
+}
+
+function isLifecycleStage(value: string | null | undefined, stageId: string) {
+  const normalized = normalize(value);
+  const aliases: Record<string, string[]> = {
+    launch: ["launch", "запуск"],
+    stabilization: ["stabilization", "стабилизация"],
+    development: ["development", "развитие"],
+    retention: ["retention", "удержание"],
+    restart: ["restart", "перезапуск"],
+    risk: ["risk", "риск", "в зоне риска"],
+    closing: ["closing", "завершение"],
+  };
+
+  return aliases[stageId]?.includes(normalized) ?? false;
 }
 
 function normalize(value: string | null | undefined) {
