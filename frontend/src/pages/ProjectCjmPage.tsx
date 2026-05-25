@@ -1001,99 +1001,88 @@ function PassportPanel({
         </div>
       </div>
 
-      <LifecycleRoadmap project={project} />
+      <ProjectHistoryTimeline project={project} />
     </PanelIntro>
   );
 }
 
-const lifecycleRoadmapStages = [
-  {
-    ids: ["launch"],
-    title: "Запуск",
-    description: "Старт проекта, согласование формата работы, ролей и базовых правил.",
-  },
-  {
-    ids: ["stabilization"],
-    title: "Стабилизация",
-    description: "Процессы закрепляются, команда выравнивает качество и регулярность сервиса.",
-  },
-  {
-    ids: ["development"],
-    title: "Развитие",
-    description: "Проект масштабируется, появляются новые задачи, регионы или контуры услуги.",
-  },
-  {
-    ids: ["retention"],
-    title: "Удержание",
-    description: "Фокус на ценности для клиента, продлении и защите ключевых договорённостей.",
-  },
-  {
-    ids: ["restart", "risk"],
-    title: "Перезапуск / риск",
-    description: "Нужно пересобрать ожидания, коммуникацию, KPI или операционную модель.",
-  },
-  {
-    ids: ["closing"],
-    title: "Завершение",
-    description: "Фиксация итогов, передача знаний и закрытие обязательств по проекту.",
-  },
-];
+type HistoryMilestone = {
+  year: string;
+  title: string;
+  placement: "top" | "bottom";
+  details?: string[];
+};
 
-function LifecycleRoadmap({ project }: { project: ProjectPassport }) {
-  const activeIndex = lifecycleRoadmapStages.findIndex((stage) =>
-    stage.ids.some((id) => isLifecycleStage(project.lifecycle_stage, id)),
-  );
-  const progressIndex = activeIndex >= 0 ? activeIndex : 0;
-  const progressPercent =
-    lifecycleRoadmapStages.length > 1
-      ? (progressIndex / (lifecycleRoadmapStages.length - 1)) * 100
-      : 0;
+const projectHistoryTimelines: Record<string, HistoryMilestone[]> = {
+  project_001: [
+    { year: "2010", title: "Аутстаффинг", placement: "top" },
+    { year: "2014", title: "Пилот X-сегмент", placement: "bottom" },
+    { year: "2016", title: "Расширение", placement: "top" },
+    { year: "2017", title: "Пилот WC", placement: "bottom" },
+    { year: "2018", title: "Переход от дистрибьюторов WC", placement: "top" },
+    {
+      year: "2019",
+      title: "Пилот GTF",
+      placement: "bottom",
+      details: ["Пилот X-сегмент", "Пилот алертинг"],
+    },
+    { year: "2020", title: "RTM", placement: "top" },
+  ],
+  "1040-P": [
+    { year: "2010", title: "Аутстаффинг", placement: "top" },
+    { year: "2014", title: "Пилот X-сегмент", placement: "bottom" },
+    { year: "2016", title: "Расширение", placement: "top" },
+    { year: "2017", title: "Пилот WC", placement: "bottom" },
+    { year: "2018", title: "Переход от дистрибьюторов WC", placement: "top" },
+    {
+      year: "2019",
+      title: "Пилот GTF",
+      placement: "bottom",
+      details: ["Пилот X-сегмент", "Пилот алертинг"],
+    },
+    { year: "2020", title: "RTM", placement: "top" },
+  ],
+};
+
+function ProjectHistoryTimeline({ project }: { project: ProjectPassport }) {
+  const milestones = getProjectHistoryMilestones(project);
 
   return (
     <section className="content-card overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <SectionEyebrow>Жизненный цикл в агентстве</SectionEyebrow>
-          <h3 className="mt-2 text-xl font-semibold text-slate-950">Дорожная карта проекта</h3>
+          <SectionEyebrow>История проекта в агентстве</SectionEyebrow>
+          <h3 className="mt-2 text-xl font-semibold text-slate-950">Хронология развития проекта</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Путь проекта от запуска до завершения. Текущий этап подсвечен по данным паспорта проекта.
+            Ключевые изменения и пилоты по годам. Эта линия показывает фактический путь проекта, а не справочник этапов.
           </p>
         </div>
-        <div className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-800">
-          Сейчас: {formatLifecycleStage(project.lifecycle_stage)}
+        <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
+          С {milestones[0]?.year || formatText(project.start_date)}
         </div>
       </div>
 
-      <div className="hidden px-6 py-7 xl:block">
-        <div className="relative">
-          <div className="absolute left-0 right-0 top-[1.375rem] h-1 rounded-full bg-slate-200" />
-          <div
-            className="absolute left-0 top-[1.375rem] h-1 rounded-full bg-slate-950 transition-all"
-            style={{ width: `${progressPercent}%` }}
-          />
+      <div className="hidden px-6 py-8 xl:block">
+        <div className="relative h-[330px]">
+          <div className="absolute left-4 right-4 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-950" />
+          <div className="absolute right-1 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[9px] border-l-[20px] border-y-transparent border-l-slate-950" />
+          <div className="absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 rotate-45 bg-slate-950" />
 
-          <div className="grid grid-cols-6 gap-4">
-            {lifecycleRoadmapStages.map((stage, index) => (
-              <LifecycleRoadmapStep
-                key={stage.title}
-                stage={stage}
-                index={index}
-                state={roadmapState(index, activeIndex)}
-                compact={false}
-              />
-            ))}
-          </div>
+          {milestones.map((milestone, index) => (
+            <HistoryMilestoneDesktop
+              key={`${milestone.year}-${milestone.title}`}
+              milestone={milestone}
+              leftPercent={timelineLeftPercent(index, milestones.length)}
+            />
+          ))}
         </div>
       </div>
 
       <div className="space-y-3 px-5 py-5 xl:hidden">
-        {lifecycleRoadmapStages.map((stage, index) => (
-          <LifecycleRoadmapStep
-            key={stage.title}
-            stage={stage}
-            index={index}
-            state={roadmapState(index, activeIndex)}
-            compact
+        {milestones.map((milestone) => (
+          <HistoryMilestoneMobile
+            key={`${milestone.year}-${milestone.title}`}
+            milestone={milestone}
           />
         ))}
       </div>
@@ -1101,87 +1090,103 @@ function LifecycleRoadmap({ project }: { project: ProjectPassport }) {
   );
 }
 
-function LifecycleRoadmapStep({
-  stage,
-  index,
-  state,
-  compact,
+function HistoryMilestoneDesktop({
+  milestone,
+  leftPercent,
 }: {
-  stage: (typeof lifecycleRoadmapStages)[number];
-  index: number;
-  state: "done" | "active" | "future" | "unknown";
-  compact: boolean;
+  milestone: HistoryMilestone;
+  leftPercent: number;
 }) {
-  const stateClasses = {
-    done: {
-      node: "border-slate-950 bg-slate-950 text-white",
-      card: "border-slate-200 bg-white",
-      label: "Пройдено",
-    },
-    active: {
-      node: "border-sky-500 bg-sky-500 text-white shadow-lg shadow-sky-200",
-      card: "border-sky-200 bg-sky-50",
-      label: "Текущий этап",
-    },
-    future: {
-      node: "border-slate-300 bg-white text-slate-500",
-      card: "border-slate-200 bg-white",
-      label: "Далее",
-    },
-    unknown: {
-      node: "border-slate-300 bg-white text-slate-500",
-      card: "border-slate-200 bg-white",
-      label: "Этап",
-    },
-  }[state];
+  const isTop = milestone.placement === "top";
 
   return (
-    <article
-      className={
-        compact
-          ? `relative rounded-xl border p-4 ${stateClasses.card}`
-          : "relative min-w-0"
-      }
+    <div
+      className="absolute top-1/2 w-44 -translate-x-1/2 -translate-y-1/2"
+      style={{ left: `${leftPercent}%` }}
     >
-      <div
-        className={
-          compact
-            ? "flex items-start gap-3"
-            : "flex min-w-0 flex-col items-center text-center"
-        }
-      >
-        <div
-          className={`z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold ${stateClasses.node}`}
-        >
-          {index + 1}
+      <div className="flex flex-col items-center">
+        {isTop ? <HistoryMilestoneCard milestone={milestone} /> : null}
+        {isTop ? <div className="h-5 w-0.5 bg-slate-300" /> : null}
+
+        <div className="h-5 w-5 rotate-45 rounded-[3px] bg-slate-300 ring-4 ring-white" />
+        <div className="mt-3 text-2xl font-semibold leading-none text-slate-950">
+          {milestone.year}
         </div>
-        <div
-          className={
-            compact
-              ? "min-w-0"
-              : `mt-4 min-h-[154px] rounded-xl border p-4 ${stateClasses.card}`
-          }
-        >
-          <div className="text-xs font-semibold uppercase text-slate-400">{stateClasses.label}</div>
-          <h4 className="mt-1 text-sm font-semibold leading-5 text-slate-950">{stage.title}</h4>
-          <p className="mt-2 text-xs leading-5 text-slate-600">{stage.description}</p>
-        </div>
+
+        {!isTop ? <div className="mt-3 h-5 w-0.5 bg-slate-300" /> : null}
+        {!isTop ? <HistoryMilestoneCard milestone={milestone} /> : null}
       </div>
+    </div>
+  );
+}
+
+function HistoryMilestoneMobile({ milestone }: { milestone: HistoryMilestone }) {
+  return (
+    <article className="flex gap-4 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex shrink-0 flex-col items-center">
+        <div className="text-sm font-semibold text-slate-950">{milestone.year}</div>
+        <div className="mt-2 h-5 w-5 rotate-45 rounded-[3px] bg-slate-300" />
+      </div>
+      <HistoryMilestoneCard milestone={milestone} />
     </article>
   );
 }
 
-function roadmapState(index: number, activeIndex: number): "done" | "active" | "future" | "unknown" {
-  if (activeIndex < 0) {
-    return "unknown";
+function HistoryMilestoneCard({ milestone }: { milestone: HistoryMilestone }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-center shadow-sm shadow-slate-200/70">
+      <div className="text-sm font-medium leading-5 text-slate-800">{milestone.title}</div>
+      {milestone.details?.length ? (
+        <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-600">
+          {milestone.details.map((detail) => (
+            <div key={detail}>{detail}</div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function getProjectHistoryMilestones(project: ProjectPassport) {
+  const keys = [
+    project.project_code,
+    project.external_project_id,
+    project.working_project_code,
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  for (const key of keys) {
+    const timeline = projectHistoryTimelines[key];
+    if (timeline) {
+      return timeline;
+    }
   }
-  if (index < activeIndex) {
-    return "done";
+
+  const startYear = extractYear(project.start_date) || "Старт";
+  return [
+    {
+      year: startYear,
+      title: "Старт проекта",
+      placement: "top" as const,
+    },
+    {
+      year: "Сейчас",
+      title: formatLifecycleStage(project.lifecycle_stage),
+      placement: "bottom" as const,
+    },
+  ];
+}
+
+function timelineLeftPercent(index: number, total: number) {
+  if (total <= 1) {
+    return 50;
   }
-  if (index === activeIndex) {
-    return "active";
-  }
-  return "future";
+  return 8 + (index / (total - 1)) * 84;
+}
+
+function extractYear(value: string | null | undefined) {
+  return value?.match(/\d{4}/)?.[0];
 }
 
 function GoalsPanel({
@@ -2339,21 +2344,6 @@ function factorTitle(factor: LprImportanceFactor) {
 function isClientGoal(goal: Goal) {
   const marker = normalize(`${goal.goal_type || ""} ${goal.goal_owner || ""}`);
   return marker.includes("client") || marker.includes("клиент") || marker.includes("бизнес клиента");
-}
-
-function isLifecycleStage(value: string | null | undefined, stageId: string) {
-  const normalized = normalize(value);
-  const aliases: Record<string, string[]> = {
-    launch: ["launch", "запуск"],
-    stabilization: ["stabilization", "стабилизация"],
-    development: ["development", "развитие"],
-    retention: ["retention", "удержание"],
-    restart: ["restart", "перезапуск"],
-    risk: ["risk", "риск", "в зоне риска"],
-    closing: ["closing", "завершение"],
-  };
-
-  return aliases[stageId]?.includes(normalized) ?? false;
 }
 
 function normalize(value: string | null | undefined) {
