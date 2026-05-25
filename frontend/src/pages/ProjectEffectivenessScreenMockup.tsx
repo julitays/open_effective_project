@@ -1043,7 +1043,9 @@ function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: Bad
   };
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${tones[tone]}`}>
+    <span
+      className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-center text-xs leading-4 font-medium whitespace-normal break-words ${tones[tone]}`}
+    >
       {children}
     </span>
   );
@@ -1051,12 +1053,12 @@ function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: Bad
 
 function SectionTitle({ title, description, action = "Редактировать" }: SectionChromeProps) {
   return (
-    <div className="mb-5 flex items-start justify-between gap-4">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <h2 className="text-lg font-semibold text-slate-950 sm:text-xl">{title}</h2>
         <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-500">{description}</p>
       </div>
-      <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+      <button className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 sm:w-auto">
         {action}
       </button>
     </div>
@@ -1064,7 +1066,11 @@ function SectionTitle({ title, description, action = "Редактировать
 }
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-3xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>{children}</div>;
+  return (
+    <div className={`min-w-0 overflow-hidden rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 function Passport() {
@@ -1121,7 +1127,7 @@ function Passport() {
     description?: string;
     children: ReactNode;
   }) => (
-    <section className="grid grid-cols-1 gap-5 border-t border-slate-100 px-5 py-6 lg:grid-cols-[260px_1fr] lg:px-6">
+    <section className="grid grid-cols-1 gap-5 border-t border-slate-100 px-4 py-5 sm:px-5 sm:py-6 xl:grid-cols-[260px_1fr] xl:px-6">
       <div>
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{eyebrow}</div>
         <h3 className="mt-2 text-lg font-semibold text-slate-950">{title}</h3>
@@ -1145,19 +1151,19 @@ function Passport() {
   return (
     <div className="space-y-5">
       <div className="overflow-hidden rounded-[30px] bg-slate-950 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px]">
-          <div className="bg-white p-6 text-slate-950 lg:p-7">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px]">
+          <div className="bg-white p-4 text-slate-950 sm:p-6 xl:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="good">Активен</Badge>
               <Badge tone="blue">{project.direction}</Badge>
               <Badge tone="neutral">{project.scale}</Badge>
               <Badge tone="neutral">{project.lifecycle}</Badge>
             </div>
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950">Паспорт проекта · {project.externalId}</h2>
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Паспорт проекта · {project.externalId}</h2>
             <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-500">{project.serviceModel}</p>
           </div>
 
-          <div className="border-t border-white/10 bg-slate-950 p-6 text-white lg:border-l lg:border-t-0">
+          <div className="border-t border-white/10 bg-slate-950 p-4 text-white sm:p-6 xl:border-l xl:border-t-0">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Последнее обновление</div>
             <div className="mt-2 text-lg font-semibold text-white">{project.lastUpdated}</div>
             <button className="mt-5 w-full rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
@@ -1166,11 +1172,11 @@ function Passport() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 border-t border-white/10 bg-slate-950 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 border-t border-white/10 bg-slate-950 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {facts.map((item) => (
-            <div key={item.label} className="min-w-0 border-t border-white/10 px-4 py-4 first:border-t-0 md:border-l md:border-t-0 md:first:border-l-0">
+            <div key={item.label} className="min-w-0 border-t border-white/10 px-4 py-4 first:border-t-0 xl:border-l xl:border-t-0 xl:first:border-l-0 2xl:border-l">
               <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{item.label}</div>
-              <div className="mt-2 truncate text-sm font-semibold text-white">{item.value}</div>
+              <div className="mt-2 text-sm font-semibold text-white break-words">{item.value}</div>
             </div>
           ))}
         </div>
@@ -1291,7 +1297,7 @@ function Goals() {
         description="Цели фиксируют желаемый результат проекта. KPI на отдельном листе показывают, какими показателями эти цели проверяются."
       />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <NeedPyramid title="Пирамида потребностей клиента" items={clientNeeds} tone="client" />
         <NeedPyramid title="Пирамида потребностей OPEN" items={openNeeds} tone="open" />
       </div>
@@ -1366,7 +1372,7 @@ function ProjectMap() {
         action="Добавить контакт"
       />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card>
           <h3 className="text-lg font-semibold text-slate-900">Структура OPEN</h3>
           <div className="mt-4 space-y-3">
@@ -1440,7 +1446,7 @@ function ProjectMap() {
 
                 {isOpen && (
                   <div className="mt-5 space-y-4 border-t border-slate-100 pt-5">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Роль в решении</div>
                         <div className="mt-2 text-sm font-medium leading-6 text-slate-900">{contact.decisionRole}</div>
@@ -1459,7 +1465,7 @@ function ProjectMap() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                       <div className="rounded-2xl bg-sky-50 p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Что важно для ЛПР</div>
                         <div className="mt-3 space-y-3">
@@ -1578,7 +1584,7 @@ function Competitors() {
         title="Конкурентный контур проекта"
         description="Внешний контекст проекта: какие промо-, BTL-, field marketing- и аутсорсинговые компании могут конкурировать с OPEN за проект, а какие бренды давят на клиента в рознице."
       />
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Block title="Примеры конкурентов OPEN" items={competitorsOpen} tone="violet" />
         <Block title="Конкуренты клиента в электронике" items={competitorsClient} tone="blue" />
       </div>
@@ -1601,7 +1607,7 @@ function Swot() {
         title="SWOT-анализ проекта"
         description="Короткий управленческий разбор проекта: что усиливает позицию OPEN, что ослабляет, где есть точки роста и что может ударить по проекту."
       />
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {blocks.map(({ title, items, className }) => (
           <div key={title} className={`rounded-3xl border p-5 shadow-sm ${className}`}>
             <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
@@ -1626,7 +1632,8 @@ function Communications() {
         description="Кто с кем общается, по каким темам, с какой частотой, через какой канал и где критичность коммуникации высокая."
       />
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               {["Контакт клиента", "Контакт OPEN", "Тема", "Частота", "Канал", "Критичность"].map((h) => (
@@ -1646,6 +1653,7 @@ function Communications() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
@@ -1661,7 +1669,7 @@ function InterpretationRules() {
       />
 
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
           <div className="rounded-2xl bg-slate-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Кто заполняет</div>
             <div className="mt-2 text-sm leading-6 text-slate-700">КАМ, GKAM, аналитик или владелец методологии после согласования проектных правил.</div>
@@ -1835,17 +1843,17 @@ function Kpi() {
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="rounded-2xl bg-slate-50 p-4 lg:col-span-4">
+        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <div className="rounded-2xl bg-slate-50 p-4 xl:col-span-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Как измерять</div>
             <p className="mt-2 text-sm leading-6 text-slate-700">{selectedKpi.measurement}</p>
           </div>
-          <div className="rounded-2xl bg-slate-50 p-4 lg:col-span-4">
+          <div className="rounded-2xl bg-slate-50 p-4 xl:col-span-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Источник данных</div>
             <p className="mt-2 text-sm leading-6 text-slate-700">{selectedKpi.dataSource}</p>
             <div className="mt-3 text-xs leading-5 text-slate-500">Владелец: {selectedKpi.owner}</div>
           </div>
-          <div className="rounded-2xl bg-amber-50 p-4 lg:col-span-4">
+          <div className="rounded-2xl bg-amber-50 p-4 xl:col-span-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Что уточнить</div>
             <p className="mt-2 text-sm leading-6 text-slate-700">{selectedKpi.clarify}</p>
           </div>
@@ -1934,7 +1942,7 @@ function RiskMap() {
             <Badge tone="dark">ручной реестр</Badge>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {rules.map((rule) => (
               <div key={rule.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                 <div className="text-sm font-semibold leading-5 text-slate-900">{rule.title}</div>
@@ -1949,7 +1957,7 @@ function RiskMap() {
             <h3 className="text-lg font-semibold text-slate-950">Сводка</h3>
             <Badge tone="neutral">P × I</Badge>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {riskStats.map((item) => (
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
                 <div className="text-2xl font-semibold text-slate-950">{item.value}</div>
@@ -2039,18 +2047,18 @@ function RiskMap() {
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="rounded-2xl bg-slate-50 p-4 lg:col-span-4">
+        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <div className="rounded-2xl bg-slate-50 p-4 xl:col-span-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Вероятность</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">{selectedRisk.probability.score} · {selectedRisk.probability.label}</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{selectedRisk.probability.basis}</p>
           </div>
-          <div className="rounded-2xl bg-slate-50 p-4 lg:col-span-4">
+          <div className="rounded-2xl bg-slate-50 p-4 xl:col-span-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Влияние</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">{selectedRisk.impact.score} · {selectedRisk.impact.label}</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{selectedRisk.impact.basis}</p>
           </div>
-          <div className="rounded-2xl bg-slate-50 p-4 lg:col-span-4">
+          <div className="rounded-2xl bg-slate-50 p-4 xl:col-span-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Контроль</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">{selectedRisk.control.owner}</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{selectedRisk.control.action}</p>
@@ -2059,7 +2067,7 @@ function RiskMap() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Связано с</div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -2098,7 +2106,7 @@ function Barriers() {
         description="История и прогноз проблем проекта с привязкой к контактам, KPI, коммуникациям и правилам работы."
         action="Добавить барьер"
       />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {barriers.map((group) => (
           <div key={group.period} className={`min-h-[520px] rounded-3xl border p-4 ${group.color}`}>
             <div className="mb-4 flex items-center justify-between">
@@ -2204,20 +2212,20 @@ function Summary() {
       />
 
       <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12">
-          <div className="p-6 lg:col-span-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12">
+          <div className="p-4 sm:p-6 xl:col-span-8">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="blue">передача проекта</Badge>
               <Badge tone="neutral">фактологический бриф</Badge>
               <Badge tone="warn">есть поля к проверке</Badge>
             </div>
-            <h3 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Проект 1991: короткая сводка для входа в контекст</h3>
+            <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Проект 1991: короткая сводка для входа в контекст</h3>
             <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
               Стартовая карточка для КАМ, руководителя или аналитика: базовые факты проекта, готовность разделов и список данных, требующих подтверждения.
             </p>
           </div>
 
-          <div className="border-t border-slate-200 bg-slate-950 p-6 text-white lg:col-span-4 lg:border-l lg:border-t-0">
+          <div className="border-t border-slate-200 bg-slate-950 p-4 text-white sm:p-6 xl:col-span-4 xl:border-l xl:border-t-0">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Готовность контекста</div>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
@@ -2236,17 +2244,17 @@ function Summary() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 border-t border-slate-200 bg-slate-50 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 border-t border-slate-200 bg-slate-50 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {confirmedFacts.map((fact) => (
-            <div key={fact.label} className="border-r border-slate-200 px-4 py-4 last:border-r-0">
+            <div key={fact.label} className="px-4 py-4 xl:border-r xl:border-slate-200 xl:last:border-r-0">
               <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{fact.label}</div>
-              <div className="mt-2 text-sm font-semibold leading-5 text-slate-900">{fact.value}</div>
+              <div className="mt-2 break-words text-sm font-semibold leading-5 text-slate-900">{fact.value}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {handoverBlocks.map((block) => (
           <Card key={block.title}>
             <h3 className="text-base font-semibold text-slate-900">{block.title}</h3>
@@ -2272,7 +2280,8 @@ function Summary() {
             <Badge tone="dark">разделы</Badge>
           </div>
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Раздел</th>
@@ -2290,6 +2299,7 @@ function Summary() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </Card>
 
@@ -2440,8 +2450,8 @@ export default function ProjectEffectivenessScreenMockup() {
   return (
     <EffectivenessContext.Provider value={effectiveness}>
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="flex min-h-screen flex-col lg:flex-row">
-        <aside className="w-full shrink-0 border-b border-slate-200 bg-white p-5 lg:w-80 lg:border-b-0 lg:border-r">
+      <div className="flex min-h-screen flex-col xl:flex-row">
+        <aside className="w-full shrink-0 border-b border-slate-200 bg-white p-4 sm:p-5 xl:w-80 xl:border-b-0 xl:border-r">
           <div className="rounded-3xl bg-slate-950 p-5 text-white shadow-sm">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-400">OPEN Intelligence</div>
             <div className="mt-2 text-xl font-semibold">Эффективность проекта</div>
@@ -2460,12 +2470,12 @@ export default function ProjectEffectivenessScreenMockup() {
             </button>
 
             {passportOpen && (
-              <div className="space-y-1 pl-3">
+              <div className="space-y-1 pl-0 sm:pl-3">
                 {passportSections.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => setActive(section.id)}
-                    className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+                    className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition break-words ${
                       active === section.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
@@ -2485,7 +2495,7 @@ export default function ProjectEffectivenessScreenMockup() {
                       active === module.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    <div className="text-sm font-medium">{module.label}</div>
+                    <div className="text-sm font-medium break-words">{module.label}</div>
                     <div className={`mt-1 text-xs ${active === module.id ? "text-slate-300" : "text-slate-400"}`}>{module.status}</div>
                   </button>
                 ))}
@@ -2494,11 +2504,11 @@ export default function ProjectEffectivenessScreenMockup() {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 p-4 lg:p-6">
+        <main className="min-w-0 flex-1 p-3 sm:p-4 xl:p-6">
           {!hideBigHeaderOnPassport && (
             <header className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-1 lg:grid-cols-12">
-                <div className="p-5 lg:col-span-8">
+              <div className="grid grid-cols-1 xl:grid-cols-12">
+                <div className="p-4 sm:p-5 xl:col-span-8">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="good">Активен</Badge>
                     <Badge tone="blue">{screenData.direction}</Badge>
@@ -2506,29 +2516,29 @@ export default function ProjectEffectivenessScreenMockup() {
                     <Badge tone="neutral">{screenData.lifecycle}</Badge>
                   </div>
 
-                  <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">{screenData.clientName}</h1>
+                  <h1 className="mt-4 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{screenData.clientName}</h1>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     {screenData.serviceModel}.
                   </p>
                 </div>
 
-                <div className="border-t border-slate-200 bg-slate-50 p-5 lg:col-span-4 lg:border-l lg:border-t-0">
+                <div className="border-t border-slate-200 bg-slate-50 p-4 sm:p-5 xl:col-span-4 xl:border-l xl:border-t-0">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Код проекта</div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900">{screenData.externalId}</div>
+                      <div className="mt-2 break-words text-sm font-semibold text-slate-900">{screenData.externalId}</div>
                     </div>
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Команда</div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900">86 человек</div>
+                      <div className="mt-2 break-words text-sm font-semibold text-slate-900">86 человек</div>
                     </div>
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">GKAM</div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900">{screenData.gkam}</div>
+                      <div className="mt-2 break-words text-sm font-semibold text-slate-900">{screenData.gkam}</div>
                     </div>
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">KAM</div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900">{screenData.kam}</div>
+                      <div className="mt-2 break-words text-sm font-semibold text-slate-900">{screenData.kam}</div>
                     </div>
                   </div>
                 </div>
