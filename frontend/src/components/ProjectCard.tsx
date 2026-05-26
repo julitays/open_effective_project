@@ -1,9 +1,10 @@
 import { ArrowRight, ChevronDown, ChevronUp, MapPinned } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import StatusBadge from "./StatusBadge";
 import type { ProjectPassport } from "../types/cjm";
+import { getProjectEffectiveness } from "../api/projects";
 import {
   formatCode,
   formatDirection,
@@ -17,9 +18,52 @@ interface ProjectCardProps {
   project: ProjectPassport;
 }
 
+type CompletenessStatus = "filled" | "partial" | "empty";
+type CompletenessItem = {
+  label: string;
+  status: CompletenessStatus;
+};
+
 export default function ProjectCard({ project }: ProjectCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const completeness = useMemo(() => buildPassportCompleteness(project), [project]);
+  const [completeness, setCompleteness] = useState(() => buildPassportCompleteness(project));
+  const [completenessLoading, setCompletenessLoading] = useState(false);
+
+  useEffect(() => {
+    setCompleteness(buildPassportCompleteness(project));
+  }, [project]);
+
+  useEffect(() => {
+    if (!expanded) {
+      return;
+    }
+
+    let cancelled = false;
+    setCompletenessLoading(true);
+
+    getProjectEffectiveness(project.project_code)
+      .then((effectiveness) => {
+        if (cancelled) {
+          return;
+        }
+        setCompleteness(buildContextCompleteness(project, effectiveness));
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setCompleteness(buildPassportCompleteness(project));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCompletenessLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expanded, project]);
 
   return (
     <article className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70 transition hover:border-slate-300 hover:shadow-md">
@@ -27,7 +71,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase text-slate-400">Код проекта</div>
           <h2 className="mt-2 break-words text-xl font-semibold text-slate-950">
-            {formatCode(project.working_project_code || project.external_project_id)}
+            {formatCode(project.external_project_id)}
           </h2>
         </div>
         <Link
@@ -75,18 +119,21 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         {expanded ? (
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-900">Паспорт проекта</div>
+              <div className="text-sm font-semibold text-slate-900">Полнота контекста проекта</div>
               <div className="text-sm font-semibold text-slate-900">{completeness.percent}%</div>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full bg-slate-900" style={{ width: `${completeness.percent}%` }} />
             </div>
+            {completenessLoading ? (
+              <div className="mt-3 text-xs text-slate-500">Обновляем расчёт полноты...</div>
+            ) : null}
             <div className="mt-4 space-y-2">
               {completeness.items.map((item) => (
                 <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-slate-600">{item.label}</span>
-                  <span className={item.filled ? "font-medium text-emerald-700" : "font-medium text-amber-700"}>
-                    {item.filled ? "Заполнено" : "Пусто"}
+                  <span className={completenessStatusClass(item.status)}>
+                    {completenessStatusLabel(item.status)}
                   </span>
                 </div>
               ))}
@@ -114,19 +161,236 @@ function ProjectMeta({
 }
 
 function buildPassportCompleteness(project: ProjectPassport) {
-  const items = [
-    { label: "Код проекта", filled: Boolean(project.external_project_id || project.working_project_code) },
-    { label: "Направление", filled: Boolean(project.direction) },
-    { label: "Масштаб", filled: Boolean(project.project_scale) },
-    { label: "Регионы", filled: Boolean(project.known_regions) },
-    { label: "Модель", filled: Boolean(project.primary_operational_model) },
-    { label: "Контуры", filled: Boolean(project.additional_operational_contours) },
-    { label: "Этап", filled: Boolean(project.lifecycle_stage) },
-    { label: "Статус", filled: Boolean(project.project_status) },
-    { label: "Дата старта", filled: Boolean(project.start_date) },
-    { label: "Описание", filled: Boolean(project.short_description) },
+  const rows = [
+    { label: "Код проекта", filled: isMeaningful(project.external_project_id) },
+    { label: "Направление", filled: isMeaningful(project.direction) },
+    { label: "Масштаб", filled: isMeaningful(project.project_scale) },
+    { label: "Регионы", filled: isMeaningful(project.known_regions) },
+    { label: "Модель", filled: isMeaningful(project.primary_operational_model) },
+    { label: "Контуры", filled: isMeaningful(project.additional_operational_contours) },
+    { label: "Этап", filled: isMeaningful(project.lifecycle_stage) },
+    { label: "Статус", filled: isMeaningful(project.project_status) },
+    { label: "Дата старта", filled: isMeaningful(project.start_date) },
+    { label: "Описание", filled: isMeaningful(project.short_description) },
   ];
 
-  const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
+  const items: CompletenessItem[] = rows.map((row) => ({
+    label: row.label,
+    status: row.filled ? "filled" : "empty",
+  }));
+  const percent = Math.round((rows.filter((item) => item.filled).length / rows.length) * 100);
   return { items, percent };
+}
+
+function buildContextCompleteness(
+  project: ProjectPassport,
+  effectiveness: Awaited<ReturnType<typeof getProjectEffectiveness>>,
+) {
+  const passport = buildPassportCompleteness(project);
+  const bySection = new Map(
+    (effectiveness.context_blocks || []).map((block) => [block.section_key, block.content]),
+  );
+
+  const blockState = evaluatePassportBlocks(effectiveness.context_blocks || []);
+  const passportStatus: CompletenessStatus =
+    passport.percent === 100 && blockState.filled
+      ? "filled"
+      : passport.percent > 0 || blockState.partial
+        ? "partial"
+        : "empty";
+
+  const cjm = effectiveness.cjm;
+
+  const items: CompletenessItem[] = [
+    { label: "Паспорт", status: passportStatus },
+    { label: "Цели", status: cjm.goals.length > 0 ? "filled" : "empty" },
+    { label: "Карта влияния и ЛПР", status: cjm.lprs.length > 0 ? "filled" : "empty" },
+    { label: "Конкуренты", status: evaluateCompetitorsStatus(bySection) },
+    { label: "SWOT", status: evaluateSwotStatus(bySection.get("swot")) },
+    { label: "Барьеры", status: cjm.barriers.length > 0 ? "filled" : "empty" },
+    { label: "Ожидания", status: cjm.expectations.length > 0 ? "filled" : "empty" },
+    { label: "KPI", status: cjm.kpis.length > 0 ? "filled" : "empty" },
+    { label: "Коммуникации", status: cjm.communications.length > 0 ? "filled" : "empty" },
+    {
+      label: "Правила интерпретации",
+      status: hasStringList(bySection.get("interpretation_rules"), "rules") ? "filled" : "empty",
+    },
+    {
+      label: "Карта рисков",
+      status: hasRecords(bySection.get("risk_map"), ["title"], 1) ? "filled" : "empty",
+    },
+    { label: "Бриф проекта", status: evaluateSummaryStatus(bySection.get("summary")) },
+  ];
+
+  const weighted = items.reduce((acc, item) => {
+    if (item.status === "filled") {
+      return acc + 1;
+    }
+    if (item.status === "partial") {
+      return acc + 0.5;
+    }
+    return acc;
+  }, 0);
+  const percent = Math.round((weighted / items.length) * 100);
+  return { items, percent };
+}
+
+function completenessStatusLabel(status: CompletenessStatus) {
+  if (status === "filled") {
+    return "Заполнено";
+  }
+  if (status === "partial") {
+    return "Частично";
+  }
+  return "Пусто";
+}
+
+function completenessStatusClass(status: CompletenessStatus) {
+  if (status === "filled") {
+    return "font-medium text-emerald-700";
+  }
+  if (status === "partial") {
+    return "font-medium text-amber-700";
+  }
+  return "font-medium text-slate-500";
+}
+
+function evaluatePassportBlocks(blocks: Array<{ section_key: string; content: Record<string, unknown> }>) {
+  const bySection = new Map(blocks.map((block) => [block.section_key, block.content]));
+
+  const checks = [
+    hasFacts(bySection.get("passport_header"), 3),
+    hasFacts(bySection.get("passport_overview"), 3),
+    hasFacts(bySection.get("passport_service"), 3),
+    hasRecords(bySection.get("client_vision"), ["title", "value"], 1),
+    hasRecords(bySection.get("work_contours"), ["contour", "owner", "text"], 1),
+    hasRecords(bySection.get("project_history"), ["year", "title", "text"], 1),
+  ];
+
+  const full = checks.every(Boolean);
+  const any = checks.some(Boolean);
+  return { filled: full, partial: any };
+}
+
+function evaluateCompetitorsStatus(bySection: Map<string, Record<string, unknown>>) {
+  const openFilled = hasRecords(bySection.get("competitors_open"), ["name"], 1);
+  const clientFilled = hasRecords(bySection.get("competitors_client"), ["name"], 1);
+  if (openFilled && clientFilled) {
+    return "filled";
+  }
+  if (openFilled || clientFilled) {
+    return "partial";
+  }
+  return "empty";
+}
+
+function evaluateSwotStatus(content: Record<string, unknown> | undefined): CompletenessStatus {
+  const keys = ["strengths", "weaknesses", "opportunities", "threats"];
+  const filled = keys.filter((key) => hasStringList(content, key)).length;
+  if (filled === keys.length) {
+    return "filled";
+  }
+  if (filled > 0) {
+    return "partial";
+  }
+  return "empty";
+}
+
+function evaluateSummaryStatus(content: Record<string, unknown> | undefined): CompletenessStatus {
+  const filled = [
+    hasStringList(content, "critical_to_client"),
+    hasStringList(content, "main_risks"),
+    isMeaningful(stringField(content, "note")),
+  ].filter(Boolean).length;
+  if (filled === 3) {
+    return "filled";
+  }
+  if (filled > 0) {
+    return "partial";
+  }
+  return "empty";
+}
+
+function hasFacts(content: Record<string, unknown> | undefined, minFilled: number) {
+  if (!content) {
+    return false;
+  }
+  const items = Array.isArray(content.items) ? content.items : [];
+  let filled = 0;
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const value = String((item as Record<string, unknown>).value ?? "");
+    if (isMeaningful(value)) {
+      filled += 1;
+    }
+  }
+  return filled >= minFilled;
+}
+
+function hasStringList(content: Record<string, unknown> | undefined, key: string) {
+  if (!content) {
+    return false;
+  }
+  const list = content[key];
+  if (!Array.isArray(list)) {
+    return false;
+  }
+  return list.some((item) => isMeaningful(String(item ?? "")));
+}
+
+function stringField(content: Record<string, unknown> | undefined, key: string) {
+  if (!content) {
+    return "";
+  }
+  return String(content[key] ?? "");
+}
+
+function hasRecords(
+  content: Record<string, unknown> | undefined,
+  fields: string[],
+  minRows: number,
+) {
+  if (!content) {
+    return false;
+  }
+  const items = Array.isArray(content.items) ? content.items : [];
+  let goodRows = 0;
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const hasCore = fields.every((field) => isMeaningful(String(row[field] ?? "")));
+    if (hasCore) {
+      goodRows += 1;
+    }
+  }
+  return goodRows >= minRows;
+}
+
+function isMeaningful(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  const placeholders = new Set([
+    "unknown",
+    "none",
+    "not_set",
+    "not specified",
+    "не указано",
+    "требует уточнения",
+    "requires clarification",
+    "requires confirmation",
+    "null",
+    "nan",
+  ]);
+
+  return !placeholders.has(normalized);
 }

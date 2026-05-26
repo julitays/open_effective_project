@@ -48,6 +48,7 @@ import {
   formatCriticality,
   formatDirection,
   formatEntityCode,
+  formatGoalContour,
   formatGoalType,
   formatInfluenceLevel,
   formatKpiType,
@@ -194,14 +195,17 @@ const relationshipOptions = [
   option("unknown", formatRelationshipStatus),
 ];
 const goalTypeOptions = [
-  option("open_internal", formatGoalType),
-  option("client_business", formatGoalType),
-  option("joint_project", formatGoalType),
   option("service", formatGoalType),
   option("operational", formatGoalType),
   option("financial", formatGoalType),
   option("risk_control", formatGoalType),
   option("other", formatGoalType),
+];
+const goalContourOptions = [
+  { value: "open", label: "OPEN" },
+  { value: "client", label: "Клиент" },
+  { value: "joint", label: "Совместная" },
+  { value: "unknown", label: "Не указано" },
 ];
 const priorityOptions = [
   option("high", formatPriority),
@@ -672,8 +676,8 @@ function useScreenData() {
   const fallbackProject = {
     ...project,
     code: projectInfo.project_code,
-    externalId: projectInfo.external_project_id || projectInfo.working_project_code || "Без кода",
-    clientName: `Проект ${projectInfo.external_project_id || projectInfo.working_project_code || projectInfo.project_code}`,
+    externalId: projectInfo.external_project_id || "Без кода",
+    clientName: `Проект ${projectInfo.external_project_id || projectInfo.project_code}`,
     project_status: projectInfo.project_status,
     direction: formatDirection(projectInfo.direction),
     serviceModel: sanitizeCjm(projectInfo.short_description) || "Описание проекта нужно уточнить в паспорте.",
@@ -705,11 +709,7 @@ function useScreenData() {
   const realGoals = cjm.goals.map((goal, index) => ({
     id: goal.goal_code || `goal_${index + 1}`,
     entityCode: goal.goal_code || goal.goal_id || `goal_${index + 1}`,
-    contour:
-      goal.goal_type?.toLowerCase().includes("client")
-      || goal.goal_owner?.toLowerCase().includes("клиент")
-        ? "Клиент"
-        : "OPEN",
+    contour: formatGoalContour(goal.goal_contour || deriveGoalContourLegacy(goal.goal_type, goal.goal_owner)),
     goal: goal.goal_text,
     type: formatGoalType(goal.goal_type),
     meaning: goal.comment || goal.success_criteria || "Смысл цели можно уточнить при редактировании.",
@@ -722,11 +722,11 @@ function useScreenData() {
     id: lpr.lpr_code,
     entityCode: lpr.lpr_code,
     role: lpr.role_zone || lpr.role,
-    decisionRole: lpr.evidence_basis || "Зона влияния уточняется в карточке ЛПР.",
+    decisionRole: lpr.role_zone || lpr.role || "Не указано",
     influence: formatInfluenceLevel(lpr.influence_level),
     attitude: formatRelationshipStatus(lpr.relationship_status),
     profileStatus: formatActivityStatus(lpr.activity_status),
-    profileSource: lpr.evidence_basis || "Данные внесены в контекст проекта.",
+    profileSource: lpr.evidence_basis || "Не указано",
     profileEvidence: lpr.importance_factors.map((factor) => ({
       source: humanizeSourceLabel(factor.source_text),
       detail: factor.evidence_quote || factor.factor_text,
@@ -738,14 +738,14 @@ function useScreenData() {
       description: factor.evidence_quote || factor.source_text || "Описание важности можно уточнить.",
     })),
     interaction: {
-      preferredFormat: lpr.manual_comment || "Формат взаимодействия уточняется.",
+      preferredFormat: lpr.manual_comment || "Не указано",
       channel: "См. матрицу коммуникаций",
       frequency: "См. матрицу коммуникаций",
       owner: "Проектная команда",
     },
-    doRules: ["фиксировать договорённости", "показывать статус и следующий шаг"],
-    dontRules: ["оставлять вопрос без владельца", "терять контекст договорённостей"],
-    notes: lpr.manual_comment || "Карточка редактируется в интерфейсе.",
+    doRules: [],
+    dontRules: [],
+    notes: lpr.manual_comment || "",
     raw: lpr,
   }));
 
@@ -889,7 +889,7 @@ function useScreenData() {
         value: formatText(String(item.value || "")),
       }))
     : [
-        { label: "Код проекта", value: formatText(projectInfo.external_project_id || projectInfo.working_project_code) },
+        { label: "Код проекта", value: formatText(projectInfo.external_project_id) },
         { label: "Статус", value: formatProjectStatus(projectInfo.project_status) },
         { label: "Этап жизненного цикла", value: formatLifecycleStage(projectInfo.lifecycle_stage) },
         { label: "Дата старта", value: formatText(projectInfo.start_date) },
@@ -1065,6 +1065,46 @@ function buildCommunicationPayload(payload: PatchPayload): PatchPayload {
   };
 }
 
+function isLegacyGoalContourInType(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase() || "";
+  return ["open_internal", "client_business", "joint_project", "open", "client", "joint"].includes(normalized);
+}
+
+function deriveGoalContourLegacy(
+  goalType: string | null | undefined,
+  goalOwner: string | null | undefined,
+) {
+  const type = goalType?.trim().toLowerCase() || "";
+  if (["client_business", "client", "цель клиента"].includes(type)) {
+    return "client";
+  }
+  if (["joint_project", "joint", "совместная цель"].includes(type)) {
+    return "joint";
+  }
+  if (["open_internal", "open", "цель open"].includes(type)) {
+    return "open";
+  }
+  const owner = goalOwner?.trim().toLowerCase() || "";
+  if (owner.includes("клиент")) {
+    return "client";
+  }
+  if (owner.includes("совмест")) {
+    return "joint";
+  }
+  return "open";
+}
+
+function normalizeGoalPayload(payload: PatchPayload): PatchPayload {
+  const normalized: PatchPayload = { ...payload };
+  if (isLegacyGoalContourInType(normalized.goal_type)) {
+    normalized.goal_type = "other";
+  }
+  if (!normalized.goal_contour) {
+    normalized.goal_contour = "open";
+  }
+  return normalized;
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return "Не указано";
@@ -1192,7 +1232,6 @@ function priorityTone(value: string | null | undefined): BadgeTone {
 
 const projectEditFields: EditField[] = [
   { name: "external_project_id", label: "Код проекта" },
-  { name: "working_project_code", label: "Рабочий код проекта" },
   {
     name: "direction",
     label: "Направление",
@@ -1244,12 +1283,17 @@ const lprEditFields: EditField[] = [
   { name: "influence_level", label: "Уровень влияния", input: "select", options: influenceOptions },
   { name: "activity_status", label: "Статус активности", input: "select", options: activityOptions },
   { name: "relationship_status", label: "Отношение", input: "select", options: relationshipOptions },
-  { name: "evidence_basis", label: "Основание вывода", input: "textarea" },
+  {
+    name: "evidence_basis",
+    label: "Основание профиля (факты/источник, почему определены роль и влияние)",
+    input: "textarea",
+  },
   { name: "manual_comment", label: "Комментарий", input: "textarea" },
 ];
 
 function buildGoalEditFields(effectiveness: ProjectEffectiveness): EditField[] {
   return [
+    { name: "goal_contour", label: "Контур", input: "select", options: goalContourOptions },
     { name: "goal_owner", label: "Владелец цели" },
     { name: "goal_type", label: "Тип цели", input: "select", options: goalTypeOptions },
     { name: "goal_text", label: "Текст цели", input: "textarea" },
@@ -1914,20 +1958,26 @@ function ProjectMap() {
                         <div className="mt-3 rounded-2xl bg-white/80 p-3 text-sm font-medium leading-6 text-slate-900">
                           {contact.interaction.preferredFormat}
                         </div>
-                        <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
-                          {contact.doRules.map((item) => (
-                            <li key={item}>• {item}</li>
-                          ))}
-                        </ul>
+                        {contact.doRules.length > 0 ? (
+                          <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
+                            {contact.doRules.map((item) => (
+                              <li key={item}>• {item}</li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
 
                       <div className="rounded-2xl bg-rose-50 p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-rose-700">Чего избегать</div>
-                        <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
-                          {contact.dontRules.map((item) => (
-                            <li key={item}>• {item}</li>
-                          ))}
-                        </ul>
+                        {contact.dontRules.length > 0 ? (
+                          <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
+                            {contact.dontRules.map((item) => (
+                              <li key={item}>• {item}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-3 text-sm leading-5 text-slate-500">Не указано</div>
+                        )}
                       </div>
                     </div>
 
@@ -2204,8 +2254,22 @@ function InterpretationRules() {
 function Kpi() {
   const { kpis, relationText } = useScreenData();
   const { editKpi, createKpi, archiveKpi } = useScreenActions();
-  const [selectedKpiId, setSelectedKpiId] = useState("KPI-01");
-  const selectedKpi = kpis.find((item) => item.id === selectedKpiId) || kpis[0];
+  const [selectedKpiId, setSelectedKpiId] = useState("");
+  const selectedKpi = kpis.find((item) => item.id === selectedKpiId) || kpis[0] || null;
+  const highPriorityCount = kpis.filter((item) => (item.priority || "").includes("Высок")).length;
+
+  useEffect(() => {
+    if (kpis.length === 0) {
+      if (selectedKpiId !== "") {
+        setSelectedKpiId("");
+      }
+      return;
+    }
+    const hasSelected = kpis.some((item) => item.id === selectedKpiId);
+    if (!hasSelected) {
+      setSelectedKpiId(kpis[0].id);
+    }
+  }, [kpis, selectedKpiId]);
 
   const kpiGroups = Array.from(new Set(kpis.map((item) => item.sourceBlock))).map((group) => ({
     group,
@@ -2243,7 +2307,7 @@ function Kpi() {
             </div>
             <div className="text-right text-xs leading-5 text-slate-500">
               <div>Всего: <span className="font-semibold text-slate-900">{kpis.length}</span></div>
-              <div>Высокий приоритет: <span className="font-semibold text-slate-900">{kpis.filter((item) => item.priority.includes("Высок")).length}</span></div>
+              <div>Высокий приоритет: <span className="font-semibold text-slate-900">{highPriorityCount}</span></div>
             </div>
           </div>
         </div>
@@ -2302,6 +2366,7 @@ function Kpi() {
         </div>
       </div>
 
+      {selectedKpi ? (
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -2362,6 +2427,11 @@ function Kpi() {
           </p>
         </div>
       </div>
+      ) : (
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+          KPI пока не добавлены. Нажмите «Добавить KPI», чтобы заполнить раздел.
+        </div>
+      )}
     </div>
   );
 }
@@ -2369,7 +2439,7 @@ function Kpi() {
 function RiskMap() {
   const { riskMap } = useScreenData();
   const { editBarrier, editRiskMap } = useScreenActions();
-  const [expandedRisk, setExpandedRisk] = useState("R-01");
+  const [expandedRisk, setExpandedRisk] = useState("");
 
   type RiskItem = (typeof riskMap)[number];
   const riskScore = (item: RiskItem) => item.probability.score * item.impact.score;
@@ -2411,8 +2481,22 @@ function RiskMap() {
     },
   ];
 
-  const selectedRisk = riskMap.find((item) => item.id === expandedRisk) || riskMap[0];
-  const selectedLevel = riskLevel(selectedRisk);
+  const selectedRisk = riskMap.find((item) => item.id === expandedRisk) || riskMap[0] || null;
+  const selectedLevel = selectedRisk ? riskLevel(selectedRisk) : "";
+
+  useEffect(() => {
+    if (riskMap.length === 0) {
+      if (expandedRisk !== "") {
+        setExpandedRisk("");
+      }
+      return;
+    }
+
+    const hasSelected = riskMap.some((item) => item.id === expandedRisk);
+    if (!hasSelected) {
+      setExpandedRisk(riskMap[0].id);
+    }
+  }, [riskMap, expandedRisk]);
 
   return (
     <div className="space-y-5">
@@ -2531,6 +2615,7 @@ function RiskMap() {
         </div>
       </div>
 
+      {selectedRisk ? (
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -2601,6 +2686,11 @@ function RiskMap() {
           </div>
         </div>
       </div>
+      ) : (
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+          Карта рисков пока не заполнена. Нажмите «Редактировать карту», чтобы добавить риски.
+        </div>
+      )}
     </div>
   );
 }
@@ -2686,8 +2776,18 @@ function Barriers() {
 }
 
 function Summary() {
-  const { project } = useScreenData();
+  const {
+    project,
+    summaryBlock,
+    contextBlocks,
+    projectGoals,
+    contacts,
+    barriers,
+    kpis,
+    communications,
+  } = useScreenData();
   const { editSummary } = useScreenActions();
+
   const confirmedFacts = [
     { label: "Код проекта", value: project.externalId },
     { label: "Направление", value: project.direction },
@@ -2697,60 +2797,26 @@ function Summary() {
     { label: "Команда", value: project.headcount },
   ];
 
-  const handoverBlocks = [
-    {
-      title: "Кто ведёт проект",
-      items: [
-        { name: "GKAM", value: project.gkam, status: "указан" },
-        { name: "KAM", value: project.kam, status: "указан" },
-        { name: "Коммерческий ЛПР", value: "ЛПР 1", status: "обезличен" },
-        { name: "Операционный контакт", value: "ЛПР 2", status: "обезличен" },
-      ],
-    },
-    {
-      title: "Как устроен сервис",
-      items: [
-        { name: "Основная модель", value: project.operationalModel, status: "указано" },
-        { name: "Дополнительные контуры", value: project.openTeam, status: "указано" },
-        { name: "Формат сервиса", value: project.serviceModel, status: "указано" },
-        { name: "Полевой контур", value: "консультанты / мерчендайзеры", status: "указано" },
-      ],
-    },
-    {
-      title: "Где работает проект",
-      items: [
-        { name: "Известные регионы", value: project.geography, status: "частично" },
-        { name: "Остальные регионы", value: "требуют подтверждения", status: "проверить" },
-        { name: "Торговые сети", value: project.stores, status: "обобщено" },
-        { name: "Каналы продаж", value: "требуют уточнения", status: "проверить" },
-      ],
-    },
-  ];
+  const criticalToClient = asStringArray(summaryBlock?.content.critical_to_client);
+  const mainRisks = asStringArray(summaryBlock?.content.main_risks);
+  const summaryNote = formatText(String(summaryBlock?.content.note || ""));
 
-  const dataReadiness = [
-    { section: "Паспорт проекта", status: "Заполнено", content: "код, статус, направление, масштаб, этап, модель, команда" },
-    { section: "Хронология", status: "Заполнено", content: "2019–2022: ключевые изменения проекта" },
-    { section: "KPI проекта", status: "Заполнено как пример", content: "покрытие, продажи, доля рынка, качественные критерии ЛПР, экономика проекта" },
-    { section: "Правила интерпретации", status: "Как методика", content: "как читать KPI, опросы, 360, ОЭД и проектные исключения" },
-    { section: "Карта влияния и ЛПР", status: "Частично", content: "структура OPEN, структура клиента и обезличенные карточки ЛПР" },
-    { section: "Коммуникации", status: "Частично", content: "контакты, темы, частота, канал, критичность" },
-    { section: "Конкуренты", status: "Как пример", content: "конкуренты OPEN и конкуренты клиента по проектному сегменту" },
-    { section: "SWOT", status: "Как гипотеза", content: "сильные стороны, слабые стороны, возможности, угрозы" },
-    { section: "Барьеры", status: "Как пример", content: "было / есть сейчас / будет" },
-  ];
-
-  const nextToFill = [
-    { field: "Регионы", current: "Москва; Новосибирск", needed: "полный список регионов присутствия" },
-    { field: "Численность", current: "86 человек", needed: "подтверждение по ролям и территориям" },
-    { field: "ЛПР", current: "ЛПР 1 / ЛПР 2 / ЛПР 3", needed: "реальные роли или согласованное обезличивание" },
-    { field: "Торговые сети", current: "общее описание", needed: "список сетей / каналов продаж" },
-    { field: "KPI", current: "примерная структура", needed: "фактические источники расчёта" },
-    { field: "Конкуренты", current: "рыночные примеры", needed: "кто реально пересекался с OPEN по клиенту" },
+  const hasBlock = (sectionKey: string) =>
+    contextBlocks.some((block) => block.section_key === sectionKey);
+  const readinessRows = [
+    { section: "Паспорт проекта", status: hasBlock("passport_header") && hasBlock("passport_overview") && hasBlock("passport_service") ? "Заполнено" : "Частично" },
+    { section: "История проекта", status: hasBlock("project_history") ? "Заполнено" : "Пусто" },
+    { section: "Цели", status: projectGoals.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "Карта влияния и ЛПР", status: contacts.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "KPI проекта", status: kpis.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "Коммуникации", status: communications.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "Барьеры", status: barriers.some((group) => group.items.length > 0) ? "Заполнено" : "Пусто" },
+    { section: "Бриф проекта", status: criticalToClient.length || mainRisks.length || summaryNote !== "Не указано" ? "Заполнено" : "Пусто" },
   ];
 
   const statusTone = (status: string): BadgeTone => {
-    if (["Заполнено", "указан", "указано"].includes(status)) return "good";
-    if (["проверить", "Частично", "частично"].includes(status)) return "warn";
+    if (status === "Заполнено") return "good";
+    if (status === "Частично") return "warn";
     return "neutral";
   };
 
@@ -2758,7 +2824,7 @@ function Summary() {
     <div className="space-y-6">
       <SectionTitle
         title="Бриф проекта"
-        description="Один лист для быстрой передачи проекта: что уже известно, что заполнено частично и какие факты нужно подтвердить перед использованием контекста в аналитике."
+        description="Краткая сводка по проекту для передачи контекста между участниками команды."
         action="Обновить бриф"
         onAction={editSummary}
       />
@@ -2775,7 +2841,7 @@ function Summary() {
               {project.clientName}: короткая сводка для входа в контекст
             </h3>
             <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
-              Стартовая карточка для КАМ, руководителя или аналитика: базовые факты проекта, готовность разделов и список данных, требующих подтверждения.
+              Здесь отображаются только сохранённые данные проекта. Если бриф не заполнен, блоки ниже будут пустыми.
             </p>
           </div>
 
@@ -2783,16 +2849,16 @@ function Summary() {
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Готовность контекста</div>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                <div className="text-2xl font-semibold text-white">3</div>
+                <div className="text-2xl font-semibold text-white">{readinessRows.filter((row) => row.status === "Заполнено").length}</div>
                 <div className="mt-1 text-xs leading-4 text-slate-400">раздела заполнены</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                <div className="text-2xl font-semibold text-white">3</div>
+                <div className="text-2xl font-semibold text-white">{readinessRows.filter((row) => row.status === "Частично").length}</div>
                 <div className="mt-1 text-xs leading-4 text-slate-400">частично</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                <div className="text-2xl font-semibold text-white">6</div>
-                <div className="mt-1 text-xs leading-4 text-slate-400">фактов к проверке</div>
+                <div className="text-2xl font-semibold text-white">{readinessRows.filter((row) => row.status === "Пусто").length}</div>
+                <div className="mt-1 text-xs leading-4 text-slate-400">пустых разделов</div>
               </div>
             </div>
           </div>
@@ -2808,27 +2874,39 @@ function Summary() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {handoverBlocks.map((block) => (
-          <Card key={block.title}>
-            <h3 className="text-base font-semibold text-slate-900">{block.title}</h3>
-            <div className="mt-4 space-y-3">
-              {block.items.map((item) => (
-                <div key={`${block.title}-${item.name}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{item.name}</div>
-                    <Badge tone={statusTone(item.status)}>{item.status}</Badge>
-                  </div>
-                  <div className="mt-2 text-sm font-medium leading-6 text-slate-900">{item.value}</div>
-                </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Card>
+          <h3 className="text-base font-semibold text-slate-900">Что критично клиенту</h3>
+          {criticalToClient.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+              {criticalToClient.map((item) => (
+                <li key={item}>• {item}</li>
               ))}
-            </div>
-          </Card>
-        ))}
+            </ul>
+          ) : (
+            <div className="mt-3 text-sm text-slate-500">Не заполнено</div>
+          )}
+        </Card>
+
+        <Card>
+          <h3 className="text-base font-semibold text-slate-900">Где основной риск</h3>
+          {mainRisks.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+              {mainRisks.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-3 text-sm text-slate-500">Не заполнено</div>
+          )}
+          <div className="mt-4 text-xs leading-5 text-slate-500">
+            Комментарий: {summaryNote}
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <Card className="xl:col-span-7">
+        <Card className="xl:col-span-12">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-slate-900">Что уже есть в контексте</h3>
             <Badge tone="dark">разделы</Badge>
@@ -2844,40 +2922,18 @@ function Summary() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {dataReadiness.map((row) => (
+                {readinessRows.map((row) => (
                   <tr key={row.section}>
                     <td className="px-4 py-4 font-medium text-slate-900">{row.section}</td>
                     <td className="px-4 py-4"><Badge tone={statusTone(row.status)}>{row.status}</Badge></td>
-                    <td className="px-4 py-4 text-slate-600">{row.content}</td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {row.status === "Заполнено" ? "Раздел содержит данные" : row.status === "Частично" ? "Раздел заполнен частично" : "Раздел пока пуст"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             </div>
-          </div>
-        </Card>
-
-        <Card className="border-amber-200 bg-amber-50 xl:col-span-5">
-          <h3 className="text-base font-semibold text-slate-900">Что мешает считать контекст полным</h3>
-          <div className="mt-4 space-y-3">
-            {nextToFill.map((item) => (
-              <div key={item.field} className="rounded-2xl bg-white/75 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-sm font-semibold text-slate-900">{item.field}</div>
-                  <Badge tone="warn">уточнить</Badge>
-                </div>
-                <div className="mt-3 grid grid-cols-1 gap-3 text-sm leading-5 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Сейчас</div>
-                    <div className="mt-1 text-slate-700">{item.current}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Нужно</div>
-                    <div className="mt-1 text-slate-700">{item.needed}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </Card>
       </div>
@@ -3004,14 +3060,22 @@ export default function ProjectContextPage() {
     [searchParams, setSearchParams],
   );
 
-  async function refreshEffectiveness() {
-    setLoading(true);
+  async function refreshEffectiveness(options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       await loadEffectiveness();
     } catch (error: unknown) {
-      setLoadError(error instanceof Error ? error.message : "Не удалось загрузить проект.");
+      if (!silent) {
+        setLoadError(error instanceof Error ? error.message : "Не удалось загрузить проект.");
+      }
+      throw error;
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }
 
@@ -3041,7 +3105,7 @@ export default function ProjectContextPage() {
       return;
     }
     await archiveEntity(projectCode, entity, code, "Archived from web interface");
-    await refreshEffectiveness();
+    await refreshEffectiveness({ silent: true });
   }
 
   async function saveContextBlock(
@@ -3082,7 +3146,7 @@ export default function ProjectContextPage() {
     try {
       await editTarget.save(payload);
       setEditTarget(null);
-      await refreshEffectiveness();
+      await refreshEffectiveness({ silent: true });
     } catch (error: unknown) {
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
     } finally {
@@ -3100,7 +3164,7 @@ export default function ProjectContextPage() {
     try {
       await collectionEditTarget.save(items);
       setCollectionEditTarget(null);
-      await refreshEffectiveness();
+      await refreshEffectiveness({ silent: true });
     } catch (error: unknown) {
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
     } finally {
@@ -3293,17 +3357,29 @@ export default function ProjectContextPage() {
       },
       editGoal: (goal: Goal) => {
         const fields = buildGoalEditFields(effectiveness);
+        const values = pickValues(goal, fields);
+        if (!values.goal_contour) {
+          values.goal_contour = deriveGoalContourLegacy(goal.goal_type, goal.goal_owner) || "open";
+        }
+        if (isLegacyGoalContourInType(values.goal_type)) {
+          values.goal_type = "other";
+        }
         setSaveError(null);
         setEditTarget({
           title: goal.goal_text,
           fields,
-          values: pickValues(goal, fields),
-            save: (payload) => updateGoal(projectCode, goal.goal_code || goal.goal_id || "", payload),
+          values,
+          save: (payload) =>
+            updateGoal(
+              projectCode,
+              goal.goal_code || goal.goal_id || "",
+              normalizeGoalPayload(payload),
+            ),
         });
       },
       createGoal: () => {
         openCreate("Новая цель", buildGoalEditFields(effectiveness), (payload) =>
-          createGoal(projectCode, payload),
+          createGoal(projectCode, normalizeGoalPayload(payload)),
         );
       },
       archiveGoal: (goal: Goal) => archiveAndRefresh("goals", goal.goal_code || goal.goal_id),
@@ -3541,7 +3617,7 @@ export default function ProjectContextPage() {
         await updateBarrier(projectCode, barrier.barrier_code || barrier.barrier_id || "", {
           time_status: timeStatus,
         });
-        await refreshEffectiveness();
+        await refreshEffectiveness({ silent: true });
       },
       editSummary: () => {
         const values: EditValues = {

@@ -29,6 +29,35 @@ class CJMReadRepository:
             )
         )
 
+    def get_project_for_effectiveness(self, project_code: str) -> Project | None:
+        return self.session.scalar(
+            select(Project)
+            .options(
+                selectinload(Project.lpr_profiles).selectinload(LPRProfile.importance_factors),
+                selectinload(Project.goals),
+                selectinload(Project.kpis),
+                selectinload(Project.expectations),
+                selectinload(Project.barriers),
+                selectinload(Project.communication_points),
+                selectinload(Project.passport_facts),
+                selectinload(Project.client_vision_items),
+                selectinload(Project.work_contours),
+                selectinload(Project.history_events),
+                selectinload(Project.need_pyramid_items),
+                selectinload(Project.structure_members),
+                selectinload(Project.competitors),
+                selectinload(Project.swot_items),
+                selectinload(Project.interpretation_rules),
+                selectinload(Project.risk_items),
+                selectinload(Project.summary_items),
+                selectinload(Project.summary_state),
+            )
+            .where(
+                Project.project_code == project_code,
+                Project.archived_at.is_(None),
+            )
+        )
+
     def list_lprs(self, project_id: object) -> list[LPRProfile]:
         statement = (
             select(LPRProfile)

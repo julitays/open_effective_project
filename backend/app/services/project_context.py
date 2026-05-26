@@ -139,7 +139,6 @@ class ProjectContextService:
     def _template_for_project(self, project: Project) -> dict[str, object] | None:
         keys = [
             project.external_project_id,
-            project.working_project_code,
             project.project_code,
         ]
         for key in keys:

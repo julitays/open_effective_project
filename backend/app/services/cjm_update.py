@@ -57,11 +57,17 @@ class CJMUpdateService:
         self.read_service = read_service
 
     def create_project(self, payload: CJMProjectCreate, updated_by: str) -> CJMProjectPassport:
+        external_project_id = payload.external_project_id.strip()
+        if not external_project_id:
+            raise CJMPatchValueError("Project code is required.")
+        if self.repository.get_project_by_external_id(external_project_id) is not None:
+            raise CJMPatchValueError(
+                f"Project with code '{external_project_id}' already exists."
+            )
         project_code = payload.project_code or self._next_code("project", self.repository.list_project_codes())
         project = Project(
             project_code=project_code,
-            external_project_id=payload.external_project_id,
-            working_project_code=payload.working_project_code,
+            external_project_id=external_project_id,
             project_type=cjm_mappings.map_direction(payload.direction) or payload.direction,
             project_scale=cjm_mappings.map_project_scale(payload.project_scale) or payload.project_scale,
             known_regions=payload.known_regions,
@@ -97,8 +103,9 @@ class CJMUpdateService:
             project_id=project.id,
             source_id=goal_code,
             goal_owner=payload.goal_owner,
+            goal_contour=map_goal_contour(payload.goal_contour) or payload.goal_contour,
             goal_text=payload.goal_text,
-            goal_type=payload.goal_type,
+            goal_type=map_goal_type(payload.goal_type) or payload.goal_type,
             priority=map_priority(payload.priority) or payload.priority,
             related_kpi_or_criterion_text=payload.related_kpi_or_criterion_text,
             source_text=payload.source_text,
@@ -353,6 +360,14 @@ class CJMUpdateService:
         if project is None:
             return None
 
+        proposed_external_id = patch.external_project_id.strip() if patch.external_project_id else None
+        if proposed_external_id:
+            existing = self.repository.get_project_by_external_id(proposed_external_id)
+            if existing is not None and existing.id != project.id:
+                raise CJMPatchValueError(
+                    f"Project with code '{proposed_external_id}' already exists."
+                )
+
         self._apply_patch(
             project,
             patch,
@@ -390,7 +405,11 @@ class CJMUpdateService:
         self._apply_patch(
             goal,
             patch,
-            mappers={"relevance_status": map_relevance_status},
+            mappers={
+                "goal_contour": map_goal_contour,
+                "goal_type": map_goal_type,
+                "relevance_status": map_relevance_status,
+            },
         )
         self._mark_manual_update(goal, updated_by)
         self.repository.save(goal)
@@ -859,6 +878,50 @@ def map_relationship_status(value: object) -> str | None:
             "осторожен": "cautious",
             "critical": "critical",
             "критичен": "critical",
+            "unknown": "unknown",
+            "не указано": "unknown",
+        },
+    )
+
+
+def map_goal_contour(value: object) -> str | None:
+    return _map_alias(
+        value,
+        {
+            "open": "open",
+            "цель open": "open",
+            "open цель": "open",
+            "наша цель": "open",
+            "клиент": "client",
+            "цель клиента": "client",
+            "клиентская цель": "client",
+            "совместная": "joint",
+            "совместная цель": "joint",
+            "общая цель проекта": "joint",
+            "joint": "joint",
+            "unknown": "unknown",
+            "не указано": "unknown",
+        },
+    )
+
+
+def map_goal_type(value: object) -> str | None:
+    return _map_alias(
+        value,
+        {
+            "service": "service",
+            "сервисная": "service",
+            "сервисная цель": "service",
+            "operational": "operational",
+            "операционная": "operational",
+            "операционная цель": "operational",
+            "financial": "financial",
+            "финансовая": "financial",
+            "финансовая цель": "financial",
+            "risk_control": "risk_control",
+            "контроль рисков": "risk_control",
+            "other": "other",
+            "другое": "other",
             "unknown": "unknown",
             "не указано": "unknown",
         },

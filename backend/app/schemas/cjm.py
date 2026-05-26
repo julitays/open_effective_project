@@ -146,6 +146,7 @@ class CJMGoal(BaseModel):
     goal_id: str | None
     goal_code: str | None
     goal_owner: str | None
+    goal_contour: str | None
     goal_text: str
     goal_type: str | None
     priority: str | None
@@ -189,6 +190,7 @@ class ArchiveRequest(SanitizedPatchModel):
 class CJMGoalCreate(SanitizedPatchModel):
     goal_code: str | None = None
     goal_owner: str | None = None
+    goal_contour: str | None = None
     goal_type: str | None = None
     goal_text: str
     priority: str | None = None
@@ -288,6 +290,7 @@ class ProjectContextBlockPatch(SanitizedPatchModel):
 
 class CJMGoalPatch(SanitizedPatchModel):
     goal_owner: str | None = None
+    goal_contour: str | None = None
     goal_type: str | None = None
     goal_text: str | None = None
     priority: str | None = None

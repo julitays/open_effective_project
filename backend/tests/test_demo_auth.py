@@ -38,7 +38,6 @@ def auth_session_factory() -> Generator[sessionmaker[Session], None, None]:
             Project(
                 project_code="project_001",
                 external_project_id="external_project_001",
-                working_project_code="working_project_001",
                 project_type="fmcg",
                 project_scale="regional",
                 primary_operational_model="merchandising",

@@ -1,7 +1,6 @@
 export interface ProjectPassport {
   project_code: string;
-  external_project_id: string | null;
-  working_project_code: string | null;
+  external_project_id: string;
   direction: string | null;
   project_scale: string | null;
   known_regions: string | null;
@@ -123,6 +122,7 @@ export interface Goal {
   goal_id: string | null;
   goal_code: string | null;
   goal_owner: string | null;
+  goal_contour: string | null;
   goal_text: string;
   goal_type: string | null;
   priority: string | null;

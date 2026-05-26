@@ -254,26 +254,22 @@ const yesNoLabels = {
 };
 
 const goalTypeLabels = {
-  open_internal: "Цель OPEN",
-  client_business: "Цель клиента",
-  joint_project: "Общая цель проекта",
   service: "Сервисная цель",
   operational: "Операционная цель",
   financial: "Финансовая цель",
   risk_control: "Контроль рисков",
   other: "Другое",
-  "цель open": "Цель OPEN",
-  "open": "Цель OPEN",
-  "наша цель": "Цель OPEN",
-  "цель клиента": "Цель клиента",
-  "client": "Цель клиента",
   "финансовая": "Финансовый результат",
   "финансовый": "Финансовый результат",
-  "клиентская": "Цель клиента",
-  "клиентский": "Цель клиента",
-  "бизнес клиента": "Цель клиента",
   "операционная": "Операционный результат",
   "операционный": "Операционный результат",
+};
+
+const goalContourLabels = {
+  open: "OPEN",
+  client: "Клиент",
+  joint: "Совместная",
+  unknown: emptyLabel,
 };
 
 const priorityLabels = {
@@ -453,6 +449,9 @@ export const formatYesNo = (value: string | null | undefined) =>
 
 export const formatGoalType = (value: string | null | undefined) =>
   labelFrom(value, goalTypeLabels);
+
+export const formatGoalContour = (value: string | null | undefined) =>
+  labelFrom(value, goalContourLabels);
 
 export const formatPriority = (value: string | null | undefined) =>
   labelFrom(value, priorityLabels);
