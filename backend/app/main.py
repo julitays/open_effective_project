@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=True,
     )
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     add_demo_auth(app)
     app.include_router(api_router)
 
