@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import StatusBadge from "./StatusBadge";
 import type { ProjectPassport } from "../types/cjm";
-import { getProjectCjm } from "../api/projects";
+import { getProjectEffectiveness } from "../api/projects";
 import {
   formatCode,
   formatDirection,
@@ -41,12 +41,12 @@ export default function ProjectCard({ project }: ProjectCardProps) {
     let cancelled = false;
     setCompletenessLoading(true);
 
-    getProjectCjm(project.project_code)
-      .then((cjm) => {
+    getProjectEffectiveness(project.project_code)
+      .then((effectiveness) => {
         if (cancelled) {
           return;
         }
-        setCompleteness(buildContextCompleteness(project, cjm));
+        setCompleteness(buildContextCompleteness(project, effectiveness));
       })
       .catch(() => {
         if (cancelled) {
@@ -184,12 +184,19 @@ function buildPassportCompleteness(project: ProjectPassport) {
 
 function buildContextCompleteness(
   project: ProjectPassport,
-  cjm: Awaited<ReturnType<typeof getProjectCjm>>,
+  effectiveness: Awaited<ReturnType<typeof getProjectEffectiveness>>,
 ) {
   const passport = buildPassportCompleteness(project);
 
+  const blockState = evaluatePassportBlocks(effectiveness.context_blocks || []);
   const passportStatus: CompletenessStatus =
-    passport.percent >= 100 ? "filled" : passport.percent > 0 ? "partial" : "empty";
+    passport.percent === 100 && blockState.filled
+      ? "filled"
+      : passport.percent > 0 || blockState.partial
+        ? "partial"
+        : "empty";
+
+  const cjm = effectiveness.cjm;
 
   const items: CompletenessItem[] = [
     { label: "Паспорт", status: passportStatus },
@@ -232,6 +239,64 @@ function completenessStatusClass(status: CompletenessStatus) {
     return "font-medium text-amber-700";
   }
   return "font-medium text-slate-500";
+}
+
+function evaluatePassportBlocks(blocks: Array<{ section_key: string; content: Record<string, unknown> }>) {
+  const bySection = new Map(blocks.map((block) => [block.section_key, block.content]));
+
+  const checks = [
+    hasFacts(bySection.get("passport_header"), 3),
+    hasFacts(bySection.get("passport_overview"), 3),
+    hasFacts(bySection.get("passport_service"), 3),
+    hasRecords(bySection.get("client_vision"), ["title", "value"], 1),
+    hasRecords(bySection.get("work_contours"), ["contour", "owner", "text"], 1),
+    hasRecords(bySection.get("project_history"), ["year", "title", "text"], 1),
+  ];
+
+  const full = checks.every(Boolean);
+  const any = checks.some(Boolean);
+  return { filled: full, partial: any };
+}
+
+function hasFacts(content: Record<string, unknown> | undefined, minFilled: number) {
+  if (!content) {
+    return false;
+  }
+  const items = Array.isArray(content.items) ? content.items : [];
+  let filled = 0;
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const value = String((item as Record<string, unknown>).value ?? "");
+    if (isMeaningful(value)) {
+      filled += 1;
+    }
+  }
+  return filled >= minFilled;
+}
+
+function hasRecords(
+  content: Record<string, unknown> | undefined,
+  fields: string[],
+  minRows: number,
+) {
+  if (!content) {
+    return false;
+  }
+  const items = Array.isArray(content.items) ? content.items : [];
+  let goodRows = 0;
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const hasCore = fields.every((field) => isMeaningful(String(row[field] ?? "")));
+    if (hasCore) {
+      goodRows += 1;
+    }
+  }
+  return goodRows >= minRows;
 }
 
 function isMeaningful(value: string | null | undefined) {
