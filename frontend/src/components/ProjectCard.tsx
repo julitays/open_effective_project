@@ -1,9 +1,10 @@
 import { ArrowRight, ChevronDown, ChevronUp, MapPinned } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import StatusBadge from "./StatusBadge";
 import type { ProjectPassport } from "../types/cjm";
+import { getProjectEffectiveness } from "../api/projects";
 import {
   formatCode,
   formatDirection,
@@ -19,7 +20,44 @@ interface ProjectCardProps {
 
 export default function ProjectCard({ project }: ProjectCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const completeness = useMemo(() => buildPassportCompleteness(project), [project]);
+  const [completeness, setCompleteness] = useState(() => buildPassportCompleteness(project));
+  const [completenessLoading, setCompletenessLoading] = useState(false);
+
+  useEffect(() => {
+    setCompleteness(buildPassportCompleteness(project));
+  }, [project]);
+
+  useEffect(() => {
+    if (!expanded) {
+      return;
+    }
+
+    let cancelled = false;
+    setCompletenessLoading(true);
+
+    getProjectEffectiveness(project.project_code)
+      .then((effectiveness) => {
+        if (cancelled) {
+          return;
+        }
+        setCompleteness(buildContextCompleteness(project, effectiveness));
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setCompleteness(buildPassportCompleteness(project));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCompletenessLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expanded, project]);
 
   return (
     <article className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70 transition hover:border-slate-300 hover:shadow-md">
@@ -75,12 +113,15 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         {expanded ? (
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-900">Паспорт проекта</div>
+              <div className="text-sm font-semibold text-slate-900">Полнота контекста проекта</div>
               <div className="text-sm font-semibold text-slate-900">{completeness.percent}%</div>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full bg-slate-900" style={{ width: `${completeness.percent}%` }} />
             </div>
+            {completenessLoading ? (
+              <div className="mt-3 text-xs text-slate-500">Обновляем расчёт полноты...</div>
+            ) : null}
             <div className="mt-4 space-y-2">
               {completeness.items.map((item) => (
                 <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
@@ -125,6 +166,37 @@ function buildPassportCompleteness(project: ProjectPassport) {
     { label: "Статус", filled: isMeaningful(project.project_status) },
     { label: "Дата старта", filled: isMeaningful(project.start_date) },
     { label: "Описание", filled: isMeaningful(project.short_description) },
+  ];
+
+  const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
+  return { items, percent };
+}
+
+function buildContextCompleteness(
+  project: ProjectPassport,
+  effectiveness: Awaited<ReturnType<typeof getProjectEffectiveness>>,
+) {
+  const passport = buildPassportCompleteness(project);
+  const contextBlocks = effectiveness.context_blocks || [];
+  const hasBlock = (sectionKey: string) => contextBlocks.some((block) => block.section_key === sectionKey);
+  const hasRiskItems = contextBlocks.some((block) => {
+    if (block.section_key !== "risk_map") {
+      return false;
+    }
+    const items = block.content?.items;
+    return Array.isArray(items) && items.length > 0;
+  });
+
+  const items = [
+    { label: "Паспорт", filled: passport.percent >= 80 },
+    { label: "Цели", filled: effectiveness.cjm.goals.length > 0 },
+    { label: "ЛПР", filled: effectiveness.cjm.lprs.length > 0 },
+    { label: "Барьеры", filled: effectiveness.cjm.barriers.length > 0 },
+    { label: "Ожидания", filled: effectiveness.cjm.expectations.length > 0 },
+    { label: "KPI", filled: effectiveness.cjm.kpis.length > 0 },
+    { label: "Коммуникации", filled: effectiveness.cjm.communications.length > 0 },
+    { label: "Карта рисков", filled: hasRiskItems },
+    { label: "SWOT", filled: hasBlock("swot") },
   ];
 
   const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
