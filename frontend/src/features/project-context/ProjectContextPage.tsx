@@ -146,6 +146,7 @@ const ScreenActionsContext = createContext<{
     items: Array<{ id: string; title: string; appliesTo: string; rule: string; example: string }>,
   ) => void;
   editRiskMap: (items: Array<Record<string, unknown>>) => void;
+  editRiskItem: (riskId: string, items: Array<Record<string, unknown>>) => void;
   editBarrier: (barrier: Barrier) => void;
   createBarrier: () => void;
   archiveBarrier: (barrier: Barrier) => void;
@@ -831,7 +832,7 @@ function useScreenData() {
     return {
       id: String(source.id || source.barrier_code || `risk_${index + 1}`),
       entityCode: `Риск ${index + 1}`,
-      zone: formatBarrierType(String(source.barrier_type || "other")),
+      zone: formatText(String(source.zone_text || formatBarrierType(String(source.barrier_type || "other")))),
       risk: title,
       probability: {
         score: probabilityScore(probabilityCode),
@@ -1441,7 +1442,7 @@ const interpretationRuleFields: CollectionField[] = [
 
 const riskFields: CollectionField[] = [
   { name: "title", label: "Риск", input: "textarea", rows: 2 },
-  { name: "barrier_type", label: "Тип риска", input: "select", options: barrierTypeOptions },
+  { name: "zone_text", label: "Зона риска" },
   { name: "probability_level", label: "Вероятность", input: "select", options: criticalityOptions },
   { name: "probability_basis", label: "Основание вероятности", input: "textarea", rows: 3 },
   { name: "impact_level", label: "Влияние", input: "select", options: criticalityOptions },
@@ -1451,8 +1452,31 @@ const riskFields: CollectionField[] = [
   { name: "control_action", label: "Контрольное действие", input: "textarea", rows: 3 },
   { name: "control_owner", label: "Владелец контроля" },
   { name: "review_period", label: "Период пересмотра" },
-  { name: "source_text", label: "Источник", input: "textarea", rows: 2 },
+  { name: "status", label: "Статус", input: "select", options: barrierStatusOptions },
+  { name: "comment", label: "Комментарий", input: "textarea", rows: 2 },
 ];
+
+function getRiskRecordId(item: Record<string, unknown>, index: number): string {
+  return String(item.id || item.barrier_code || `risk_${index + 1}`);
+}
+
+function mapRiskItemToEditorRecord(item: Record<string, unknown>): Record<string, string> {
+  return {
+    title: String(item.title || item.risk || ""),
+    zone_text: String(item.zone_text || item.zone || item.barrier_type || ""),
+    probability_level: String(item.probability_level || item.level || item.criticality || ""),
+    probability_basis: String(item.probability_basis || item.description || ""),
+    impact_level: String(item.impact_level || item.level || item.criticality || ""),
+    impact_basis: String(item.impact_basis || item.linked_kpi_text || ""),
+    related_to: String(item.related_to || item.linked_kpi_text || ""),
+    early_signal: String(item.early_signal || item.evidence_quote || ""),
+    control_action: String(item.control_action || ""),
+    control_owner: String(item.control_owner || ""),
+    review_period: String(item.review_period || ""),
+    status: String(item.status || "monitoring"),
+    comment: String(item.comment || ""),
+  };
+}
 
 function Passport() {
   const {
@@ -2438,7 +2462,7 @@ function Kpi() {
 
 function RiskMap() {
   const { riskMap } = useScreenData();
-  const { editBarrier, editRiskMap } = useScreenActions();
+  const { editRiskItem, editRiskMap } = useScreenActions();
   const [expandedRisk, setExpandedRisk] = useState("");
 
   type RiskItem = (typeof riskMap)[number];
@@ -2502,7 +2526,7 @@ function RiskMap() {
     <div className="space-y-5">
       <SectionTitle
         title="Карта рисков"
-        description="Рабочий реестр рисков проекта. В MVP риски добавляются вручную проектной командой; автоматические сигналы могут быть только подсказками на проверку."
+        description="Карта рисков проекта: фиксируем вероятность, влияние, ранние сигналы и меры контроля."
         action="Редактировать карту"
         onAction={() =>
           editRiskMap(
@@ -2522,7 +2546,6 @@ function RiskMap() {
                 Лист фиксирует управляемый контроль рисков: каждый риск имеет основание, владельца, контрольное действие и срок пересмотра.
               </p>
             </div>
-            <Badge tone="dark">ручной реестр</Badge>
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2562,7 +2585,6 @@ function RiskMap() {
               На небольшом экране таблица показывает только ключевые поля. Подробности открываются в карточке выбранного риска ниже.
             </p>
           </div>
-          <Badge tone="dark">компактный вид</Badge>
         </div>
 
         <div className="overflow-x-auto">
@@ -2630,9 +2652,10 @@ function RiskMap() {
           </div>
           <button
             onClick={() => {
-              if ("raw" in selectedRisk && (selectedRisk as { raw?: Barrier }).raw) {
-                editBarrier((selectedRisk as { raw: Barrier }).raw);
-              }
+              const items = riskMap.map((item) =>
+                ("raw" in item ? (item.raw as Record<string, unknown>) : {}) as Record<string, unknown>,
+              );
+              editRiskItem(String(selectedRisk.id), items);
             }}
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
           >
@@ -3570,20 +3593,7 @@ export default function ProjectContextPage() {
           title: "Карта рисков",
           itemLabel: "Риск",
           fields: riskFields,
-          items: items.map((item) => ({
-            title: String(item.title || item.risk || ""),
-            barrier_type: String(item.barrier_type || item.zone || ""),
-            probability_level: String(item.probability_level || item.level || ""),
-            probability_basis: String(item.probability_basis || ""),
-            impact_level: String(item.impact_level || item.level || ""),
-            impact_basis: String(item.impact_basis || ""),
-            related_to: String(item.related_to || item.linked_kpi_text || ""),
-            early_signal: String(item.early_signal || item.evidence_quote || ""),
-            control_action: String(item.control_action || ""),
-            control_owner: String(item.control_owner || ""),
-            review_period: String(item.review_period || ""),
-            source_text: String(item.source_text || ""),
-          })),
+          items: items.map((item) => mapRiskItemToEditorRecord(item)),
           save: (records) =>
             saveContextBlock(
               contextBlockKeys.riskMap.sectionKey,
@@ -3593,6 +3603,32 @@ export default function ProjectContextPage() {
               { items: records },
               150,
             ),
+        });
+      },
+      editRiskItem: (riskId: string, items: Array<Record<string, unknown>>) => {
+        const selectedIndex = items.findIndex((item, index) => getRiskRecordId(item, index) === riskId);
+        if (selectedIndex < 0) {
+          return;
+        }
+
+        openCollectionEditor({
+          title: "Редактирование риска",
+          itemLabel: "Риск",
+          fields: riskFields,
+          items: [mapRiskItemToEditorRecord(items[selectedIndex])],
+          save: async ([record]) => {
+            const updated = items.map((item, index) =>
+              index === selectedIndex ? (record || {}) : mapRiskItemToEditorRecord(item),
+            );
+            await saveContextBlock(
+              contextBlockKeys.riskMap.sectionKey,
+              contextBlockKeys.riskMap.blockCode,
+              contextBlockKeys.riskMap.blockType,
+              "Карта рисков",
+              { items: updated },
+              150,
+            );
+          },
         });
       },
       editBarrier: (barrier: Barrier) => {
@@ -3863,21 +3899,29 @@ function buildHeaderProject(effectiveness: ProjectEffectiveness) {
     contextBlockKeys.passportHeader.blockCode,
   );
   const headerItems = asRecordArray(headerBlock?.content.items);
-  const headerValue = (label: string) =>
-    String(
-      headerItems.find((item) => String(item.label || "").trim().toLowerCase() === label.trim().toLowerCase())
-        ?.value || "",
+  const headerValue = (...labels: string[]) => {
+    const lowerLabels = labels.map((label) => label.trim().toLowerCase());
+    const found = headerItems.find((item) =>
+      lowerLabels.includes(String(item.label || "").trim().toLowerCase()),
     );
+    return String(found?.value || "").trim();
+  };
+
+  const headcountValue = headerValue("Команда (количество человек)", "Команда");
+  const gkamValue = headerValue("GKAM");
+  const kamValue = headerValue("KAM");
+
   return {
-    ...project,
+    code: projectInfo.project_code,
     externalId: projectInfo.external_project_id || projectInfo.project_code,
     clientName: `Проект ${projectInfo.external_project_id || projectInfo.project_code}`,
+    project_status: projectInfo.project_status || "unknown",
     direction: formatDirection(projectInfo.direction),
     serviceModel: sanitizeCjm(projectInfo.short_description) || "Описание проекта нужно уточнить в паспорте",
     scale: formatProjectScale(projectInfo.project_scale),
     lifecycle: formatLifecycleStage(projectInfo.lifecycle_stage),
-    headcount: headerValue("Команда") || project.headcount,
-    gkam: headerValue("GKAM") || project.gkam,
-    kam: headerValue("KAM") || project.kam,
+    headcount: headcountValue || "Не указано",
+    gkam: gkamValue || "Не указано",
+    kam: kamValue || "Не указано",
   };
 }
