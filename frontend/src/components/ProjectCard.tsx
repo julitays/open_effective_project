@@ -18,6 +18,12 @@ interface ProjectCardProps {
   project: ProjectPassport;
 }
 
+type CompletenessStatus = "filled" | "partial" | "empty";
+type CompletenessItem = {
+  label: string;
+  status: CompletenessStatus;
+};
+
 export default function ProjectCard({ project }: ProjectCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [completeness, setCompleteness] = useState(() => buildPassportCompleteness(project));
@@ -126,8 +132,8 @@ export default function ProjectCard({ project }: ProjectCardProps) {
               {completeness.items.map((item) => (
                 <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-slate-600">{item.label}</span>
-                  <span className={item.filled ? "font-medium text-emerald-700" : "font-medium text-amber-700"}>
-                    {item.filled ? "Заполнено" : "Пусто"}
+                  <span className={completenessStatusClass(item.status)}>
+                    {completenessStatusLabel(item.status)}
                   </span>
                 </div>
               ))}
@@ -155,7 +161,7 @@ function ProjectMeta({
 }
 
 function buildPassportCompleteness(project: ProjectPassport) {
-  const items = [
+  const rows = [
     { label: "Код проекта", filled: isMeaningful(project.external_project_id) },
     { label: "Направление", filled: isMeaningful(project.direction) },
     { label: "Масштаб", filled: isMeaningful(project.project_scale) },
@@ -168,7 +174,11 @@ function buildPassportCompleteness(project: ProjectPassport) {
     { label: "Описание", filled: isMeaningful(project.short_description) },
   ];
 
-  const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
+  const items: CompletenessItem[] = rows.map((row) => ({
+    label: row.label,
+    status: row.filled ? "filled" : "empty",
+  }));
+  const percent = Math.round((rows.filter((item) => item.filled).length / rows.length) * 100);
   return { items, percent };
 }
 
@@ -178,18 +188,50 @@ function buildContextCompleteness(
 ) {
   const passport = buildPassportCompleteness(project);
 
-  const items = [
-    { label: "Паспорт", filled: passport.percent >= 80 },
-    { label: "Цели", filled: cjm.goals.length > 0 },
-    { label: "ЛПР", filled: cjm.lprs.length > 0 },
-    { label: "Барьеры", filled: cjm.barriers.length > 0 },
-    { label: "Ожидания", filled: cjm.expectations.length > 0 },
-    { label: "KPI", filled: cjm.kpis.length > 0 },
-    { label: "Коммуникации", filled: cjm.communications.length > 0 },
+  const passportStatus: CompletenessStatus =
+    passport.percent >= 100 ? "filled" : passport.percent > 0 ? "partial" : "empty";
+
+  const items: CompletenessItem[] = [
+    { label: "Паспорт", status: passportStatus },
+    { label: "Цели", status: cjm.goals.length > 0 ? "filled" : "empty" },
+    { label: "ЛПР", status: cjm.lprs.length > 0 ? "filled" : "empty" },
+    { label: "Барьеры", status: cjm.barriers.length > 0 ? "filled" : "empty" },
+    { label: "Ожидания", status: cjm.expectations.length > 0 ? "filled" : "empty" },
+    { label: "KPI", status: cjm.kpis.length > 0 ? "filled" : "empty" },
+    { label: "Коммуникации", status: cjm.communications.length > 0 ? "filled" : "empty" },
   ];
 
-  const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
+  const weighted = items.reduce((acc, item) => {
+    if (item.status === "filled") {
+      return acc + 1;
+    }
+    if (item.status === "partial") {
+      return acc + 0.5;
+    }
+    return acc;
+  }, 0);
+  const percent = Math.round((weighted / items.length) * 100);
   return { items, percent };
+}
+
+function completenessStatusLabel(status: CompletenessStatus) {
+  if (status === "filled") {
+    return "Заполнено";
+  }
+  if (status === "partial") {
+    return "Частично";
+  }
+  return "Пусто";
+}
+
+function completenessStatusClass(status: CompletenessStatus) {
+  if (status === "filled") {
+    return "font-medium text-emerald-700";
+  }
+  if (status === "partial") {
+    return "font-medium text-amber-700";
+  }
+  return "font-medium text-slate-500";
 }
 
 function isMeaningful(value: string | null | undefined) {
