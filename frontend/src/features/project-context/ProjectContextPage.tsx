@@ -48,6 +48,7 @@ import {
   formatCriticality,
   formatDirection,
   formatEntityCode,
+  formatGoalContour,
   formatGoalType,
   formatInfluenceLevel,
   formatKpiType,
@@ -194,14 +195,17 @@ const relationshipOptions = [
   option("unknown", formatRelationshipStatus),
 ];
 const goalTypeOptions = [
-  option("open_internal", formatGoalType),
-  option("client_business", formatGoalType),
-  option("joint_project", formatGoalType),
   option("service", formatGoalType),
   option("operational", formatGoalType),
   option("financial", formatGoalType),
   option("risk_control", formatGoalType),
   option("other", formatGoalType),
+];
+const goalContourOptions = [
+  { value: "open", label: "OPEN" },
+  { value: "client", label: "Клиент" },
+  { value: "joint", label: "Совместная" },
+  { value: "unknown", label: "Не указано" },
 ];
 const priorityOptions = [
   option("high", formatPriority),
@@ -705,11 +709,7 @@ function useScreenData() {
   const realGoals = cjm.goals.map((goal, index) => ({
     id: goal.goal_code || `goal_${index + 1}`,
     entityCode: goal.goal_code || goal.goal_id || `goal_${index + 1}`,
-    contour:
-      goal.goal_type?.toLowerCase().includes("client")
-      || goal.goal_owner?.toLowerCase().includes("клиент")
-        ? "Клиент"
-        : "OPEN",
+    contour: formatGoalContour(goal.goal_contour || deriveGoalContourLegacy(goal.goal_type, goal.goal_owner)),
     goal: goal.goal_text,
     type: formatGoalType(goal.goal_type),
     meaning: goal.comment || goal.success_criteria || "Смысл цели можно уточнить при редактировании.",
@@ -1065,6 +1065,46 @@ function buildCommunicationPayload(payload: PatchPayload): PatchPayload {
   };
 }
 
+function isLegacyGoalContourInType(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase() || "";
+  return ["open_internal", "client_business", "joint_project", "open", "client", "joint"].includes(normalized);
+}
+
+function deriveGoalContourLegacy(
+  goalType: string | null | undefined,
+  goalOwner: string | null | undefined,
+) {
+  const type = goalType?.trim().toLowerCase() || "";
+  if (["client_business", "client", "цель клиента"].includes(type)) {
+    return "client";
+  }
+  if (["joint_project", "joint", "совместная цель"].includes(type)) {
+    return "joint";
+  }
+  if (["open_internal", "open", "цель open"].includes(type)) {
+    return "open";
+  }
+  const owner = goalOwner?.trim().toLowerCase() || "";
+  if (owner.includes("клиент")) {
+    return "client";
+  }
+  if (owner.includes("совмест")) {
+    return "joint";
+  }
+  return "open";
+}
+
+function normalizeGoalPayload(payload: PatchPayload): PatchPayload {
+  const normalized: PatchPayload = { ...payload };
+  if (isLegacyGoalContourInType(normalized.goal_type)) {
+    normalized.goal_type = "other";
+  }
+  if (!normalized.goal_contour) {
+    normalized.goal_contour = "open";
+  }
+  return normalized;
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return "Не указано";
@@ -1249,6 +1289,7 @@ const lprEditFields: EditField[] = [
 
 function buildGoalEditFields(effectiveness: ProjectEffectiveness): EditField[] {
   return [
+    { name: "goal_contour", label: "Контур", input: "select", options: goalContourOptions },
     { name: "goal_owner", label: "Владелец цели" },
     { name: "goal_type", label: "Тип цели", input: "select", options: goalTypeOptions },
     { name: "goal_text", label: "Текст цели", input: "textarea" },
@@ -3300,17 +3341,29 @@ export default function ProjectContextPage() {
       },
       editGoal: (goal: Goal) => {
         const fields = buildGoalEditFields(effectiveness);
+        const values = pickValues(goal, fields);
+        if (!values.goal_contour) {
+          values.goal_contour = deriveGoalContourLegacy(goal.goal_type, goal.goal_owner) || "open";
+        }
+        if (isLegacyGoalContourInType(values.goal_type)) {
+          values.goal_type = "other";
+        }
         setSaveError(null);
         setEditTarget({
           title: goal.goal_text,
           fields,
-          values: pickValues(goal, fields),
-            save: (payload) => updateGoal(projectCode, goal.goal_code || goal.goal_id || "", payload),
+          values,
+          save: (payload) =>
+            updateGoal(
+              projectCode,
+              goal.goal_code || goal.goal_id || "",
+              normalizeGoalPayload(payload),
+            ),
         });
       },
       createGoal: () => {
         openCreate("Новая цель", buildGoalEditFields(effectiveness), (payload) =>
-          createGoal(projectCode, payload),
+          createGoal(projectCode, normalizeGoalPayload(payload)),
         );
       },
       archiveGoal: (goal: Goal) => archiveAndRefresh("goals", goal.goal_code || goal.goal_id),

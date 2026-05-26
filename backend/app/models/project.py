@@ -154,6 +154,7 @@ class ProjectGoal(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         comment="Stable web-facing CJM Goal code.",
     )
     goal_owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    goal_contour: Mapped[str | None] = mapped_column(String(64), nullable=True)
     goal_text: Mapped[str] = mapped_column(Text, nullable=False)
     goal_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     priority: Mapped[str | None] = mapped_column(String(64), nullable=True)

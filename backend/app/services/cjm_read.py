@@ -423,6 +423,7 @@ class CJMReadService:
             goal_id=goal.source_id,
             goal_code=goal.source_id,
             goal_owner=goal.goal_owner,
+            goal_contour=goal.goal_contour,
             goal_text=goal.goal_text,
             goal_type=goal.goal_type,
             priority=goal.priority,

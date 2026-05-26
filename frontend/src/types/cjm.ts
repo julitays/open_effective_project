@@ -122,6 +122,7 @@ export interface Goal {
   goal_id: string | null;
   goal_code: string | null;
   goal_owner: string | null;
+  goal_contour: string | null;
   goal_text: string;
   goal_type: string | null;
   priority: string | null;
