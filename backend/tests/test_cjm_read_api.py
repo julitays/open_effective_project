@@ -30,7 +30,6 @@ def _seed_project(session_factory: sessionmaker[Session]) -> None:
         project = Project(
             project_code="project_001",
             external_project_id="external_project_001",
-            working_project_code="working_project_001",
             project_type="fmcg",
             project_scale="regional",
             known_regions="Region A; Region B",
@@ -198,7 +197,6 @@ def test_projects_endpoint_returns_list(cjm_client: TestClient) -> None:
     assert len(payload) == 1
     assert payload[0]["project_code"] == "project_001"
     assert payload[0]["external_project_id"] == "external_project_001"
-    assert payload[0]["working_project_code"] == "working_project_001"
     assert payload[0]["direction"] == "fmcg"
     assert payload[0]["project_scale"] == "regional"
     assert payload[0]["known_regions"] == "Region A; Region B"
@@ -401,6 +399,19 @@ def test_create_project_generates_code(cjm_client: TestClient) -> None:
     assert payload["project_code"] == "project_002"
     assert payload["direction"] == "electronics"
     assert payload["project_scale"] == "federal"
+
+
+def test_create_project_rejects_duplicate_external_project_id(cjm_client: TestClient) -> None:
+    response = cjm_client.post(
+        "/api/v1/projects",
+        json={
+            "external_project_id": "external_project_001",
+            "direction": "fmcg",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "already exists" in response.json()["detail"]
 
 
 def test_patch_goal_works(cjm_client: TestClient) -> None:

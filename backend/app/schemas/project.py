@@ -22,8 +22,7 @@ class SanitizedPatchModel(BaseModel):
 
 class ProjectCreate(BaseModel):
     project_code: str = Field(pattern=r"^project_[A-Za-z0-9_-]+$")
-    external_project_id: str | None = None
-    working_project_code: str | None = None
+    external_project_id: str
     project_type: str | None = None
     status: str = "active"
     current_phase: str | None = None
@@ -81,8 +80,7 @@ class ClientExpectationRead(BaseModel):
 
 class CJMProjectPassport(BaseModel):
     project_code: str
-    external_project_id: str | None
-    working_project_code: str | None
+    external_project_id: str
     direction: str | None
     project_scale: str | None
     known_regions: str | None
@@ -97,7 +95,6 @@ class CJMProjectPassport(BaseModel):
 
 class CJMProjectPatch(SanitizedPatchModel):
     external_project_id: str | None = None
-    working_project_code: str | None = None
     direction: str | None = None
     project_scale: str | None = None
     short_description: str | None = None
@@ -111,8 +108,7 @@ class CJMProjectPatch(SanitizedPatchModel):
 
 class CJMProjectCreate(SanitizedPatchModel):
     project_code: str | None = Field(default=None, pattern=r"^project_[A-Za-z0-9_-]+$")
-    external_project_id: str | None = None
-    working_project_code: str | None = None
+    external_project_id: str
     direction: str | None = None
     project_scale: str | None = None
     known_regions: str | None = None

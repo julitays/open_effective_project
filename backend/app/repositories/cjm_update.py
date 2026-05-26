@@ -20,6 +20,13 @@ class CJMUpdateRepository:
             )
         )
 
+    def get_project_by_external_id(self, external_project_id: str) -> Project | None:
+        return self.session.scalar(
+            select(Project).where(
+                Project.external_project_id == external_project_id,
+            )
+        )
+
     def get_goal(self, project_id: object, goal_code: str) -> ProjectGoal | None:
         return self.session.scalar(
             select(ProjectGoal).where(

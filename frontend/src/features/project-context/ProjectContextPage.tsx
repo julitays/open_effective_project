@@ -672,8 +672,8 @@ function useScreenData() {
   const fallbackProject = {
     ...project,
     code: projectInfo.project_code,
-    externalId: projectInfo.external_project_id || projectInfo.working_project_code || "Без кода",
-    clientName: `Проект ${projectInfo.external_project_id || projectInfo.working_project_code || projectInfo.project_code}`,
+    externalId: projectInfo.external_project_id || "Без кода",
+    clientName: `Проект ${projectInfo.external_project_id || projectInfo.project_code}`,
     project_status: projectInfo.project_status,
     direction: formatDirection(projectInfo.direction),
     serviceModel: sanitizeCjm(projectInfo.short_description) || "Описание проекта нужно уточнить в паспорте.",
@@ -889,7 +889,7 @@ function useScreenData() {
         value: formatText(String(item.value || "")),
       }))
     : [
-        { label: "Код проекта", value: formatText(projectInfo.external_project_id || projectInfo.working_project_code) },
+        { label: "Код проекта", value: formatText(projectInfo.external_project_id) },
         { label: "Статус", value: formatProjectStatus(projectInfo.project_status) },
         { label: "Этап жизненного цикла", value: formatLifecycleStage(projectInfo.lifecycle_stage) },
         { label: "Дата старта", value: formatText(projectInfo.start_date) },
@@ -1192,7 +1192,6 @@ function priorityTone(value: string | null | undefined): BadgeTone {
 
 const projectEditFields: EditField[] = [
   { name: "external_project_id", label: "Код проекта" },
-  { name: "working_project_code", label: "Рабочий код проекта" },
   {
     name: "direction",
     label: "Направление",

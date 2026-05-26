@@ -27,7 +27,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase text-slate-400">Код проекта</div>
           <h2 className="mt-2 break-words text-xl font-semibold text-slate-950">
-            {formatCode(project.working_project_code || project.external_project_id)}
+            {formatCode(project.external_project_id)}
           </h2>
         </div>
         <Link
@@ -115,7 +115,7 @@ function ProjectMeta({
 
 function buildPassportCompleteness(project: ProjectPassport) {
   const items = [
-    { label: "Код проекта", filled: Boolean(project.external_project_id || project.working_project_code) },
+    { label: "Код проекта", filled: Boolean(project.external_project_id) },
     { label: "Направление", filled: Boolean(project.direction) },
     { label: "Масштаб", filled: Boolean(project.project_scale) },
     { label: "Регионы", filled: Boolean(project.known_regions) },

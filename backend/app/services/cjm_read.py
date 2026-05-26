@@ -47,14 +47,68 @@ class CJMReadService:
         )
 
     def get_project_effectiveness(self, project_code: str) -> ProjectEffectivenessRead | None:
-        cjm = self.get_project_cjm(project_code)
-        project = self.repository.get_project_by_code(project_code)
-        if cjm is None or project is None:
+        project = self.repository.get_project_for_effectiveness(project_code)
+        if project is None:
             return None
 
+        cjm = CJMProjectRead(
+            project=self._project_passport(project),
+            goals=[
+                self._goal(goal)
+                for goal in sorted(
+                    [goal for goal in project.goals if goal.archived_at is None],
+                    key=lambda goal: (goal.source_id or "", goal.goal_text),
+                )
+            ],
+            lprs=[
+                self._lpr(lpr)
+                for lpr in sorted(
+                    [lpr for lpr in project.lpr_profiles if lpr.archived_at is None],
+                    key=lambda lpr: lpr.lpr_code,
+                )
+            ],
+            barriers=[
+                self._barrier(barrier)
+                for barrier in sorted(
+                    [barrier for barrier in project.barriers if barrier.archived_at is None],
+                    key=lambda barrier: (barrier.source_id or "", barrier.barrier_title),
+                )
+            ],
+            expectations=[
+                self._expectation(expectation)
+                for expectation in sorted(
+                    [expectation for expectation in project.expectations if expectation.archived_at is None],
+                    key=lambda expectation: (expectation.source_id or "", expectation.expectation_text),
+                )
+            ],
+            kpis=[
+                self._kpi(kpi)
+                for kpi in sorted(
+                    [kpi for kpi in project.kpis if kpi.archived_at is None],
+                    key=lambda kpi: kpi.kpi_code,
+                )
+            ],
+            communications=[
+                self._communication(point)
+                for point in sorted(
+                    [
+                        point
+                        for point in project.communication_points
+                        if point.archived_at is None
+                    ],
+                    key=lambda point: (point.source_id or "", point.summary or ""),
+                )
+            ],
+        )
+
         context_service = ProjectContextService(self.repository.session)
-        context_service.ensure_seeded(project)
         stored_blocks = context_service.list_blocks(project)
+        if not stored_blocks:
+            context_service.ensure_seeded(project)
+            project = self.repository.get_project_for_effectiveness(project_code)
+            if project is None:
+                return None
+            stored_blocks = context_service.list_blocks(project)
         return ProjectEffectivenessRead(
             cjm=cjm,
             context_blocks=stored_blocks + self._default_context_blocks(cjm, stored_blocks),
@@ -91,7 +145,6 @@ class CJMReadService:
         return CJMProjectPassport(
             project_code=project.project_code,
             external_project_id=project.external_project_id,
-            working_project_code=project.working_project_code,
             direction=project.project_type,
             project_scale=project.project_scale,
             known_regions=project.known_regions,

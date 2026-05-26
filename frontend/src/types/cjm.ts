@@ -1,7 +1,6 @@
 export interface ProjectPassport {
   project_code: string;
-  external_project_id: string | null;
-  working_project_code: string | null;
+  external_project_id: string;
   direction: string | null;
   project_scale: string | null;
   known_regions: string | null;

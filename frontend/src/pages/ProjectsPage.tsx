@@ -9,7 +9,6 @@ import type { ProjectPassport } from "../types/cjm";
 
 type NewProjectForm = {
   external_project_id: string;
-  working_project_code: string;
   direction: string;
   project_scale: string;
   primary_operational_model: string;
@@ -28,7 +27,6 @@ type NewProjectForm = {
 
 const initialNewProjectForm: NewProjectForm = {
   external_project_id: "",
-  working_project_code: "",
   direction: "unknown",
   project_scale: "unknown",
   primary_operational_model: "other",
@@ -155,7 +153,6 @@ export default function ProjectsPage() {
     try {
       const created = await createProject({
         external_project_id: externalId,
-        working_project_code: trimToNull(form.working_project_code),
         direction: form.direction,
         project_scale: form.project_scale,
         primary_operational_model: form.primary_operational_model,
@@ -294,7 +291,6 @@ export default function ProjectsPage() {
             <div className="max-h-[68vh] space-y-5 overflow-y-auto px-6 py-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input label="Код проекта (обязательно)" value={form.external_project_id} onChange={(value) => updateForm("external_project_id", value)} />
-                <Input label="Рабочий код проекта" value={form.working_project_code} onChange={(value) => updateForm("working_project_code", value)} />
                 <Select label="Направление" value={form.direction} onChange={(value) => updateForm("direction", value)} options={directionOptions} />
                 <Select label="Масштаб" value={form.project_scale} onChange={(value) => updateForm("project_scale", value)} options={scaleOptions} />
                 <Select label="Основная операционная модель" value={form.primary_operational_model} onChange={(value) => updateForm("primary_operational_model", value)} options={modelOptions} />

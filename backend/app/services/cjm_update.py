@@ -57,11 +57,17 @@ class CJMUpdateService:
         self.read_service = read_service
 
     def create_project(self, payload: CJMProjectCreate, updated_by: str) -> CJMProjectPassport:
+        external_project_id = payload.external_project_id.strip()
+        if not external_project_id:
+            raise CJMPatchValueError("Project code is required.")
+        if self.repository.get_project_by_external_id(external_project_id) is not None:
+            raise CJMPatchValueError(
+                f"Project with code '{external_project_id}' already exists."
+            )
         project_code = payload.project_code or self._next_code("project", self.repository.list_project_codes())
         project = Project(
             project_code=project_code,
-            external_project_id=payload.external_project_id,
-            working_project_code=payload.working_project_code,
+            external_project_id=external_project_id,
             project_type=cjm_mappings.map_direction(payload.direction) or payload.direction,
             project_scale=cjm_mappings.map_project_scale(payload.project_scale) or payload.project_scale,
             known_regions=payload.known_regions,
@@ -352,6 +358,14 @@ class CJMUpdateService:
         project = self.repository.get_project(project_code)
         if project is None:
             return None
+
+        proposed_external_id = patch.external_project_id.strip() if patch.external_project_id else None
+        if proposed_external_id:
+            existing = self.repository.get_project_by_external_id(proposed_external_id)
+            if existing is not None and existing.id != project.id:
+                raise CJMPatchValueError(
+                    f"Project with code '{proposed_external_id}' already exists."
+                )
 
         self._apply_patch(
             project,

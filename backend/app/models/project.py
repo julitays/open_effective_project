@@ -20,17 +20,12 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         comment="Anonymized project code such as project_001.",
     )
-    external_project_id: Mapped[str | None] = mapped_column(
+    external_project_id: Mapped[str] = mapped_column(
         String(128),
+        unique=True,
         index=True,
-        nullable=True,
+        nullable=False,
         comment="External source project ID without a real client or brand name.",
-    )
-    working_project_code: Mapped[str | None] = mapped_column(
-        String(128),
-        index=True,
-        nullable=True,
-        comment="Working source code without a real client or brand name.",
     )
     project_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     project_scale: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -242,4 +237,3 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     confidence_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     project: Mapped[Project] = relationship("Project", back_populates="expectations")
-
