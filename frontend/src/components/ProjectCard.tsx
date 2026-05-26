@@ -115,18 +115,43 @@ function ProjectMeta({
 
 function buildPassportCompleteness(project: ProjectPassport) {
   const items = [
-    { label: "Код проекта", filled: Boolean(project.external_project_id) },
-    { label: "Направление", filled: Boolean(project.direction) },
-    { label: "Масштаб", filled: Boolean(project.project_scale) },
-    { label: "Регионы", filled: Boolean(project.known_regions) },
-    { label: "Модель", filled: Boolean(project.primary_operational_model) },
-    { label: "Контуры", filled: Boolean(project.additional_operational_contours) },
-    { label: "Этап", filled: Boolean(project.lifecycle_stage) },
-    { label: "Статус", filled: Boolean(project.project_status) },
-    { label: "Дата старта", filled: Boolean(project.start_date) },
-    { label: "Описание", filled: Boolean(project.short_description) },
+    { label: "Код проекта", filled: isMeaningful(project.external_project_id) },
+    { label: "Направление", filled: isMeaningful(project.direction) },
+    { label: "Масштаб", filled: isMeaningful(project.project_scale) },
+    { label: "Регионы", filled: isMeaningful(project.known_regions) },
+    { label: "Модель", filled: isMeaningful(project.primary_operational_model) },
+    { label: "Контуры", filled: isMeaningful(project.additional_operational_contours) },
+    { label: "Этап", filled: isMeaningful(project.lifecycle_stage) },
+    { label: "Статус", filled: isMeaningful(project.project_status) },
+    { label: "Дата старта", filled: isMeaningful(project.start_date) },
+    { label: "Описание", filled: isMeaningful(project.short_description) },
   ];
 
   const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
   return { items, percent };
+}
+
+function isMeaningful(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  const placeholders = new Set([
+    "unknown",
+    "none",
+    "not_set",
+    "not specified",
+    "не указано",
+    "требует уточнения",
+    "requires clarification",
+    "requires confirmation",
+    "null",
+    "nan",
+  ]);
+
+  return !placeholders.has(normalized);
 }
