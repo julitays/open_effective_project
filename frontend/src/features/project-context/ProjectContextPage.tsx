@@ -1,16 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 import {
   archiveEntity,
   createBarrier,
+  createCommunication,
   createContextBlock,
   createGoal,
   createKpi,
   createLpr,
   getProjectEffectiveness,
   updateBarrier,
+  updateCommunication,
   updateContextBlock,
   updateGoal,
   updateKpi,
@@ -30,6 +32,7 @@ import EditCollectionModal, {
 } from "../../components/EditCollectionModal";
 import type {
   Barrier,
+  CommunicationPoint,
   Goal,
   Kpi,
   LprProfile,
@@ -72,6 +75,17 @@ type StructureItem = { role: string; person: string; zone: string };
 type CompetitorItem = { name: string; strengths: string[]; weaknesses: string[] };
 type SwotValue = { strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] };
 type InterpretationRuleItem = { id: string; title: string; appliesTo: string; rule: string; example: string };
+type CommunicationRow = {
+  id: string;
+  clientSide: string;
+  openSide: string;
+  topic: string;
+  frequency: string;
+  channel: string;
+  criticality: string;
+  comment: string;
+  raw: CommunicationPoint;
+};
 type Formatter = (value: string | null | undefined) => string;
 type EditTarget = {
   title: string;
@@ -121,6 +135,9 @@ const ScreenActionsContext = createContext<{
     opportunities: string[];
     threats: string[];
   }) => void;
+  createCommunication: () => void;
+  editCommunication: (communication: CommunicationPoint) => void;
+  archiveCommunication: (communication: CommunicationPoint) => void;
   createKpi: () => void;
   editKpi: (kpi: Kpi) => void;
   archiveKpi: (kpi: Kpi) => void;
@@ -261,6 +278,13 @@ const confirmationOptions = [
   option("no", formatYesNo),
   option("requires_confirmation", formatYesNo),
   option("unknown", formatYesNo),
+];
+const openContactOptions: EditOption[] = [
+  { value: "GKAM", label: "GKAM" },
+  { value: "KAM", label: "KAM" },
+  { value: "RM", label: "RM" },
+  { value: "TM", label: "TM" },
+  { value: "SV", label: "SV" },
 ];
 
 const project = {
@@ -725,14 +749,17 @@ function useScreenData() {
     raw: lpr,
   }));
 
-  const realCommunications = cjm.communications.map((row) => [
-    row.client_side || "Клиентская сторона",
-    row.open_side_role || "OPEN",
-    row.topic_text || row.summary,
-    formatText(row.frequency),
-    row.channel_text || row.channel,
-    formatCriticality(row.criticality),
-  ]);
+  const realCommunications: CommunicationRow[] = cjm.communications.map((row, index) => ({
+    id: row.communication_code || row.communication_id || `communication_${index + 1}`,
+    clientSide: row.client_side || "Клиентская сторона",
+    openSide: row.open_side_role || "OPEN",
+    topic: row.topic_text || row.summary,
+    frequency: formatText(row.frequency),
+    channel: row.channel_text || row.channel,
+    criticality: formatCriticality(row.criticality),
+    comment: row.comment || "",
+    raw: row,
+  }));
 
   const realKpis = cjm.kpis.map((kpi) => ({
     id: kpi.kpi_code,
@@ -1021,6 +1048,23 @@ function splitLines(value: string | null | undefined) {
     .filter(Boolean);
 }
 
+function mergeOpenContacts(selected: string | null | undefined, custom: string | null | undefined) {
+  const values = [
+    ...splitTextLinks(selected || ""),
+    ...splitTextLinks(custom || ""),
+  ];
+  return Array.from(new Set(values)).join("; ");
+}
+
+function buildCommunicationPayload(payload: PatchPayload): PatchPayload {
+  const { open_side_role_custom, ...rest } = payload;
+  const mergedOpen = mergeOpenContacts(payload.open_side_role, open_side_role_custom);
+  return {
+    ...rest,
+    open_side_role: mergedOpen || null,
+  };
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return "Не указано";
@@ -1274,6 +1318,35 @@ function buildBarrierEditFields(effectiveness: ProjectEffectiveness): EditField[
     { name: "status", label: "Статус", input: "select", options: barrierStatusOptions },
     { name: "relevance_status", label: "Актуальность", input: "select", options: relevanceOptions },
     { name: "confidence_level", label: "Уверенность", input: "select", options: confidenceOptions },
+  ];
+}
+
+function buildCommunicationEditFields(effectiveness: ProjectEffectiveness): EditField[] {
+  const lprOptions = effectiveness.cjm.lprs.map((lpr) => ({
+    value: lpr.external_lpr_id || lpr.lpr_code,
+    label: `${lpr.role_zone || lpr.role} (${lpr.external_lpr_id || lpr.lpr_code})`,
+  }));
+
+  return [
+    {
+      name: "external_lpr_id",
+      label: "Контакт клиента (выбрать ЛПР)",
+      input: "select",
+      options: lprOptions,
+    },
+    { name: "client_side", label: "Контакт клиента (описание / роль)" },
+    {
+      name: "open_side_role",
+      label: "Контакт OPEN",
+      input: "multiselect",
+      options: openContactOptions,
+    },
+    { name: "open_side_role_custom", label: "Контакт OPEN (добавить свой)" },
+    { name: "topic_text", label: "Тема", input: "textarea" },
+    { name: "frequency", label: "Частота" },
+    { name: "channel_text", label: "Канал" },
+    { name: "criticality", label: "Критичность", input: "select", options: criticalityOptions },
+    { name: "comment", label: "Комментарий", input: "textarea" },
   ];
 }
 
@@ -2005,36 +2078,70 @@ function Swot() {
 
 function Communications() {
   const { communications } = useScreenData();
+  const { createCommunication, editCommunication, archiveCommunication } = useScreenActions();
+  const [selectedId, setSelectedId] = useState<string>(communications[0]?.id || "");
+  const selected = communications.find((item) => item.id === selectedId) || communications[0];
+
+  useEffect(() => {
+    if (!selectedId && communications[0]?.id) {
+      setSelectedId(communications[0].id);
+    }
+  }, [communications, selectedId]);
+
   return (
     <div>
       <SectionTitle
         title="Матрица коммуникаций"
         description="Кто с кем общается, по каким темам, с какой частотой, через какой канал и где критичность коммуникации высокая."
+        action="Добавить контакт"
+        onAction={createCommunication}
       />
       <div className="[overflow:clip] rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              {["Контакт клиента", "Контакт OPEN", "Тема", "Частота", "Канал", "Критичность"].map((h) => (
+              {["Контакт клиента", "Контакт OPEN", "Тема", "Частота", "Канал", "Критичность", "Комментарий"].map((h) => (
                 <th key={h} className="px-4 py-3">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {communications.map((row) => (
-              <tr key={row.join("-")} className="hover:bg-slate-50">
-                {row.map((cell, i) => (
-                  <td key={i} className="px-4 py-4 text-slate-700">
-                    {i === 5 ? <Badge tone={criticalityTone(cell)}>{cell}</Badge> : cell}
-                  </td>
-                ))}
+              <tr
+                key={row.id}
+                onClick={() => setSelectedId(row.id)}
+                className={`cursor-pointer hover:bg-slate-50 ${selected?.id === row.id ? "bg-slate-50" : ""}`}
+              >
+                <td className="px-4 py-4 text-slate-700">{row.clientSide}</td>
+                <td className="px-4 py-4 text-slate-700">{row.openSide}</td>
+                <td className="px-4 py-4 text-slate-700">{row.topic}</td>
+                <td className="px-4 py-4 text-slate-700">{row.frequency}</td>
+                <td className="px-4 py-4 text-slate-700">{row.channel}</td>
+                <td className="px-4 py-4 text-slate-700"><Badge tone={criticalityTone(row.criticality)}>{row.criticality}</Badge></td>
+                <td className="px-4 py-4 text-slate-700">{row.comment || "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
         </div>
       </div>
+      {selected ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => editCommunication(selected.raw)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Редактировать запись
+          </button>
+          <button
+            onClick={() => archiveCommunication(selected.raw)}
+            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shadow-sm hover:bg-amber-100"
+          >
+            В архив
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2814,10 +2921,18 @@ function DataModule({ moduleId }: { moduleId: DataModuleId }) {
 
 export default function ProjectContextPage() {
   const { projectCode } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sectionFromQuery = searchParams.get("section");
+  const allSectionIds = useMemo(
+    () => new Set<string>([...passportSections.map((section) => section.id), ...productModules.map((module) => module.id)]),
+    [],
+  );
   const [effectiveness, setEffectiveness] = useState<ProjectEffectiveness | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [active, setActive] = useState("passport");
+  const [active, setActive] = useState<string>(
+    sectionFromQuery && allSectionIds.has(sectionFromQuery) ? sectionFromQuery : "passport",
+  );
   const [passportOpen, setPassportOpen] = useState(true);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
@@ -2869,6 +2984,25 @@ export default function ProjectContextPage() {
   useEffect(() => {
     setIsNavOpen(false);
   }, [active]);
+
+  useEffect(() => {
+    if (!sectionFromQuery || !allSectionIds.has(sectionFromQuery)) {
+      return;
+    }
+    if (sectionFromQuery !== active) {
+      setActive(sectionFromQuery);
+    }
+  }, [active, allSectionIds, sectionFromQuery]);
+
+  const setActiveSection = useCallback(
+    (sectionId: string) => {
+      setActive(sectionId);
+      const next = new URLSearchParams(searchParams);
+      next.set("section", sectionId);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   async function refreshEffectiveness() {
     setLoading(true);
@@ -3294,6 +3428,36 @@ export default function ProjectContextPage() {
             ),
         });
       },
+      createCommunication: () => {
+        openCreate(
+          "Новая коммуникация",
+          buildCommunicationEditFields(effectiveness),
+          (payload) => createCommunication(projectCode, buildCommunicationPayload(payload)),
+        );
+      },
+      editCommunication: (communication: CommunicationPoint) => {
+        const fields = buildCommunicationEditFields(effectiveness);
+        setSaveError(null);
+        setEditTarget({
+          title: communication.topic_text || communication.summary || "Коммуникация",
+          fields,
+          values: {
+            ...pickValues(communication, fields),
+            open_side_role_custom: "",
+          },
+          save: (payload) =>
+            updateCommunication(
+              projectCode,
+              communication.communication_code || communication.communication_id || "",
+              buildCommunicationPayload(payload),
+            ),
+        });
+      },
+      archiveCommunication: (communication: CommunicationPoint) =>
+        archiveAndRefresh(
+          "communications",
+          communication.communication_code || communication.communication_id,
+        ),
       createKpi: () => {
         openCreate("Новый KPI", buildKpiEditFields(effectiveness), (payload) => createKpi(projectCode, payload));
       },
@@ -3473,7 +3637,7 @@ export default function ProjectContextPage() {
                 {passportSections.map((section) => (
                   <button
                     key={section.id}
-                    onClick={() => setActive(section.id)}
+                    onClick={() => setActiveSection(section.id)}
                     className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition break-words ${
                       active === section.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                     }`}
@@ -3489,7 +3653,7 @@ export default function ProjectContextPage() {
                 {productModules.map((module) => (
                   <button
                     key={module.id}
-                    onClick={() => setActive(module.id)}
+                    onClick={() => setActiveSection(module.id)}
                     className={`w-full rounded-2xl px-4 py-3 text-left transition ${
                       active === module.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                     }`}
@@ -3559,7 +3723,7 @@ export default function ProjectContextPage() {
             <div className="mt-6">
               <button
                 type="button"
-                onClick={() => setActive(nextSection.id)}
+                onClick={() => setActiveSection(nextSection.id)}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 sm:w-auto"
               >
                 Перейти в раздел «{nextSection.label}»
