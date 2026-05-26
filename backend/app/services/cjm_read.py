@@ -103,15 +103,9 @@ class CJMReadService:
 
         context_service = ProjectContextService(self.repository.session)
         stored_blocks = context_service.list_blocks(project)
-        if not stored_blocks:
-            context_service.ensure_seeded(project)
-            project = self.repository.get_project_for_effectiveness(project_code)
-            if project is None:
-                return None
-            stored_blocks = context_service.list_blocks(project)
         return ProjectEffectivenessRead(
             cjm=cjm,
-            context_blocks=stored_blocks + self._default_context_blocks(cjm, stored_blocks),
+            context_blocks=stored_blocks,
         )
 
     def get_project_lprs(self, project_code: str) -> list[CJMLPR] | None:

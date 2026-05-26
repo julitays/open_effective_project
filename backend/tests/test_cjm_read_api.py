@@ -243,19 +243,15 @@ def test_composite_cjm_endpoint_contains_frontend_sections(cjm_client: TestClien
     }
 
 
-def test_effectiveness_endpoint_contains_extended_context(cjm_client: TestClient) -> None:
+def test_effectiveness_endpoint_returns_only_stored_context_blocks(cjm_client: TestClient) -> None:
     response = cjm_client.get("/api/v1/projects/project_001/effectiveness")
 
     assert response.status_code == 200
     payload = response.json()
     assert set(payload) == {"cjm", "context_blocks"}
     assert payload["cjm"]["project"]["project_code"] == "project_001"
-    assert {block["section_key"] for block in payload["context_blocks"]} >= {
-        "summary",
-        "swot",
-        "risk_map",
-        "effectiveness_layers",
-    }
+    section_keys = {block["section_key"] for block in payload["context_blocks"]}
+    assert {"summary", "swot", "risk_map", "effectiveness_layers"}.isdisjoint(section_keys)
 
 
 def test_lpr_read_does_not_duplicate_external_aliases(cjm_client: TestClient) -> None:
