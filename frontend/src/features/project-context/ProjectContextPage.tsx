@@ -2439,7 +2439,7 @@ function Kpi() {
 function RiskMap() {
   const { riskMap } = useScreenData();
   const { editBarrier, editRiskMap } = useScreenActions();
-  const [expandedRisk, setExpandedRisk] = useState("R-01");
+  const [expandedRisk, setExpandedRisk] = useState("");
 
   type RiskItem = (typeof riskMap)[number];
   const riskScore = (item: RiskItem) => item.probability.score * item.impact.score;
@@ -2481,8 +2481,22 @@ function RiskMap() {
     },
   ];
 
-  const selectedRisk = riskMap.find((item) => item.id === expandedRisk) || riskMap[0];
-  const selectedLevel = riskLevel(selectedRisk);
+  const selectedRisk = riskMap.find((item) => item.id === expandedRisk) || riskMap[0] || null;
+  const selectedLevel = selectedRisk ? riskLevel(selectedRisk) : "";
+
+  useEffect(() => {
+    if (riskMap.length === 0) {
+      if (expandedRisk !== "") {
+        setExpandedRisk("");
+      }
+      return;
+    }
+
+    const hasSelected = riskMap.some((item) => item.id === expandedRisk);
+    if (!hasSelected) {
+      setExpandedRisk(riskMap[0].id);
+    }
+  }, [riskMap, expandedRisk]);
 
   return (
     <div className="space-y-5">
@@ -2601,6 +2615,7 @@ function RiskMap() {
         </div>
       </div>
 
+      {selectedRisk ? (
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -2671,6 +2686,11 @@ function RiskMap() {
           </div>
         </div>
       </div>
+      ) : (
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+          Карта рисков пока не заполнена. Нажмите «Редактировать карту», чтобы добавить риски.
+        </div>
+      )}
     </div>
   );
 }
@@ -2756,8 +2776,18 @@ function Barriers() {
 }
 
 function Summary() {
-  const { project } = useScreenData();
+  const {
+    project,
+    summaryBlock,
+    contextBlocks,
+    projectGoals,
+    contacts,
+    barriers,
+    kpis,
+    communications,
+  } = useScreenData();
   const { editSummary } = useScreenActions();
+
   const confirmedFacts = [
     { label: "Код проекта", value: project.externalId },
     { label: "Направление", value: project.direction },
@@ -2767,60 +2797,26 @@ function Summary() {
     { label: "Команда", value: project.headcount },
   ];
 
-  const handoverBlocks = [
-    {
-      title: "Кто ведёт проект",
-      items: [
-        { name: "GKAM", value: project.gkam, status: "указан" },
-        { name: "KAM", value: project.kam, status: "указан" },
-        { name: "Коммерческий ЛПР", value: "ЛПР 1", status: "обезличен" },
-        { name: "Операционный контакт", value: "ЛПР 2", status: "обезличен" },
-      ],
-    },
-    {
-      title: "Как устроен сервис",
-      items: [
-        { name: "Основная модель", value: project.operationalModel, status: "указано" },
-        { name: "Дополнительные контуры", value: project.openTeam, status: "указано" },
-        { name: "Формат сервиса", value: project.serviceModel, status: "указано" },
-        { name: "Полевой контур", value: "консультанты / мерчендайзеры", status: "указано" },
-      ],
-    },
-    {
-      title: "Где работает проект",
-      items: [
-        { name: "Известные регионы", value: project.geography, status: "частично" },
-        { name: "Остальные регионы", value: "требуют подтверждения", status: "проверить" },
-        { name: "Торговые сети", value: project.stores, status: "обобщено" },
-        { name: "Каналы продаж", value: "требуют уточнения", status: "проверить" },
-      ],
-    },
-  ];
+  const criticalToClient = asStringArray(summaryBlock?.content.critical_to_client);
+  const mainRisks = asStringArray(summaryBlock?.content.main_risks);
+  const summaryNote = formatText(String(summaryBlock?.content.note || ""));
 
-  const dataReadiness = [
-    { section: "Паспорт проекта", status: "Заполнено", content: "код, статус, направление, масштаб, этап, модель, команда" },
-    { section: "Хронология", status: "Заполнено", content: "2019–2022: ключевые изменения проекта" },
-    { section: "KPI проекта", status: "Заполнено как пример", content: "покрытие, продажи, доля рынка, качественные критерии ЛПР, экономика проекта" },
-    { section: "Правила интерпретации", status: "Как методика", content: "как читать KPI, опросы, 360, ОЭД и проектные исключения" },
-    { section: "Карта влияния и ЛПР", status: "Частично", content: "структура OPEN, структура клиента и обезличенные карточки ЛПР" },
-    { section: "Коммуникации", status: "Частично", content: "контакты, темы, частота, канал, критичность" },
-    { section: "Конкуренты", status: "Как пример", content: "конкуренты OPEN и конкуренты клиента по проектному сегменту" },
-    { section: "SWOT", status: "Как гипотеза", content: "сильные стороны, слабые стороны, возможности, угрозы" },
-    { section: "Барьеры", status: "Как пример", content: "было / есть сейчас / будет" },
-  ];
-
-  const nextToFill = [
-    { field: "Регионы", current: "Москва; Новосибирск", needed: "полный список регионов присутствия" },
-    { field: "Численность", current: "86 человек", needed: "подтверждение по ролям и территориям" },
-    { field: "ЛПР", current: "ЛПР 1 / ЛПР 2 / ЛПР 3", needed: "реальные роли или согласованное обезличивание" },
-    { field: "Торговые сети", current: "общее описание", needed: "список сетей / каналов продаж" },
-    { field: "KPI", current: "примерная структура", needed: "фактические источники расчёта" },
-    { field: "Конкуренты", current: "рыночные примеры", needed: "кто реально пересекался с OPEN по клиенту" },
+  const hasBlock = (sectionKey: string) =>
+    contextBlocks.some((block) => block.section_key === sectionKey);
+  const readinessRows = [
+    { section: "Паспорт проекта", status: hasBlock("passport_header") && hasBlock("passport_overview") && hasBlock("passport_service") ? "Заполнено" : "Частично" },
+    { section: "История проекта", status: hasBlock("project_history") ? "Заполнено" : "Пусто" },
+    { section: "Цели", status: projectGoals.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "Карта влияния и ЛПР", status: contacts.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "KPI проекта", status: kpis.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "Коммуникации", status: communications.length > 0 ? "Заполнено" : "Пусто" },
+    { section: "Барьеры", status: barriers.some((group) => group.items.length > 0) ? "Заполнено" : "Пусто" },
+    { section: "Бриф проекта", status: criticalToClient.length || mainRisks.length || summaryNote !== "Не указано" ? "Заполнено" : "Пусто" },
   ];
 
   const statusTone = (status: string): BadgeTone => {
-    if (["Заполнено", "указан", "указано"].includes(status)) return "good";
-    if (["проверить", "Частично", "частично"].includes(status)) return "warn";
+    if (status === "Заполнено") return "good";
+    if (status === "Частично") return "warn";
     return "neutral";
   };
 
@@ -2828,7 +2824,7 @@ function Summary() {
     <div className="space-y-6">
       <SectionTitle
         title="Бриф проекта"
-        description="Один лист для быстрой передачи проекта: что уже известно, что заполнено частично и какие факты нужно подтвердить перед использованием контекста в аналитике."
+        description="Краткая сводка по проекту для передачи контекста между участниками команды."
         action="Обновить бриф"
         onAction={editSummary}
       />
@@ -2845,7 +2841,7 @@ function Summary() {
               {project.clientName}: короткая сводка для входа в контекст
             </h3>
             <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
-              Стартовая карточка для КАМ, руководителя или аналитика: базовые факты проекта, готовность разделов и список данных, требующих подтверждения.
+              Здесь отображаются только сохранённые данные проекта. Если бриф не заполнен, блоки ниже будут пустыми.
             </p>
           </div>
 
@@ -2853,16 +2849,16 @@ function Summary() {
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Готовность контекста</div>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                <div className="text-2xl font-semibold text-white">3</div>
+                <div className="text-2xl font-semibold text-white">{readinessRows.filter((row) => row.status === "Заполнено").length}</div>
                 <div className="mt-1 text-xs leading-4 text-slate-400">раздела заполнены</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                <div className="text-2xl font-semibold text-white">3</div>
+                <div className="text-2xl font-semibold text-white">{readinessRows.filter((row) => row.status === "Частично").length}</div>
                 <div className="mt-1 text-xs leading-4 text-slate-400">частично</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                <div className="text-2xl font-semibold text-white">6</div>
-                <div className="mt-1 text-xs leading-4 text-slate-400">фактов к проверке</div>
+                <div className="text-2xl font-semibold text-white">{readinessRows.filter((row) => row.status === "Пусто").length}</div>
+                <div className="mt-1 text-xs leading-4 text-slate-400">пустых разделов</div>
               </div>
             </div>
           </div>
@@ -2878,27 +2874,39 @@ function Summary() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {handoverBlocks.map((block) => (
-          <Card key={block.title}>
-            <h3 className="text-base font-semibold text-slate-900">{block.title}</h3>
-            <div className="mt-4 space-y-3">
-              {block.items.map((item) => (
-                <div key={`${block.title}-${item.name}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{item.name}</div>
-                    <Badge tone={statusTone(item.status)}>{item.status}</Badge>
-                  </div>
-                  <div className="mt-2 text-sm font-medium leading-6 text-slate-900">{item.value}</div>
-                </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Card>
+          <h3 className="text-base font-semibold text-slate-900">Что критично клиенту</h3>
+          {criticalToClient.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+              {criticalToClient.map((item) => (
+                <li key={item}>• {item}</li>
               ))}
-            </div>
-          </Card>
-        ))}
+            </ul>
+          ) : (
+            <div className="mt-3 text-sm text-slate-500">Не заполнено</div>
+          )}
+        </Card>
+
+        <Card>
+          <h3 className="text-base font-semibold text-slate-900">Где основной риск</h3>
+          {mainRisks.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+              {mainRisks.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-3 text-sm text-slate-500">Не заполнено</div>
+          )}
+          <div className="mt-4 text-xs leading-5 text-slate-500">
+            Комментарий: {summaryNote}
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <Card className="xl:col-span-7">
+        <Card className="xl:col-span-12">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-slate-900">Что уже есть в контексте</h3>
             <Badge tone="dark">разделы</Badge>
@@ -2914,40 +2922,18 @@ function Summary() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {dataReadiness.map((row) => (
+                {readinessRows.map((row) => (
                   <tr key={row.section}>
                     <td className="px-4 py-4 font-medium text-slate-900">{row.section}</td>
                     <td className="px-4 py-4"><Badge tone={statusTone(row.status)}>{row.status}</Badge></td>
-                    <td className="px-4 py-4 text-slate-600">{row.content}</td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {row.status === "Заполнено" ? "Раздел содержит данные" : row.status === "Частично" ? "Раздел заполнен частично" : "Раздел пока пуст"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             </div>
-          </div>
-        </Card>
-
-        <Card className="border-amber-200 bg-amber-50 xl:col-span-5">
-          <h3 className="text-base font-semibold text-slate-900">Что мешает считать контекст полным</h3>
-          <div className="mt-4 space-y-3">
-            {nextToFill.map((item) => (
-              <div key={item.field} className="rounded-2xl bg-white/75 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-sm font-semibold text-slate-900">{item.field}</div>
-                  <Badge tone="warn">уточнить</Badge>
-                </div>
-                <div className="mt-3 grid grid-cols-1 gap-3 text-sm leading-5 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Сейчас</div>
-                    <div className="mt-1 text-slate-700">{item.current}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Нужно</div>
-                    <div className="mt-1 text-slate-700">{item.needed}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </Card>
       </div>
