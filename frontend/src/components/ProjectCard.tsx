@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import StatusBadge from "./StatusBadge";
 import type { ProjectPassport } from "../types/cjm";
-import { getProjectEffectiveness } from "../api/projects";
+import { getProjectCjm } from "../api/projects";
 import {
   formatCode,
   formatDirection,
@@ -35,12 +35,12 @@ export default function ProjectCard({ project }: ProjectCardProps) {
     let cancelled = false;
     setCompletenessLoading(true);
 
-    getProjectEffectiveness(project.project_code)
-      .then((effectiveness) => {
+    getProjectCjm(project.project_code)
+      .then((cjm) => {
         if (cancelled) {
           return;
         }
-        setCompleteness(buildContextCompleteness(project, effectiveness));
+        setCompleteness(buildContextCompleteness(project, cjm));
       })
       .catch(() => {
         if (cancelled) {
@@ -174,29 +174,18 @@ function buildPassportCompleteness(project: ProjectPassport) {
 
 function buildContextCompleteness(
   project: ProjectPassport,
-  effectiveness: Awaited<ReturnType<typeof getProjectEffectiveness>>,
+  cjm: Awaited<ReturnType<typeof getProjectCjm>>,
 ) {
   const passport = buildPassportCompleteness(project);
-  const contextBlocks = effectiveness.context_blocks || [];
-  const hasBlock = (sectionKey: string) => contextBlocks.some((block) => block.section_key === sectionKey);
-  const hasRiskItems = contextBlocks.some((block) => {
-    if (block.section_key !== "risk_map") {
-      return false;
-    }
-    const items = block.content?.items;
-    return Array.isArray(items) && items.length > 0;
-  });
 
   const items = [
     { label: "Паспорт", filled: passport.percent >= 80 },
-    { label: "Цели", filled: effectiveness.cjm.goals.length > 0 },
-    { label: "ЛПР", filled: effectiveness.cjm.lprs.length > 0 },
-    { label: "Барьеры", filled: effectiveness.cjm.barriers.length > 0 },
-    { label: "Ожидания", filled: effectiveness.cjm.expectations.length > 0 },
-    { label: "KPI", filled: effectiveness.cjm.kpis.length > 0 },
-    { label: "Коммуникации", filled: effectiveness.cjm.communications.length > 0 },
-    { label: "Карта рисков", filled: hasRiskItems },
-    { label: "SWOT", filled: hasBlock("swot") },
+    { label: "Цели", filled: cjm.goals.length > 0 },
+    { label: "ЛПР", filled: cjm.lprs.length > 0 },
+    { label: "Барьеры", filled: cjm.barriers.length > 0 },
+    { label: "Ожидания", filled: cjm.expectations.length > 0 },
+    { label: "KPI", filled: cjm.kpis.length > 0 },
+    { label: "Коммуникации", filled: cjm.communications.length > 0 },
   ];
 
   const percent = Math.round((items.filter((item) => item.filled).length / items.length) * 100);
