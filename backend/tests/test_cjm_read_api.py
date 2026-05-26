@@ -435,6 +435,61 @@ def test_patch_unknown_entity_returns_404(cjm_client: TestClient) -> None:
     assert response.json()["detail"] == "Barrier 'barrier_missing' was not found."
 
 
+def test_create_communication_autolinks_lpr_by_external_alias(
+    cjm_client: TestClient,
+    cjm_session_factory: sessionmaker[Session],
+) -> None:
+    response = cjm_client.post(
+        "/api/v1/projects/project_001/communications",
+        json={
+            "external_lpr_id": "55",
+            "client_side": "Regional role",
+            "open_side_role": "KAM",
+            "topic_text": "Quarterly review",
+            "channel_text": "meeting",
+            "frequency": "quarterly",
+            "criticality": "high",
+            "comment": "Prepare hiring presentation",
+        },
+    )
+
+    assert response.status_code == 201
+    created_code = response.json()["communication_code"]
+    with cjm_session_factory() as session:
+        communication = session.scalar(
+            select(CommunicationPoint).where(CommunicationPoint.source_id == created_code)
+        )
+        lpr = session.scalar(select(LPRProfile).where(LPRProfile.lpr_code == "lpr_007"))
+        assert communication is not None
+        assert lpr is not None
+        assert communication.lpr_id == lpr.id
+
+
+def test_patch_communication_autolinks_lpr_by_external_alias(
+    cjm_client: TestClient,
+    cjm_session_factory: sessionmaker[Session],
+) -> None:
+    response = cjm_client.patch(
+        "/api/v1/projects/project_001/communications/communication_001",
+        json={
+            "external_lpr_id": "845; 55",
+            "client_side": "Regional role",
+        },
+    )
+
+    assert response.status_code == 200
+    with cjm_session_factory() as session:
+        communication = session.scalar(
+            select(CommunicationPoint).where(
+                CommunicationPoint.source_id == "communication_001"
+            )
+        )
+        lpr = session.scalar(select(LPRProfile).where(LPRProfile.lpr_code == "lpr_007"))
+        assert communication is not None
+        assert lpr is not None
+        assert communication.lpr_id == lpr.id
+
+
 def test_patch_without_auth_returns_401_when_demo_auth_enabled(
     cjm_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

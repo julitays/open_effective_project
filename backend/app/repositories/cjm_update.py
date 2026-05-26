@@ -38,6 +38,16 @@ class CJMUpdateRepository:
             )
         )
 
+    def list_lprs(self, project_id: object) -> list[LPRProfile]:
+        return list(
+            self.session.scalars(
+                select(LPRProfile).where(
+                    LPRProfile.project_id == project_id,
+                    LPRProfile.archived_at.is_(None),
+                )
+            ).all()
+        )
+
     def get_barrier(self, project_id: object, barrier_code: str) -> ProjectBarrier | None:
         return self.session.scalar(
             select(ProjectBarrier).where(

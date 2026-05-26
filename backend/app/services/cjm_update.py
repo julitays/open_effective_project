@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 from pydantic import BaseModel
@@ -264,8 +265,14 @@ class CJMUpdateService:
             self.repository.list_codes(project.id, "communication"),
         )
         summary = payload.topic_text or payload.comment or communication_code
+        linked_lpr = self._resolve_lpr_for_communication(
+            project.id,
+            payload.external_lpr_id,
+            payload.client_side,
+        )
         point = CommunicationPoint(
             project_id=project.id,
+            lpr_id=linked_lpr.id if linked_lpr is not None else None,
             source_id=communication_code,
             point_type="communication",
             client_side=payload.client_side,
@@ -527,6 +534,12 @@ class CJMUpdateService:
                 "relevance_status": map_relevance_status,
             },
         )
+        linked_lpr = self._resolve_lpr_for_communication(
+            project.id,
+            point.external_lpr_id,
+            point.client_side,
+        )
+        point.lpr_id = linked_lpr.id if linked_lpr is not None else None
         self._mark_manual_update(point, updated_by)
         self.repository.save(point)
         return self.read_service._communication(point)
@@ -714,6 +727,41 @@ class CJMUpdateService:
             if candidate not in existing:
                 return candidate
             index += 1
+
+    def _resolve_lpr_for_communication(
+        self,
+        project_id: object,
+        external_lpr_id: str | None,
+        client_side: str | None,
+    ) -> LPRProfile | None:
+        lprs = self.repository.list_lprs(project_id)
+        if not lprs:
+            return None
+
+        tokens = self._alias_tokens(external_lpr_id)
+        if not tokens:
+            tokens = self._alias_tokens(client_side)
+
+        if tokens:
+            for lpr in lprs:
+                lpr_tokens = self._alias_tokens(lpr.external_lpr_id) | self._alias_tokens(lpr.lpr_code)
+                if lpr_tokens & tokens:
+                    return lpr
+
+        client_side_normalized = cjm_mappings.normalize_label(client_side)
+        if client_side_normalized:
+            for lpr in lprs:
+                role_normalized = cjm_mappings.normalize_label(lpr.stakeholder_role)
+                if role_normalized and role_normalized == client_side_normalized:
+                    return lpr
+        return None
+
+    def _alias_tokens(self, value: object) -> set[str]:
+        normalized = cjm_mappings.normalize_label(value)
+        if not normalized:
+            return set()
+        parts = re.split(r"[;,/|]+", normalized)
+        return {part.strip() for part in parts if part.strip()}
 
 
 def map_relevance_status(value: object) -> str | None:
