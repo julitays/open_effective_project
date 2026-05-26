@@ -66,11 +66,11 @@ export default function ProjectCard({ project }: ProjectCardProps) {
   }, [expanded, project]);
 
   return (
-    <article className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/70 transition hover:border-slate-300 hover:shadow-md">
+    <article className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-md shadow-slate-200/60 transition-all duration-200 ease-out hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/70">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase text-slate-400">Код проекта</div>
-          <h2 className="mt-2 break-words text-xl font-semibold text-slate-950">
+          <h2 className="mt-2 break-words font-mono text-xl font-semibold text-slate-950">
             {formatCode(project.external_project_id)}
           </h2>
         </div>

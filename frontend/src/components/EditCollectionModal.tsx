@@ -95,7 +95,7 @@ export default function EditCollectionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8 backdrop-blur-sm">
       <form
         onSubmit={submit}
         className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl shadow-slate-950/20"
@@ -111,7 +111,7 @@ export default function EditCollectionModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100"
             aria-label="Закрыть"
           >
             <X aria-hidden="true" className="h-5 w-5" />
@@ -198,14 +198,14 @@ export default function EditCollectionModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 ease-out hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Отмена
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 ease-out hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save aria-hidden="true" className="h-4 w-4" />
             {saving ? "Сохраняем..." : "Сохранить"}

@@ -1515,7 +1515,7 @@ function Passport() {
   }) => (
     <section className="grid grid-cols-1 gap-5 border-t border-slate-100 px-4 py-5 sm:px-5 sm:py-6 xl:grid-cols-[260px_1fr] xl:px-6">
       <div>
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{eyebrow}</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-500">{eyebrow}</div>
         <h3 className="mt-2 text-lg font-semibold text-slate-950">{title}</h3>
         {description && <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>}
         {action ? (
@@ -1544,7 +1544,7 @@ function Passport() {
 
   return (
     <div className="space-y-5">
-      <div className="overflow-hidden rounded-[30px] bg-slate-950 shadow-sm">
+      <div className="overflow-hidden rounded-[30px] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 shadow-xl shadow-slate-900/30 ring-1 ring-white/5">
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px]">
           <div className="bg-white p-4 text-slate-950 sm:p-6 xl:p-7">
             <div className="flex flex-wrap items-center gap-2">
@@ -1757,17 +1757,8 @@ function Goals() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[86px]" />
-              <col className="w-[120px]" />
-              <col className="w-[220px]" />
-              <col className="w-[140px]" />
-              <col className="w-[240px]" />
-              <col className="w-[200px]" />
-              <col className="w-[160px]" />
-            </colgroup>
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-300">
               <tr>
                 <th className="whitespace-nowrap px-4 py-3">ID</th>
                 <th className="whitespace-nowrap px-4 py-3">Контур</th>
@@ -1780,7 +1771,7 @@ function Goals() {
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {projectGoals.map((goal) => (
-                <tr key={goal.id} className="align-top hover:bg-slate-50">
+                <tr key={goal.id} className="align-top odd:bg-white even:bg-slate-50/50 hover:bg-slate-50 transition-colors duration-150">
                   <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">
                     {formatEntityCode((goal as { entityCode?: string }).entityCode || goal.id)}
                   </td>
@@ -2172,8 +2163,8 @@ function Communications() {
       />
       <div className="[overflow:clip] rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <table className="w-full min-w-[700px] text-left text-sm">
+          <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-300">
             <tr>
               {["Контакт клиента", "Контакт OPEN", "Тема", "Частота", "Канал", "Критичность", "Комментарий"].map((h) => (
                 <th key={h} className="px-4 py-3">{h}</th>
@@ -2240,17 +2231,9 @@ function InterpretationRules() {
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[88px]" />
-              <col className="w-[220px]" />
-              <col className="w-[220px]" />
-              <col className="w-[330px]" />
-              <col className="w-[300px]" />
-            </colgroup>
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-300">
               <tr>
-                <th className="whitespace-nowrap px-4 py-3">ID</th>
                 <th className="px-4 py-3">Правило</th>
                 <th className="px-4 py-3">Где применяется</th>
                 <th className="px-4 py-3">Как использовать</th>
@@ -2259,8 +2242,7 @@ function InterpretationRules() {
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {interpretationRuleItems.map((item) => (
-                <tr key={item.id} className="align-top hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{item.id}</td>
+                <tr key={item.id} className="align-top odd:bg-white even:bg-slate-50/50 hover:bg-slate-50 transition-colors duration-150">
                   <td className="px-4 py-4 font-medium leading-6 text-slate-900">{item.title}</td>
                   <td className="px-4 py-4 leading-6 text-slate-600">{item.appliesTo}</td>
                   <td className="px-4 py-4 leading-6 text-slate-700">{item.rule}</td>
@@ -2337,16 +2319,8 @@ function Kpi() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[88px]" />
-              <col className="w-[300px]" />
-              <col className="w-[210px]" />
-              <col className="w-[210px]" />
-              <col className="w-[150px]" />
-              <col className="w-[132px]" />
-            </colgroup>
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-300">
               <tr>
                 <th className="whitespace-nowrap px-4 py-3">ID</th>
                 <th className="px-4 py-3">KPI / критерий</th>
@@ -2588,18 +2562,9 @@ function RiskMap() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[72px]" />
-              <col className="w-[360px]" />
-              <col className="w-[150px]" />
-              <col className="w-[150px]" />
-              <col className="w-[160px]" />
-              <col className="w-[148px]" />
-            </colgroup>
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <table className="w-full min-w-[740px] text-left text-sm">
+            <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-300">
               <tr>
-                <th className="whitespace-nowrap px-4 py-3">ID</th>
                 <th className="px-4 py-3">Зона / риск</th>
                 <th className="whitespace-nowrap px-4 py-3">Оценка</th>
                 <th className="whitespace-nowrap px-4 py-3">Уровень</th>
@@ -2618,7 +2583,6 @@ function RiskMap() {
                     onClick={() => setExpandedRisk(item.id)}
                     className={`cursor-pointer align-top hover:bg-slate-50 ${isActive ? "bg-slate-50" : ""}`}
                   >
-                    <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-900">{item.id}</td>
                     <td className="px-4 py-4">
                       <div className="truncate text-xs font-medium uppercase tracking-wide text-slate-400">{item.zone}</div>
                       <div className="mt-1 line-clamp-2 font-medium leading-5 text-slate-900">{item.risk}</div>
@@ -2937,7 +2901,7 @@ function Summary() {
           <div className="mt-4 [overflow:clip] rounded-2xl border border-slate-200">
             <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-300">
                 <tr>
                   <th className="px-4 py-3">Раздел</th>
                   <th className="px-4 py-3">Статус</th>
@@ -3712,22 +3676,22 @@ export default function ProjectContextPage() {
   return (
     <EffectivenessContext.Provider value={effectiveness}>
     <ScreenActionsContext.Provider value={actions}>
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-slate-900">
       <div className="flex min-h-screen flex-col xl:flex-row">
         {isNavOpen && (
           <div onClick={() => setIsNavOpen(false)} className="fixed inset-0 z-30 bg-slate-950/40 xl:hidden" />
         )}
 
-        <aside className={`${isNavOpen ? "fixed left-3 right-3 top-16 z-40 max-h-[78vh] overflow-y-auto rounded-2xl shadow-2xl" : "hidden"} shrink-0 border border-slate-200 bg-white p-4 sm:p-5 xl:relative xl:block xl:inset-auto xl:right-auto xl:top-auto xl:z-auto xl:w-80 xl:max-h-none xl:overflow-visible xl:rounded-none xl:border-b-0 xl:border-l-0 xl:border-r xl:border-t-0 xl:shadow-none`}>
+        <aside className={`${isNavOpen ? "fixed left-3 right-3 top-16 z-40 max-h-[78vh] overflow-y-auto rounded-2xl shadow-2xl" : "hidden"} shrink-0 bg-slate-950 p-4 sm:p-5 xl:relative xl:block xl:inset-auto xl:right-auto xl:top-auto xl:z-auto xl:w-80 xl:max-h-none xl:overflow-visible xl:rounded-none xl:border-r xl:border-slate-800 xl:shadow-none`}>
           <button
             onClick={() => setIsNavOpen(false)}
-            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 xl:hidden"
+            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white xl:hidden"
           >
             <X aria-hidden="true" className="h-4 w-4" />
             Закрыть
           </button>
 
-          <div className="rounded-3xl bg-slate-950 p-5 text-white shadow-sm">
+          <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 p-5 text-white shadow-lg shadow-slate-950/20 ring-1 ring-white/5">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-400">OPEN Intelligence</div>
             <div className="mt-2 text-xl font-semibold">Эффективность проекта</div>
             <div className="mt-3 text-sm leading-6 text-slate-300">
@@ -3738,7 +3702,7 @@ export default function ProjectContextPage() {
           <nav className="mt-5 space-y-2">
             <button
               onClick={() => setPassportOpen((value) => !value)}
-              className="flex w-full items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 text-left text-sm font-semibold text-white shadow-sm"
+              className="flex w-full items-center justify-between rounded-2xl bg-slate-800 px-4 py-3 text-left text-sm font-semibold text-white shadow-sm"
             >
               <span>КОНТЕКСТ ПРОЕКТА</span>
               <span className="text-xs text-slate-300">{passportOpen ? "свернуть" : "раскрыть"}</span>
@@ -3751,7 +3715,7 @@ export default function ProjectContextPage() {
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
                     className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition break-words ${
-                      active === section.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                      active === section.id ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/40" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
                     {section.label}
@@ -3767,11 +3731,11 @@ export default function ProjectContextPage() {
                     key={module.id}
                     onClick={() => setActiveSection(module.id)}
                     className={`w-full rounded-2xl px-4 py-3 text-left transition ${
-                      active === module.id ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                      active === module.id ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/40" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
                     <div className="text-sm font-medium break-words">{module.label}</div>
-                    <div className={`mt-1 text-xs ${active === module.id ? "text-slate-300" : "text-slate-400"}`}>{module.status}</div>
+                    <div className={`mt-1 text-xs ${active === module.id ? "text-indigo-200" : "text-slate-500"}`}>{module.status}</div>
                   </button>
                 ))}
               </div>
@@ -3810,7 +3774,7 @@ export default function ProjectContextPage() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Код проекта</div>
-                      <div className="mt-2 break-words text-sm font-semibold text-slate-900">{screenData.externalId}</div>
+                      <div className="mt-2 break-words font-mono text-sm font-semibold text-slate-900">{screenData.externalId}</div>
                     </div>
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Команда</div>

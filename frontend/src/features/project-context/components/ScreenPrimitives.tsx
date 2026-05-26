@@ -31,14 +31,17 @@ export function SectionTitle({ title, description, action, onAction }: SectionCh
   return (
     <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
+        <div className="flex items-center gap-3">
+          <div className="h-6 w-1 shrink-0 rounded-full bg-indigo-500" />
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
+        </div>
         <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">{description}</p>
       </div>
       {action && onAction ? (
         <button
           type="button"
           onClick={onAction}
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-200 ease-out hover:bg-slate-50 hover:shadow-md"
         >
           {action}
         </button>
@@ -48,5 +51,5 @@ export function SectionTitle({ title, description, action, onAction }: SectionCh
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-md shadow-slate-200/60 ${className}`}>{children}</div>;
 }

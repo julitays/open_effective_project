@@ -3,10 +3,10 @@ import { NavLink, Outlet } from "react-router-dom";
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-[1680px] flex-col lg:flex-row">
-        <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:w-80 lg:shrink-0 lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
-          <div className="rounded-lg bg-slate-950 p-5 text-white shadow-sm">
+        <aside className="bg-slate-950 px-4 py-4 lg:w-80 lg:shrink-0 lg:border-r lg:border-slate-800 lg:px-5 lg:py-6">
+          <div className="rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 p-5 text-white ring-1 ring-white/5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-400">
               <PanelsTopLeft aria-hidden="true" className="h-4 w-4" />
               OPEN Project Risk
@@ -23,8 +23,8 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${
                   isActive
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-700 hover:bg-slate-100"
+                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/40"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`
               }
             >
