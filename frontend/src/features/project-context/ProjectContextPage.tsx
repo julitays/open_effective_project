@@ -2254,8 +2254,22 @@ function InterpretationRules() {
 function Kpi() {
   const { kpis, relationText } = useScreenData();
   const { editKpi, createKpi, archiveKpi } = useScreenActions();
-  const [selectedKpiId, setSelectedKpiId] = useState("KPI-01");
-  const selectedKpi = kpis.find((item) => item.id === selectedKpiId) || kpis[0];
+  const [selectedKpiId, setSelectedKpiId] = useState("");
+  const selectedKpi = kpis.find((item) => item.id === selectedKpiId) || kpis[0] || null;
+  const highPriorityCount = kpis.filter((item) => (item.priority || "").includes("Высок")).length;
+
+  useEffect(() => {
+    if (kpis.length === 0) {
+      if (selectedKpiId !== "") {
+        setSelectedKpiId("");
+      }
+      return;
+    }
+    const hasSelected = kpis.some((item) => item.id === selectedKpiId);
+    if (!hasSelected) {
+      setSelectedKpiId(kpis[0].id);
+    }
+  }, [kpis, selectedKpiId]);
 
   const kpiGroups = Array.from(new Set(kpis.map((item) => item.sourceBlock))).map((group) => ({
     group,
@@ -2293,7 +2307,7 @@ function Kpi() {
             </div>
             <div className="text-right text-xs leading-5 text-slate-500">
               <div>Всего: <span className="font-semibold text-slate-900">{kpis.length}</span></div>
-              <div>Высокий приоритет: <span className="font-semibold text-slate-900">{kpis.filter((item) => item.priority.includes("Высок")).length}</span></div>
+              <div>Высокий приоритет: <span className="font-semibold text-slate-900">{highPriorityCount}</span></div>
             </div>
           </div>
         </div>
@@ -2352,6 +2366,7 @@ function Kpi() {
         </div>
       </div>
 
+      {selectedKpi ? (
       <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -2412,6 +2427,11 @@ function Kpi() {
           </p>
         </div>
       </div>
+      ) : (
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+          KPI пока не добавлены. Нажмите «Добавить KPI», чтобы заполнить раздел.
+        </div>
+      )}
     </div>
   );
 }
