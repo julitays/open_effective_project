@@ -722,11 +722,11 @@ function useScreenData() {
     id: lpr.lpr_code,
     entityCode: lpr.lpr_code,
     role: lpr.role_zone || lpr.role,
-    decisionRole: lpr.evidence_basis || "Зона влияния уточняется в карточке ЛПР.",
+    decisionRole: lpr.role_zone || lpr.role || "Не указано",
     influence: formatInfluenceLevel(lpr.influence_level),
     attitude: formatRelationshipStatus(lpr.relationship_status),
     profileStatus: formatActivityStatus(lpr.activity_status),
-    profileSource: lpr.evidence_basis || "Данные внесены в контекст проекта.",
+    profileSource: lpr.evidence_basis || "Не указано",
     profileEvidence: lpr.importance_factors.map((factor) => ({
       source: humanizeSourceLabel(factor.source_text),
       detail: factor.evidence_quote || factor.factor_text,
@@ -738,14 +738,14 @@ function useScreenData() {
       description: factor.evidence_quote || factor.source_text || "Описание важности можно уточнить.",
     })),
     interaction: {
-      preferredFormat: lpr.manual_comment || "Формат взаимодействия уточняется.",
+      preferredFormat: lpr.manual_comment || "Не указано",
       channel: "См. матрицу коммуникаций",
       frequency: "См. матрицу коммуникаций",
       owner: "Проектная команда",
     },
-    doRules: ["фиксировать договорённости", "показывать статус и следующий шаг"],
-    dontRules: ["оставлять вопрос без владельца", "терять контекст договорённостей"],
-    notes: lpr.manual_comment || "Карточка редактируется в интерфейсе.",
+    doRules: [],
+    dontRules: [],
+    notes: lpr.manual_comment || "",
     raw: lpr,
   }));
 
@@ -1283,7 +1283,11 @@ const lprEditFields: EditField[] = [
   { name: "influence_level", label: "Уровень влияния", input: "select", options: influenceOptions },
   { name: "activity_status", label: "Статус активности", input: "select", options: activityOptions },
   { name: "relationship_status", label: "Отношение", input: "select", options: relationshipOptions },
-  { name: "evidence_basis", label: "Основание вывода", input: "textarea" },
+  {
+    name: "evidence_basis",
+    label: "Основание профиля (факты/источник, почему определены роль и влияние)",
+    input: "textarea",
+  },
   { name: "manual_comment", label: "Комментарий", input: "textarea" },
 ];
 
@@ -1954,20 +1958,26 @@ function ProjectMap() {
                         <div className="mt-3 rounded-2xl bg-white/80 p-3 text-sm font-medium leading-6 text-slate-900">
                           {contact.interaction.preferredFormat}
                         </div>
-                        <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
-                          {contact.doRules.map((item) => (
-                            <li key={item}>• {item}</li>
-                          ))}
-                        </ul>
+                        {contact.doRules.length > 0 ? (
+                          <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
+                            {contact.doRules.map((item) => (
+                              <li key={item}>• {item}</li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
 
                       <div className="rounded-2xl bg-rose-50 p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-rose-700">Чего избегать</div>
-                        <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
-                          {contact.dontRules.map((item) => (
-                            <li key={item}>• {item}</li>
-                          ))}
-                        </ul>
+                        {contact.dontRules.length > 0 ? (
+                          <ul className="mt-3 space-y-2 text-sm leading-5 text-slate-600">
+                            {contact.dontRules.map((item) => (
+                              <li key={item}>• {item}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="mt-3 text-sm leading-5 text-slate-500">Не указано</div>
+                        )}
                       </div>
                     </div>
 
