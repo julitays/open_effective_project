@@ -187,6 +187,9 @@ function buildContextCompleteness(
   effectiveness: Awaited<ReturnType<typeof getProjectEffectiveness>>,
 ) {
   const passport = buildPassportCompleteness(project);
+  const bySection = new Map(
+    (effectiveness.context_blocks || []).map((block) => [block.section_key, block.content]),
+  );
 
   const blockState = evaluatePassportBlocks(effectiveness.context_blocks || []);
   const passportStatus: CompletenessStatus =
@@ -201,11 +204,22 @@ function buildContextCompleteness(
   const items: CompletenessItem[] = [
     { label: "Паспорт", status: passportStatus },
     { label: "Цели", status: cjm.goals.length > 0 ? "filled" : "empty" },
-    { label: "ЛПР", status: cjm.lprs.length > 0 ? "filled" : "empty" },
+    { label: "Карта влияния и ЛПР", status: cjm.lprs.length > 0 ? "filled" : "empty" },
+    { label: "Конкуренты", status: evaluateCompetitorsStatus(bySection) },
+    { label: "SWOT", status: evaluateSwotStatus(bySection.get("swot")) },
     { label: "Барьеры", status: cjm.barriers.length > 0 ? "filled" : "empty" },
     { label: "Ожидания", status: cjm.expectations.length > 0 ? "filled" : "empty" },
     { label: "KPI", status: cjm.kpis.length > 0 ? "filled" : "empty" },
     { label: "Коммуникации", status: cjm.communications.length > 0 ? "filled" : "empty" },
+    {
+      label: "Правила интерпретации",
+      status: hasStringList(bySection.get("interpretation_rules"), "rules") ? "filled" : "empty",
+    },
+    {
+      label: "Карта рисков",
+      status: hasRecords(bySection.get("risk_map"), ["title"], 1) ? "filled" : "empty",
+    },
+    { label: "Бриф проекта", status: evaluateSummaryStatus(bySection.get("summary")) },
   ];
 
   const weighted = items.reduce((acc, item) => {
@@ -258,6 +272,45 @@ function evaluatePassportBlocks(blocks: Array<{ section_key: string; content: Re
   return { filled: full, partial: any };
 }
 
+function evaluateCompetitorsStatus(bySection: Map<string, Record<string, unknown>>) {
+  const openFilled = hasRecords(bySection.get("competitors_open"), ["name"], 1);
+  const clientFilled = hasRecords(bySection.get("competitors_client"), ["name"], 1);
+  if (openFilled && clientFilled) {
+    return "filled";
+  }
+  if (openFilled || clientFilled) {
+    return "partial";
+  }
+  return "empty";
+}
+
+function evaluateSwotStatus(content: Record<string, unknown> | undefined): CompletenessStatus {
+  const keys = ["strengths", "weaknesses", "opportunities", "threats"];
+  const filled = keys.filter((key) => hasStringList(content, key)).length;
+  if (filled === keys.length) {
+    return "filled";
+  }
+  if (filled > 0) {
+    return "partial";
+  }
+  return "empty";
+}
+
+function evaluateSummaryStatus(content: Record<string, unknown> | undefined): CompletenessStatus {
+  const filled = [
+    hasStringList(content, "critical_to_client"),
+    hasStringList(content, "main_risks"),
+    isMeaningful(stringField(content, "note")),
+  ].filter(Boolean).length;
+  if (filled === 3) {
+    return "filled";
+  }
+  if (filled > 0) {
+    return "partial";
+  }
+  return "empty";
+}
+
 function hasFacts(content: Record<string, unknown> | undefined, minFilled: number) {
   if (!content) {
     return false;
@@ -274,6 +327,24 @@ function hasFacts(content: Record<string, unknown> | undefined, minFilled: numbe
     }
   }
   return filled >= minFilled;
+}
+
+function hasStringList(content: Record<string, unknown> | undefined, key: string) {
+  if (!content) {
+    return false;
+  }
+  const list = content[key];
+  if (!Array.isArray(list)) {
+    return false;
+  }
+  return list.some((item) => isMeaningful(String(item ?? "")));
+}
+
+function stringField(content: Record<string, unknown> | undefined, key: string) {
+  if (!content) {
+    return "";
+  }
+  return String(content[key] ?? "");
 }
 
 function hasRecords(
