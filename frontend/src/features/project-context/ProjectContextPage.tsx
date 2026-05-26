@@ -3003,14 +3003,22 @@ export default function ProjectContextPage() {
     [searchParams, setSearchParams],
   );
 
-  async function refreshEffectiveness() {
-    setLoading(true);
+  async function refreshEffectiveness(options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       await loadEffectiveness();
     } catch (error: unknown) {
-      setLoadError(error instanceof Error ? error.message : "Не удалось загрузить проект.");
+      if (!silent) {
+        setLoadError(error instanceof Error ? error.message : "Не удалось загрузить проект.");
+      }
+      throw error;
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }
 
@@ -3040,7 +3048,7 @@ export default function ProjectContextPage() {
       return;
     }
     await archiveEntity(projectCode, entity, code, "Archived from web interface");
-    await refreshEffectiveness();
+    await refreshEffectiveness({ silent: true });
   }
 
   async function saveContextBlock(
@@ -3081,7 +3089,7 @@ export default function ProjectContextPage() {
     try {
       await editTarget.save(payload);
       setEditTarget(null);
-      await refreshEffectiveness();
+      await refreshEffectiveness({ silent: true });
     } catch (error: unknown) {
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
     } finally {
@@ -3099,7 +3107,7 @@ export default function ProjectContextPage() {
     try {
       await collectionEditTarget.save(items);
       setCollectionEditTarget(null);
-      await refreshEffectiveness();
+      await refreshEffectiveness({ silent: true });
     } catch (error: unknown) {
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
     } finally {
@@ -3540,7 +3548,7 @@ export default function ProjectContextPage() {
         await updateBarrier(projectCode, barrier.barrier_code || barrier.barrier_id || "", {
           time_status: timeStatus,
         });
-        await refreshEffectiveness();
+        await refreshEffectiveness({ silent: true });
       },
       editSummary: () => {
         const values: EditValues = {
