@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 
 import {
   archiveEntity,
@@ -1475,8 +1476,8 @@ function Passport() {
         >
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             {clientVisionItems.map((item, index) => (
-              <div key={item.title} className="grid grid-cols-1 gap-3 border-t border-slate-100 px-4 py-4 first:border-t-0 xl:grid-cols-[42px_240px_1fr_1fr] xl:gap-5">
-                <div className="hidden text-sm font-semibold text-slate-300 xl:block">{String(index + 1).padStart(2, "0")}</div>
+              <div key={item.title} className="grid grid-cols-1 gap-3 border-t border-slate-100 px-4 py-4 first:border-t-0 lg:grid-cols-[42px_1fr_1fr_1fr] lg:gap-5">
+                <div className="hidden text-sm font-semibold text-slate-300 lg:block">{String(index + 1).padStart(2, "0")}</div>
                 <div className="text-sm font-semibold leading-6 text-slate-950">{item.title}</div>
                 <div className="text-sm leading-6 text-slate-700">{item.value}</div>
                 <div className="text-sm leading-6 text-slate-500">{item.use}</div>
@@ -1494,8 +1495,8 @@ function Passport() {
         >
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             {workContourItems.map((row, index) => (
-              <div key={row.contour} className="grid grid-cols-1 gap-3 border-t border-slate-100 px-4 py-4 first:border-t-0 xl:grid-cols-[42px_230px_230px_1fr] xl:gap-5">
-                <div className="hidden text-sm font-semibold text-slate-300 xl:block">{String(index + 1).padStart(2, "0")}</div>
+              <div key={row.contour} className="grid grid-cols-1 gap-3 border-t border-slate-100 px-4 py-4 first:border-t-0 lg:grid-cols-[42px_1fr_1fr_1fr] lg:gap-5">
+                <div className="hidden text-sm font-semibold text-slate-300 lg:block">{String(index + 1).padStart(2, "0")}</div>
                 <div className="text-sm font-semibold leading-6 text-slate-950">{row.contour}</div>
                 <div className="text-sm font-medium leading-6 text-slate-800">{row.owner}</div>
                 <div className="text-sm leading-6 text-slate-600">{row.text}</div>
@@ -1571,7 +1572,7 @@ function Goals() {
         description="Цели фиксируют желаемый результат проекта. KPI на отдельном листе показывают, какими показателями эти цели проверяются."
       />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div>
           <div className="mb-3 flex justify-end">
             <button
@@ -1615,15 +1616,15 @@ function Goals() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
+          <table className="w-full min-w-[860px] table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[86px]" />
               <col className="w-[120px]" />
-              <col className="w-[260px]" />
+              <col className="w-[220px]" />
+              <col className="w-[140px]" />
+              <col className="w-[240px]" />
+              <col className="w-[200px]" />
               <col className="w-[160px]" />
-              <col className="w-[360px]" />
-              <col className="w-[300px]" />
-              <col className="w-[180px]" />
             </colgroup>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -1804,7 +1805,7 @@ function ProjectMap() {
                         </button>
                       </div>
                     ) : null}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Зона влияния</div>
                         <div className="mt-2 text-sm font-medium leading-6 text-slate-900">{contact.decisionRole}</div>
@@ -1819,7 +1820,7 @@ function ProjectMap() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                       <div className="rounded-2xl bg-sky-50 p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Что важно для ЛПР</div>
                         <div className="mt-3 space-y-3">
@@ -1986,7 +1987,7 @@ function Swot() {
         action="Редактировать"
         onAction={() => editSwot(swot)}
       />
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {blocks.map(({ title, items, className }) => (
           <div key={title} className={`rounded-3xl border p-5 shadow-sm ${className}`}>
             <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
@@ -2508,7 +2509,7 @@ function Barriers() {
         action="Добавить барьер"
         onAction={createBarrier}
       />
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {barriers.map((group) => (
           <div
             key={group.period}
@@ -2818,6 +2819,7 @@ export default function ProjectContextPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [active, setActive] = useState("passport");
   const [passportOpen, setPassportOpen] = useState(true);
+  const [isNavOpen, setIsNavOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [collectionEditTarget, setCollectionEditTarget] = useState<CollectionEditTarget | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -2863,6 +2865,10 @@ export default function ProjectContextPage() {
 
     return () => controller.abort();
   }, [loadEffectiveness, projectCode]);
+
+  useEffect(() => {
+    setIsNavOpen(false);
+  }, [active]);
 
   async function refreshEffectiveness() {
     setLoading(true);
@@ -2992,6 +2998,20 @@ export default function ProjectContextPage() {
 
     return map[active] || <Passport />;
   }, [active]);
+
+  const allSections = useMemo(
+    () => [
+      ...passportSections.map((section) => ({ id: section.id, label: section.label })),
+      ...productModules.map((module) => ({ id: module.id, label: module.label })),
+    ],
+    [],
+  );
+
+  const currentSectionIndex = allSections.findIndex((section) => section.id === active);
+  const nextSection =
+    currentSectionIndex >= 0 && currentSectionIndex < allSections.length - 1
+      ? allSections[currentSectionIndex + 1]
+      : null;
 
   const hideBigHeaderOnPassport = active === "passport";
   const screenData = effectiveness ? buildHeaderProject(effectiveness) : project;
@@ -3418,7 +3438,19 @@ export default function ProjectContextPage() {
     <ScreenActionsContext.Provider value={actions}>
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="flex min-h-screen flex-col xl:flex-row">
-        <aside className="w-full shrink-0 border-b border-slate-200 bg-white p-4 sm:p-5 xl:w-80 xl:border-b-0 xl:border-r">
+        {isNavOpen && (
+          <div onClick={() => setIsNavOpen(false)} className="fixed inset-0 z-30 bg-slate-950/40 xl:hidden" />
+        )}
+
+        <aside className={`${isNavOpen ? "fixed left-3 right-3 top-16 z-40 max-h-[78vh] overflow-y-auto rounded-2xl shadow-2xl" : "hidden"} shrink-0 border border-slate-200 bg-white p-4 sm:p-5 xl:relative xl:block xl:inset-auto xl:right-auto xl:top-auto xl:z-auto xl:w-80 xl:max-h-none xl:overflow-visible xl:rounded-none xl:border-b-0 xl:border-l-0 xl:border-r xl:border-t-0 xl:shadow-none`}>
+          <button
+            onClick={() => setIsNavOpen(false)}
+            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 xl:hidden"
+          >
+            <X aria-hidden="true" className="h-4 w-4" />
+            Закрыть
+          </button>
+
           <div className="rounded-3xl bg-slate-950 p-5 text-white shadow-sm">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-400">OPEN Intelligence</div>
             <div className="mt-2 text-xl font-semibold">Эффективность проекта</div>
@@ -3471,11 +3503,20 @@ export default function ProjectContextPage() {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 p-3 sm:p-4 xl:p-6">
+        <main className="min-w-0 flex-1 p-3 sm:p-4 lg:p-5 xl:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <Link
+              to="/projects"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              К выбору проектов
+            </Link>
+          </div>
+
           {!hideBigHeaderOnPassport && (
             <header className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-1 xl:grid-cols-12">
-                <div className="p-4 sm:p-5 xl:col-span-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12">
+                <div className="p-4 sm:p-5 lg:col-span-8">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="good">Активен</Badge>
                     <Badge tone="blue">{screenData.direction}</Badge>
@@ -3483,13 +3524,13 @@ export default function ProjectContextPage() {
                     <Badge tone="neutral">{screenData.lifecycle}</Badge>
                   </div>
 
-                  <h1 className="mt-4 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{screenData.clientName}</h1>
+                  <h1 className="mt-4 break-words text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl lg:text-3xl">{screenData.clientName}</h1>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     {screenData.serviceModel}.
                   </p>
                 </div>
 
-                <div className="border-t border-slate-200 bg-slate-50 p-4 sm:p-5 xl:col-span-4 xl:border-l xl:border-t-0">
+                <div className="border-t border-slate-200 bg-slate-50 p-4 sm:p-5 lg:col-span-4 lg:border-l lg:border-t-0">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Код проекта</div>
@@ -3514,8 +3555,26 @@ export default function ProjectContextPage() {
           )}
 
           {content}
+          {nextSection ? (
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setActive(nextSection.id)}
+                className="w-full rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 sm:w-auto"
+              >
+                Перейти в раздел «{nextSection.label}»
+              </button>
+            </div>
+          ) : null}
         </main>
       </div>
+      <button
+        onClick={() => setIsNavOpen((value) => !value)}
+        className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-lg hover:bg-slate-50 xl:hidden"
+      >
+        {isNavOpen ? <X aria-hidden="true" className="h-4 w-4" /> : <Menu aria-hidden="true" className="h-4 w-4" />}
+        {isNavOpen ? "Закрыть" : "Разделы"}
+      </button>
     </div>
     {editTarget ? (
       <EditEntityModal
