@@ -18,11 +18,11 @@ type NewProjectForm = {
   known_regions: string;
   short_description: string;
   additional_operational_contours: string;
+  additional_operational_contours_custom: string;
   team_headcount: string;
   gkam: string;
   kam: string;
   stores: string;
-  open_team: string;
 };
 
 const initialNewProjectForm: NewProjectForm = {
@@ -35,12 +35,12 @@ const initialNewProjectForm: NewProjectForm = {
   start_date: "",
   known_regions: "",
   short_description: "",
-  additional_operational_contours: "",
+  additional_operational_contours: "none",
+  additional_operational_contours_custom: "",
   team_headcount: "",
   gkam: "",
   kam: "",
   stores: "",
-  open_team: "",
 };
 
 const directionOptions = [
@@ -73,6 +73,17 @@ const modelOptions = [
   { value: "analytics_reporting", label: "Аналитика / отчётность" },
   { value: "mixed", label: "Смешанная модель" },
   { value: "other", label: "Другое" },
+];
+
+const contourOptions = [
+  { value: "none", label: "Не указано" },
+  { value: "training", label: "Обучение" },
+  { value: "audit_quality_control", label: "Аудит / контроль качества" },
+  { value: "analytics_reporting", label: "Аналитика / отчётность" },
+  { value: "kaf", label: "КАФ / кадровое администрирование" },
+  { value: "promo_consulting", label: "Промо / консультирование" },
+  { value: "mixed", label: "Смешанный контур" },
+  { value: "custom", label: "Свой вариант" },
 ];
 
 const lifecycleOptions = [
@@ -147,6 +158,7 @@ export default function ProjectsPage() {
       setCreateError("Добавьте краткое описание проекта.");
       return;
     }
+    const additionalContours = composeContoursValue(form);
 
     setCreating(true);
     setCreateError(null);
@@ -161,7 +173,7 @@ export default function ProjectsPage() {
         start_date: trimToNull(form.start_date),
         known_regions: trimToNull(form.known_regions),
         short_description: description,
-        additional_operational_contours: trimToNull(form.additional_operational_contours),
+        additional_operational_contours: trimToNull(additionalContours),
       });
 
       await createContextBlock(created.project_code, {
@@ -172,11 +184,11 @@ export default function ProjectsPage() {
         display_order: 10,
         content: {
           items: [
-            { label: "Команда", value: form.team_headcount.trim() || "Требует уточнения" },
+            { label: "Команда (количество человек)", value: form.team_headcount.trim() || "Требует уточнения" },
             { label: "GKAM", value: form.gkam.trim() || "Не указано" },
             { label: "KAM", value: form.kam.trim() || "Не указано" },
-            { label: "Торговые сети", value: form.stores.trim() || "Требует уточнения" },
-            { label: "Контуры", value: form.open_team.trim() || "Требует уточнения" },
+            { label: "Торговые сети (количество)", value: form.stores.trim() || "Требует уточнения" },
+            { label: "Контуры OPEN", value: additionalContours || "Требует уточнения" },
           ],
         },
       });
@@ -209,7 +221,7 @@ export default function ProjectsPage() {
             { label: "Формат сервиса", value: description },
             {
               label: "Дополнительные контуры",
-              value: form.additional_operational_contours.trim() || "Не указано",
+              value: additionalContours || "Не указано",
             },
             { label: "География", value: form.known_regions.trim() || "Не указано" },
           ],
@@ -299,12 +311,23 @@ export default function ProjectsPage() {
                 <Input label="Дата старта" value={form.start_date} onChange={(value) => updateForm("start_date", value)} />
                 <TextArea label="Краткое описание (обязательно)" value={form.short_description} onChange={(value) => updateForm("short_description", value)} />
                 <TextArea label="Известные регионы" value={form.known_regions} onChange={(value) => updateForm("known_regions", value)} />
-                <TextArea label="Дополнительные контуры" value={form.additional_operational_contours} onChange={(value) => updateForm("additional_operational_contours", value)} />
-                <TextArea label="Контуры OPEN (для шапки)" value={form.open_team} onChange={(value) => updateForm("open_team", value)} />
-                <Input label="Команда (для шапки)" value={form.team_headcount} onChange={(value) => updateForm("team_headcount", value)} />
+                <Select
+                  label="Дополнительные контуры"
+                  value={form.additional_operational_contours}
+                  onChange={(value) => updateForm("additional_operational_contours", value)}
+                  options={contourOptions}
+                />
+                {form.additional_operational_contours === "custom" ? (
+                  <Input
+                    label="Свой контур"
+                    value={form.additional_operational_contours_custom}
+                    onChange={(value) => updateForm("additional_operational_contours_custom", value)}
+                  />
+                ) : null}
+                <Input label="Команда (количество человек)" value={form.team_headcount} onChange={(value) => updateForm("team_headcount", value)} />
                 <Input label="GKAM (для шапки)" value={form.gkam} onChange={(value) => updateForm("gkam", value)} />
                 <Input label="KAM (для шапки)" value={form.kam} onChange={(value) => updateForm("kam", value)} />
-                <Input label="Торговые сети (для шапки)" value={form.stores} onChange={(value) => updateForm("stores", value)} />
+                <Input label="Торговые сети (количество)" value={form.stores} onChange={(value) => updateForm("stores", value)} />
               </div>
               {createError ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -430,4 +453,17 @@ function trimToNull(value: string) {
 
 function optionLabel(options: Array<{ value: string; label: string }>, value: string) {
   return options.find((option) => option.value === value)?.label || value;
+}
+
+function composeContoursValue(form: NewProjectForm) {
+  const selected = form.additional_operational_contours;
+  const custom = form.additional_operational_contours_custom.trim();
+  if (selected === "custom") {
+    return custom;
+  }
+  if (selected === "none") {
+    return custom;
+  }
+  const selectedLabel = optionLabel(contourOptions, selected);
+  return custom ? `${selectedLabel}; ${custom}` : selectedLabel;
 }
