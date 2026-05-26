@@ -38,10 +38,10 @@ export default function ProjectsPage() {
       <header className="border-b border-slate-200 pb-5">
         <p className="text-sm font-semibold text-sky-800">Проекты</p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-          Карты CJM
+          Контекст проектов
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Выберите проект, чтобы открыть паспорт, роли, ожидания, барьеры и KPI.
+          Выберите проект, чтобы открыть паспорт, цели, роли, риски, KPI и рабочий контекст.
         </p>
       </header>
 

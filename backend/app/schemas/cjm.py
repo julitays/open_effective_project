@@ -174,6 +174,7 @@ class ProjectContextBlockRead(BaseModel):
     title: str | None
     content: dict[str, object]
     display_order: int
+    updated_at: datetime
 
 
 class ProjectEffectivenessRead(BaseModel):
@@ -296,6 +297,7 @@ class CJMGoalPatch(SanitizedPatchModel):
 
 
 class CJMLPRPatch(SanitizedPatchModel):
+    external_lpr_id: str | None = None
     role_zone: str | None = None
     influence_level: str | None = None
     activity_status: str | None = None

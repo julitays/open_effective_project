@@ -334,7 +334,7 @@ def build_login_page(error: str = "", next_path: str = "/projects") -> str:
   <body>
     <main>
       <div class="brand">OPEN Project Risk</div>
-      <h1>Вход в CJM MVP</h1>
+      <h1>Вход в OPEN Project Risk</h1>
       <p>Введите demo-доступ для просмотра клиентской карты проекта.</p>
       <form method="post" action="/login" autocomplete="on">
         <input type="hidden" name="next" value="{safe_next}" />

@@ -33,7 +33,7 @@ export default function CjmTabs({ activeTab, onChange }: CjmTabsProps) {
     <nav
       className="space-y-1"
       role="tablist"
-      aria-label="Разделы CJM"
+      aria-label="Разделы проекта"
     >
       {cjmTabs.map((tab) => (
         <button

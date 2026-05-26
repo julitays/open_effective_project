@@ -349,10 +349,13 @@ class CJMUpdateService:
             project,
             patch,
             field_map={
+                "direction": "project_type",
                 "lifecycle_stage": "current_phase",
                 "project_status": "status",
             },
             mappers={
+                "direction": cjm_mappings.map_direction,
+                "project_scale": cjm_mappings.map_project_scale,
                 "primary_operational_model": cjm_mappings.map_operational_model,
                 "lifecycle_stage": cjm_mappings.map_lifecycle_stage,
                 "project_status": cjm_mappings.map_project_status,

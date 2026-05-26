@@ -92,9 +92,14 @@ class CJMProjectPassport(BaseModel):
     project_status: str
     start_date: str | None
     short_description: str | None
+    updated_at: datetime
 
 
 class CJMProjectPatch(SanitizedPatchModel):
+    external_project_id: str | None = None
+    working_project_code: str | None = None
+    direction: str | None = None
+    project_scale: str | None = None
     short_description: str | None = None
     known_regions: str | None = None
     primary_operational_model: str | None = None

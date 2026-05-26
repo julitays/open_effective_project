@@ -194,22 +194,21 @@ def test_projects_endpoint_returns_list(cjm_client: TestClient) -> None:
     response = cjm_client.get("/api/v1/projects")
 
     assert response.status_code == 200
-    assert response.json() == [
-        {
-            "project_code": "project_001",
-            "external_project_id": "external_project_001",
-            "working_project_code": "working_project_001",
-            "direction": "fmcg",
-            "project_scale": "regional",
-            "known_regions": "Region A; Region B",
-            "primary_operational_model": "merchandising",
-            "additional_operational_contours": "training",
-            "lifecycle_stage": "development",
-            "project_status": "active",
-            "start_date": "2026",
-            "short_description": "Anonymized project summary",
-        }
-    ]
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["project_code"] == "project_001"
+    assert payload[0]["external_project_id"] == "external_project_001"
+    assert payload[0]["working_project_code"] == "working_project_001"
+    assert payload[0]["direction"] == "fmcg"
+    assert payload[0]["project_scale"] == "regional"
+    assert payload[0]["known_regions"] == "Region A; Region B"
+    assert payload[0]["primary_operational_model"] == "merchandising"
+    assert payload[0]["additional_operational_contours"] == "training"
+    assert payload[0]["lifecycle_stage"] == "development"
+    assert payload[0]["project_status"] == "active"
+    assert payload[0]["start_date"] == "2026"
+    assert payload[0]["short_description"] == "Anonymized project summary"
+    assert payload[0]["updated_at"]
 
 
 def test_unknown_project_returns_404(cjm_client: TestClient) -> None:

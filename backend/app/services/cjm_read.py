@@ -101,6 +101,7 @@ class CJMReadService:
             project_status=project.status,
             start_date=project.start_date,
             short_description=project.short_description,
+            updated_at=project.updated_at,
         )
 
     def _lprs(self, project: Project) -> list[CJMLPR]:
@@ -171,6 +172,7 @@ class CJMReadService:
             title=block.title,
             content=block.content,
             display_order=block.display_order,
+            updated_at=block.updated_at,
         )
 
     def _default_context_blocks(self, cjm: CJMProjectRead) -> list[ProjectContextBlockRead]:
@@ -198,6 +200,7 @@ class CJMReadService:
                 block_type="management_summary",
                 title="Главные выводы по CJM",
                 display_order=10,
+                updated_at=cjm.project.updated_at,
                 content={
                     "critical_to_client": key_expectations
                     or ["Зафиксировать ключевые ожидания клиента через интерфейс."],
@@ -212,6 +215,7 @@ class CJMReadService:
                 block_type="swot",
                 title="SWOT-анализ проекта",
                 display_order=20,
+                updated_at=cjm.project.updated_at,
                 content={
                     "strengths": [
                         "Накопленная история проекта и восстановленный CJM-контекст.",
@@ -233,6 +237,7 @@ class CJMReadService:
                 block_type="risk_list",
                 title="Карта рисков",
                 display_order=30,
+                updated_at=cjm.project.updated_at,
                 content={
                     "items": [
                         {
@@ -252,6 +257,7 @@ class CJMReadService:
                 block_type="product_layers",
                 title="Слои эффективности",
                 display_order=40,
+                updated_at=cjm.project.updated_at,
                 content={
                     "layers": [
                         {"title": "Люди", "status": f"{len(cjm.lprs)} ЛПР / ролей влияния"},
@@ -267,6 +273,7 @@ class CJMReadService:
                 block_type="rules",
                 title="Правила интерпретации",
                 display_order=50,
+                updated_at=cjm.project.updated_at,
                 content={
                     "rules": [
                         "Не смешивать фактический KPI и восприятие клиента: оба слоя важны.",
@@ -281,6 +288,7 @@ class CJMReadService:
                 block_type="kpi_summary",
                 title="KPI проекта",
                 display_order=60,
+                updated_at=cjm.project.updated_at,
                 content={"items": key_kpis},
             ),
         ]

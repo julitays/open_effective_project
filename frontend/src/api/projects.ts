@@ -28,7 +28,7 @@ export function getProjectEffectiveness(projectCode: string, signal?: AbortSigna
 }
 
 export type PatchPayload = Record<string, string | null>;
-export type CreatePayload = Record<string, string | null | Record<string, unknown>>;
+export type CreatePayload = Record<string, unknown>;
 
 export function updateProject(projectCode: string, payload: PatchPayload) {
   return apiPatch<ProjectPassport>(`/projects/${encodeURIComponent(projectCode)}`, payload);
@@ -111,6 +111,13 @@ export function createKpi(projectCode: string, payload: CreatePayload) {
 export function createCommunication(projectCode: string, payload: CreatePayload) {
   return apiPost<CommunicationPoint>(
     `/projects/${encodeURIComponent(projectCode)}/communications`,
+    payload,
+  );
+}
+
+export function createContextBlock(projectCode: string, payload: CreatePayload) {
+  return apiPost<ProjectContextBlock>(
+    `/projects/${encodeURIComponent(projectCode)}/context-blocks`,
     payload,
   );
 }

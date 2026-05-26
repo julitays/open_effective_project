@@ -11,6 +11,7 @@ export interface ProjectPassport {
   project_status: string;
   start_date: string | null;
   short_description: string | null;
+  updated_at: string;
 }
 
 export interface LprImportanceFactor {
@@ -150,6 +151,7 @@ export interface ProjectContextBlock {
   title: string | null;
   content: Record<string, unknown>;
   display_order: number;
+  updated_at: string;
 }
 
 export interface ProjectEffectiveness {

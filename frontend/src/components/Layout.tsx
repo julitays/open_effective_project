@@ -52,9 +52,9 @@ export default function Layout() {
               <PanelsTopLeft aria-hidden="true" className="h-4 w-4" />
               OPEN Project Risk
             </div>
-            <div className="mt-3 text-xl font-semibold">CJM MVP</div>
+            <div className="mt-3 text-xl font-semibold">Контекст проекта</div>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Рабочая карта проекта, ролей, ожиданий и клиентских рисков.
+              Рабочая карта проекта, ролей, ожиданий, KPI и клиентских рисков.
             </p>
           </div>
 
