@@ -10,6 +10,7 @@ import {
   formatLifecycleStage,
   formatProjectScale,
   formatProjectStatus,
+  sanitizeCjm,
 } from "../utils/labels";
 
 interface ProjectCardProps {
@@ -40,7 +41,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
 
       {project.short_description ? (
         <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">
-          {project.short_description}
+          {sanitizeCjm(project.short_description)}
         </p>
       ) : null}
 

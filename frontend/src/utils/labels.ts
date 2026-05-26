@@ -358,6 +358,16 @@ export function formatCode(value: string | null | undefined) {
   return value?.trim() || emptyLabel;
 }
 
+export function sanitizeCjm(text: string | null | undefined): string {
+  if (!text) return "";
+  const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [text];
+  const filtered = sentences.filter((s) => !s.toUpperCase().includes("CJM"));
+  return (filtered.length > 0 ? filtered : sentences)
+    .join(" ")
+    .trim()
+    .replace(/\bCJM\b/gi, "паспорт проекта");
+}
+
 export function formatEntityCode(value: string | null | undefined) {
   const normalized = normalize(value);
   const match = normalized?.match(/^(goal|lpr|barrier|expectation|expect|kpi|comm|communication)_0*(\d+)$/);

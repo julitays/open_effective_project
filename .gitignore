@@ -28,6 +28,9 @@ backend/data/imports/*
 backend/data/import_reports/*
 !backend/data/import_reports/.gitkeep
 
+# Claude Code project instructions (local only)
+CLAUDE.md
+
 # Editor and OS noise
 .vscode/
 .idea/

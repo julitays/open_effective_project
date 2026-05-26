@@ -57,6 +57,7 @@ import {
   formatRelevanceStatus,
   formatText,
   formatYesNo,
+  sanitizeCjm,
 } from "../../utils/labels";
 import { contextBlockKeys, passportSections, productModules } from "./constants";
 import { Badge, Card, SectionTitle, type BadgeTone } from "./components/ScreenPrimitives";
@@ -650,7 +651,7 @@ function useScreenData() {
     clientName: `Проект ${projectInfo.external_project_id || projectInfo.working_project_code || projectInfo.project_code}`,
     project_status: projectInfo.project_status,
     direction: formatDirection(projectInfo.direction),
-    serviceModel: projectInfo.short_description || "Описание проекта нужно уточнить в паспорте.",
+    serviceModel: sanitizeCjm(projectInfo.short_description) || "Описание проекта нужно уточнить в паспорте.",
     operationalModel: formatOperationalModel(projectInfo.primary_operational_model),
     scale: formatProjectScale(projectInfo.project_scale),
     lifecycle: formatLifecycleStage(projectInfo.lifecycle_stage),
@@ -872,7 +873,7 @@ function useScreenData() {
       }))
     : [
         { label: "Основная модель", value: formatOperationalModel(projectInfo.primary_operational_model) },
-        { label: "Формат сервиса", value: formatText(projectInfo.short_description) },
+        { label: "Формат сервиса", value: formatText(sanitizeCjm(projectInfo.short_description)) },
         { label: "Дополнительные контуры", value: formatText(projectInfo.additional_operational_contours) },
         { label: "География", value: formatText(projectInfo.known_regions) },
       ];
@@ -1595,7 +1596,7 @@ function Goals() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <div className="[overflow:clip] rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -2009,7 +2010,7 @@ function Communications() {
         title="Матрица коммуникаций"
         description="Кто с кем общается, по каким темам, с какой частотой, через какой канал и где критичность коммуникации высокая."
       />
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="[overflow:clip] rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -2049,7 +2050,7 @@ function InterpretationRules() {
         onAction={() => editInterpretationRules(interpretationRuleItems)}
       />
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <div className="[overflow:clip] rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
           <h3 className="text-lg font-semibold text-slate-950">Реестр правил</h3>
           <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -2123,7 +2124,7 @@ function Kpi() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <div className="[overflow:clip] rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -2361,7 +2362,7 @@ function RiskMap() {
         </Card>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <div className="[overflow:clip] rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
           <div>
             <h3 className="text-lg font-semibold text-slate-950">Реестр рисков</h3>
@@ -2724,7 +2725,7 @@ function Summary() {
             <h3 className="text-base font-semibold text-slate-900">Что уже есть в контексте</h3>
             <Badge tone="dark">разделы</Badge>
           </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+          <div className="mt-4 [overflow:clip] rounded-2xl border border-slate-200">
             <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -3573,7 +3574,7 @@ function buildHeaderProject(effectiveness: ProjectEffectiveness) {
     externalId: projectInfo.external_project_id || projectInfo.project_code,
     clientName: `Проект ${projectInfo.external_project_id || projectInfo.project_code}`,
     direction: formatDirection(projectInfo.direction),
-    serviceModel: projectInfo.short_description || "Описание проекта нужно уточнить в паспорте",
+    serviceModel: sanitizeCjm(projectInfo.short_description) || "Описание проекта нужно уточнить в паспорте",
     scale: formatProjectScale(projectInfo.project_scale),
     lifecycle: formatLifecycleStage(projectInfo.lifecycle_stage),
     headcount: headerValue("Команда") || project.headcount,

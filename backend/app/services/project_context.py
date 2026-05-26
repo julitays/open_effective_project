@@ -112,6 +112,7 @@ class ProjectContextService:
 
         handler()
         self.session.commit()
+        self.session.expire(project)
 
         block = self.get_block(project, section_key, block_code)
         if block is None:
