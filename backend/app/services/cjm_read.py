@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRImportanceFactor, LPRProfile
-from app.models.project import ClientExpectation, Project, ProjectContextBlock, ProjectGoal, ProjectKPI
+from app.models.project import ClientExpectation, Project, ProjectGoal, ProjectKPI
 from app.repositories.cjm_read import CJMReadRepository
 from app.schemas.cjm import (
     CJMBarrier,
@@ -17,6 +17,7 @@ from app.schemas.cjm import (
     ProjectEffectivenessRead,
 )
 from app.schemas.project import CJMProjectPassport
+from app.services.project_context import ProjectContextService
 
 
 class CJMReadService:
@@ -51,13 +52,12 @@ class CJMReadService:
         if cjm is None or project is None:
             return None
 
-        stored_blocks = [
-            self._context_block(block)
-            for block in self.repository.list_context_blocks(project.id)
-        ]
+        context_service = ProjectContextService(self.repository.session)
+        context_service.ensure_seeded(project)
+        stored_blocks = context_service.list_blocks(project)
         return ProjectEffectivenessRead(
             cjm=cjm,
-            context_blocks=stored_blocks or self._default_context_blocks(cjm),
+            context_blocks=stored_blocks + self._default_context_blocks(cjm, stored_blocks),
         )
 
     def get_project_lprs(self, project_code: str) -> list[CJMLPR] | None:
@@ -164,18 +164,13 @@ class CJMReadService:
             confidence_level=factor.confidence_level,
         )
 
-    def _context_block(self, block: ProjectContextBlock) -> ProjectContextBlockRead:
-        return ProjectContextBlockRead(
-            section_key=block.section_key,
-            block_code=block.block_code,
-            block_type=block.block_type,
-            title=block.title,
-            content=block.content,
-            display_order=block.display_order,
-            updated_at=block.updated_at,
-        )
-
-    def _default_context_blocks(self, cjm: CJMProjectRead) -> list[ProjectContextBlockRead]:
+    def _default_context_blocks(
+        self,
+        cjm: CJMProjectRead,
+        stored_blocks: list[ProjectContextBlockRead],
+    ) -> list[ProjectContextBlockRead]:
+        stored_sections = {block.section_key for block in stored_blocks}
+        blocks: list[ProjectContextBlockRead] = []
         high_barriers = [
             barrier.barrier_title
             for barrier in cjm.barriers
@@ -191,107 +186,99 @@ class CJMReadService:
             for expectation in cjm.expectations
             if expectation.criticality in {"high", "medium"}
         ][:5]
-        key_kpis = [kpi.kpi_name for kpi in cjm.kpis[:6]]
 
-        return [
-            ProjectContextBlockRead(
-                section_key="summary",
-                block_code="summary_001",
-                block_type="management_summary",
-                title="Главные выводы по CJM",
-                display_order=10,
-                updated_at=cjm.project.updated_at,
-                content={
-                    "critical_to_client": key_expectations
-                    or ["Зафиксировать ключевые ожидания клиента через интерфейс."],
-                    "main_risks": current_risks
-                    or ["Добавить текущие и повторяющиеся барьеры проекта."],
-                    "note": "Сводка собрана из текущих целей, ожиданий, KPI и барьеров проекта.",
-                },
-            ),
-            ProjectContextBlockRead(
-                section_key="swot",
-                block_code="swot_001",
-                block_type="swot",
-                title="SWOT-анализ проекта",
-                display_order=20,
-                updated_at=cjm.project.updated_at,
-                content={
-                    "strengths": [
-                        "Накопленная история проекта и восстановленный CJM-контекст.",
-                        "Есть связка целей, KPI, ожиданий и барьеров.",
-                    ],
-                    "weaknesses": high_barriers
-                    or ["Часть проектного контекста требует ручного уточнения."],
-                    "opportunities": [
-                        "Перевести управление проектом из файлов в единый web-контур.",
-                        "Связать цели клиента с KPI и регулярной коммуникацией.",
-                    ],
-                    "threats": current_risks
-                    or ["Риски пока нужно детализировать через карту барьеров."],
-                },
-            ),
-            ProjectContextBlockRead(
-                section_key="risk_map",
-                block_code="risk_map_001",
-                block_type="risk_list",
-                title="Карта рисков",
-                display_order=30,
-                updated_at=cjm.project.updated_at,
-                content={
-                    "items": [
-                        {
-                            "title": barrier.barrier_title,
-                            "level": barrier.criticality,
-                            "status": barrier.status,
-                            "description": barrier.description,
-                            "linked_kpi_text": barrier.linked_kpi_text,
-                        }
-                        for barrier in cjm.barriers
-                    ],
-                },
-            ),
-            ProjectContextBlockRead(
-                section_key="effectiveness_layers",
-                block_code="effectiveness_layers_001",
-                block_type="product_layers",
-                title="Слои эффективности",
-                display_order=40,
-                updated_at=cjm.project.updated_at,
-                content={
-                    "layers": [
-                        {"title": "Люди", "status": f"{len(cjm.lprs)} ЛПР / ролей влияния"},
-                        {"title": "Клиентские ожидания", "status": f"{len(cjm.expectations)} ожиданий"},
-                        {"title": "Операционные барьеры", "status": f"{len(cjm.barriers)} барьеров"},
-                        {"title": "KPI проекта", "status": f"{len(cjm.kpis)} KPI / критериев"},
-                    ],
-                },
-            ),
-            ProjectContextBlockRead(
-                section_key="interpretation_rules",
-                block_code="interpretation_rules_001",
-                block_type="rules",
-                title="Правила интерпретации",
-                display_order=50,
-                updated_at=cjm.project.updated_at,
-                content={
-                    "rules": [
-                        "Не смешивать фактический KPI и восприятие клиента: оба слоя важны.",
-                        "Ожидания ЛПР читать через роль и уровень влияния.",
-                        "Барьеры со статусом repeated держать отдельно от разовых отклонений.",
-                    ],
-                },
-            ),
-            ProjectContextBlockRead(
-                section_key="kpi_context",
-                block_code="kpi_context_001",
-                block_type="kpi_summary",
-                title="KPI проекта",
-                display_order=60,
-                updated_at=cjm.project.updated_at,
-                content={"items": key_kpis},
-            ),
-        ]
+        if "summary" not in stored_sections:
+            blocks.append(
+                ProjectContextBlockRead(
+                    section_key="summary",
+                    block_code="summary_001",
+                    block_type="management_summary",
+                    title="Ключевые выводы по проекту",
+                    display_order=160,
+                    updated_at=cjm.project.updated_at,
+                    content={
+                        "critical_to_client": key_expectations
+                        or ["Зафиксировать ключевые ожидания клиента через интерфейс."],
+                        "main_risks": current_risks
+                        or ["Добавить текущие и повторяющиеся барьеры проекта."],
+                        "note": "Сводка собрана из текущих целей, ожиданий, KPI и барьеров проекта.",
+                    },
+                )
+            )
+
+        if "swot" not in stored_sections:
+            blocks.append(
+                ProjectContextBlockRead(
+                    section_key="swot",
+                    block_code="swot_001",
+                    block_type="swot",
+                    title="SWOT-анализ проекта",
+                    display_order=130,
+                    updated_at=cjm.project.updated_at,
+                    content={
+                        "strengths": [
+                            "Накопленная история проекта и собранный контекст.",
+                            "Есть связка целей, KPI, ожиданий и барьеров.",
+                        ],
+                        "weaknesses": high_barriers
+                        or ["Часть проектного контекста требует ручного уточнения."],
+                        "opportunities": [
+                            "Перевести управление проектом из файлов в единый web-контур.",
+                            "Связать цели клиента с KPI и регулярной коммуникацией.",
+                        ],
+                        "threats": current_risks
+                        or ["Риски пока нужно детализировать через карту барьеров."],
+                    },
+                )
+            )
+
+        if "risk_map" not in stored_sections:
+            blocks.append(
+                ProjectContextBlockRead(
+                    section_key="risk_map",
+                    block_code="risk_map_001",
+                    block_type="risk_list",
+                    title="Карта рисков",
+                    display_order=150,
+                    updated_at=cjm.project.updated_at,
+                    content={
+                        "items": [
+                            {
+                                "title": barrier.barrier_title,
+                                "barrier_type": barrier.barrier_type,
+                                "probability_level": barrier.confidence_level or "unknown",
+                                "impact_level": barrier.criticality,
+                                "related_to": barrier.linked_kpi_text,
+                                "early_signal": barrier.evidence_quote,
+                                "source_text": barrier.source_text,
+                            }
+                            for barrier in cjm.barriers
+                        ],
+                    },
+                )
+            )
+
+        if "effectiveness_layers" not in stored_sections:
+            blocks.append(
+                ProjectContextBlockRead(
+                    section_key="effectiveness_layers",
+                    block_code="effectiveness_layers_001",
+                    block_type="product_layers",
+                    title="Слои эффективности",
+                    display_order=170,
+                    updated_at=cjm.project.updated_at,
+                    content={
+                        "layers": [
+                            {"title": "Люди", "status": f"{len(cjm.lprs)} ЛПР / ролей влияния"},
+                            {"title": "Клиентские ожидания", "status": f"{len(cjm.expectations)} ожиданий"},
+                            {"title": "Операционные барьеры", "status": f"{len(cjm.barriers)} барьеров"},
+                            {"title": "KPI проекта", "status": f"{len(cjm.kpis)} KPI / критериев"},
+                        ],
+                    },
+                )
+            )
+
+        return blocks
 
     def _barrier(self, barrier: ProjectBarrier) -> CJMBarrier:
         return CJMBarrier(

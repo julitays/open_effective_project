@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRProfile
-from app.models.project import ClientExpectation, Project, ProjectContextBlock, ProjectGoal, ProjectKPI
+from app.models.project import ClientExpectation, Project, ProjectGoal, ProjectKPI
 
 
 class CJMUpdateRepository:
@@ -79,21 +79,6 @@ class CJMUpdateRepository:
                 CommunicationPoint.project_id == project_id,
                 CommunicationPoint.source_id == communication_code,
                 CommunicationPoint.archived_at.is_(None),
-            )
-        )
-
-    def get_context_block(
-        self,
-        project_id: object,
-        section_key: str,
-        block_code: str,
-    ) -> ProjectContextBlock | None:
-        return self.session.scalar(
-            select(ProjectContextBlock).where(
-                ProjectContextBlock.project_id == project_id,
-                ProjectContextBlock.section_key == section_key,
-                ProjectContextBlock.block_code == block_code,
-                ProjectContextBlock.archived_at.is_(None),
             )
         )
 

@@ -1,48 +1,7 @@
 import { FolderKanban, PanelsTopLeft } from "lucide-react";
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation, useSearchParams } from "react-router-dom";
-
-import CjmTabs, { isCjmTabId, type CjmTabId } from "./CjmTabs";
-
-export interface LayoutOutletContext {
-  activeCjmTab: CjmTabId;
-  setActiveCjmTab: (tabId: CjmTabId) => void;
-}
+import { NavLink, Outlet } from "react-router-dom";
 
 export default function Layout() {
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeCjmTab, setActiveCjmTab] = useState<CjmTabId>("overview");
-  const isProjectCjmPage = /^\/projects\/[^/]+/.test(location.pathname);
-  const sectionParam = searchParams.get("section");
-
-  useEffect(() => {
-    if (!isProjectCjmPage) {
-      setActiveCjmTab("overview");
-      return;
-    }
-
-    setActiveCjmTab(isCjmTabId(sectionParam) ? sectionParam : "overview");
-  }, [isProjectCjmPage, location.pathname, sectionParam]);
-
-  function handleCjmTabChange(tabId: CjmTabId) {
-    setActiveCjmTab(tabId);
-    setSearchParams(
-      (currentParams) => {
-        const nextParams = new URLSearchParams(currentParams);
-
-        if (tabId === "overview") {
-          nextParams.delete("section");
-        } else {
-          nextParams.set("section", tabId);
-        }
-
-        return nextParams;
-      },
-      { replace: true },
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-[1680px] flex-col lg:flex-row">
@@ -73,19 +32,10 @@ export default function Layout() {
               Проекты
             </NavLink>
           </nav>
-
-          {isProjectCjmPage ? (
-            <div className="mt-5">
-              <div className="mb-2 px-3 text-xs font-semibold uppercase text-slate-400">
-                Разделы проекта
-              </div>
-              <CjmTabs activeTab={activeCjmTab} onChange={handleCjmTabChange} />
-            </div>
-          ) : null}
         </aside>
 
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-          <Outlet context={{ activeCjmTab, setActiveCjmTab } satisfies LayoutOutletContext} />
+          <Outlet />
         </main>
       </div>
     </div>

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRProfile
-from app.models.project import ClientExpectation, Project, ProjectContextBlock, ProjectGoal, ProjectKPI
+from app.models.project import ClientExpectation, Project, ProjectGoal, ProjectKPI
 from app.repositories.cjm_update import CJMUpdateRepository
 from app.schemas.cjm import (
     CJMBarrier,
@@ -35,6 +35,7 @@ from app.schemas.cjm import (
 )
 from app.schemas.project import CJMProjectCreate, CJMProjectPassport, CJMProjectPatch
 from app.services.cjm_read import CJMReadService
+from app.services.project_context import ProjectContextService
 from app.core import cjm_mappings
 
 
@@ -294,26 +295,17 @@ class CJMUpdateService:
         project = self.repository.get_project(project_code)
         if project is None:
             return None
-        block_code = payload.block_code or self._next_code(
-            payload.section_key.replace("_", "-"),
-            [
-                block.block_code
-                for block in self.read_service.repository.list_context_blocks(project.id)
-                if block.section_key == payload.section_key
-            ],
-        )
-        block = ProjectContextBlock(
-            project_id=project.id,
+        context_service = ProjectContextService(self.repository.session)
+        return context_service.save_block(
+            project,
             section_key=payload.section_key,
-            block_code=block_code,
+            block_code=payload.block_code or f"{payload.section_key}_001",
             block_type=payload.block_type,
             title=payload.title,
             content=payload.content,
             display_order=payload.display_order,
+            updated_by=updated_by,
         )
-        self._mark_manual_update(block, updated_by)
-        self.repository.save(block)
-        return self.read_service._context_block(block)
 
     def update_context_block(
         self,
@@ -326,14 +318,23 @@ class CJMUpdateService:
         project = self.repository.get_project(project_code)
         if project is None:
             return None
-        block = self.repository.get_context_block(project.id, section_key, block_code)
-        if block is None:
+        current = ProjectContextService(self.repository.session).get_block(project, section_key, block_code)
+        if current is None:
             return None
-
-        self._apply_patch(block, patch)
-        self._mark_manual_update(block, updated_by)
-        self.repository.save(block)
-        return self.read_service._context_block(block)
+        content = patch.content if patch.content is not None else current.content
+        title = patch.title if patch.title is not None else current.title
+        display_order = patch.display_order if patch.display_order is not None else current.display_order
+        block_type = patch.block_type if patch.block_type is not None else current.block_type
+        return ProjectContextService(self.repository.session).save_block(
+            project,
+            section_key=section_key,
+            block_code=block_code,
+            block_type=block_type,
+            title=title,
+            content=content,
+            display_order=display_order,
+            updated_by=updated_by,
+        )
 
     def update_project(
         self,

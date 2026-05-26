@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.cjm import CommunicationPoint, ProjectBarrier
 from app.models.lpr import LPRProfile
-from app.models.project import ClientExpectation, Project, ProjectContextBlock, ProjectGoal, ProjectKPI
+from app.models.project import ClientExpectation, Project, ProjectGoal, ProjectKPI
 
 
 class CJMReadRepository:
@@ -93,20 +93,5 @@ class CJMReadRepository:
                 ProjectGoal.archived_at.is_(None),
             )
             .order_by(ProjectGoal.source_id, ProjectGoal.goal_text)
-        )
-        return list(self.session.scalars(statement).all())
-
-    def list_context_blocks(self, project_id: object) -> list[ProjectContextBlock]:
-        statement = (
-            select(ProjectContextBlock)
-            .where(
-                ProjectContextBlock.project_id == project_id,
-                ProjectContextBlock.archived_at.is_(None),
-            )
-            .order_by(
-                ProjectContextBlock.section_key,
-                ProjectContextBlock.display_order,
-                ProjectContextBlock.block_code,
-            )
         )
         return list(self.session.scalars(statement).all())

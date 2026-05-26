@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, JSON, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -78,10 +78,66 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="project",
         cascade="all, delete-orphan",
     )
-    context_blocks: Mapped[list["ProjectContextBlock"]] = relationship(
-        "ProjectContextBlock",
+    passport_facts: Mapped[list["ProjectPassportFact"]] = relationship(
+        "ProjectPassportFact",
         back_populates="project",
         cascade="all, delete-orphan",
+    )
+    client_vision_items: Mapped[list["ProjectClientVisionItem"]] = relationship(
+        "ProjectClientVisionItem",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    work_contours: Mapped[list["ProjectWorkContour"]] = relationship(
+        "ProjectWorkContour",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    history_events: Mapped[list["ProjectHistoryEvent"]] = relationship(
+        "ProjectHistoryEvent",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    need_pyramid_items: Mapped[list["ProjectNeedPyramidItem"]] = relationship(
+        "ProjectNeedPyramidItem",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    structure_members: Mapped[list["ProjectStructureMember"]] = relationship(
+        "ProjectStructureMember",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    competitors: Mapped[list["ProjectCompetitor"]] = relationship(
+        "ProjectCompetitor",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    swot_items: Mapped[list["ProjectSwotItem"]] = relationship(
+        "ProjectSwotItem",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    interpretation_rules: Mapped[list["ProjectInterpretationRule"]] = relationship(
+        "ProjectInterpretationRule",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    risk_items: Mapped[list["ProjectRiskItem"]] = relationship(
+        "ProjectRiskItem",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    summary_items: Mapped[list["ProjectSummaryItem"]] = relationship(
+        "ProjectSummaryItem",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+    summary_state: Mapped["ProjectSummaryState | None"] = relationship(
+        "ProjectSummaryState",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
 
 
@@ -187,28 +243,3 @@ class ClientExpectation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     project: Mapped[Project] = relationship("Project", back_populates="expectations")
 
-
-class ProjectContextBlock(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "project_context_blocks"
-    __table_args__ = (
-        UniqueConstraint(
-            "project_id",
-            "section_key",
-            "block_code",
-            name="uq_project_context_blocks_project_section_code",
-        ),
-    )
-
-    project_id: Mapped[UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
-    section_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
-    block_code: Mapped[str] = mapped_column(String(128), nullable=False)
-    block_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    display_order: Mapped[int] = mapped_column(default=0, nullable=False)
-
-    project: Mapped[Project] = relationship("Project", back_populates="context_blocks")
